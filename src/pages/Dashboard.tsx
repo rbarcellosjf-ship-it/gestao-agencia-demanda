@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, FileText, Calendar, Users, Plus, User } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import { useDashboardData } from "@/hooks/useDashboardData";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -12,6 +15,7 @@ const Dashboard = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { loading: dashboardLoading, stats, pendingDemandsList, refreshData } = useDashboardData();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -53,10 +57,13 @@ const Dashboard = () => {
     });
   };
 
-  if (loading) {
+  if (loading || dashboardLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Carregando...</p>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
       </div>
     );
   }
@@ -85,6 +92,23 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Dashboard Statistics */}
+        <DashboardStats
+          pendingDemands={stats.pendingDemands}
+          completedDemands={stats.completedDemands}
+          cancelledDemands={stats.cancelledDemands}
+          totalConformidades={stats.totalConformidades}
+          upcomingAgendamentos={stats.upcomingAgendamentos}
+        />
+
+        {/* Quick Actions for Agencia */}
+        <QuickActions
+          demands={pendingDemandsList}
+          onDemandUpdate={refreshData}
+          userRole={profile?.role || ""}
+        />
+
+        {/* Main Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/demands")}>
             <CardHeader>
