@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Calendar } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Trash2 } from "lucide-react";
 import { z } from "zod";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const conformidadeSchema = z.object({
   cpf: z.string().min(11, "CPF inválido"),
@@ -31,6 +32,8 @@ const Conformidades = () => {
   const [valorFinanciamento, setValorFinanciamento] = useState("");
   const [modalidade, setModalidade] = useState<string>("");
   const [modalidadeOutro, setModalidadeOutro] = useState("");
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [conformidadeToDelete, setConformidadeToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -142,6 +145,33 @@ const Conformidades = () => {
     }).format(value);
   };
 
+  const handleDeleteConformidade = async () => {
+    if (!conformidadeToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from("conformidades")
+        .delete()
+        .eq("id", conformidadeToDelete);
+
+      if (error) throw error;
+
+      toast({
+        title: "Conformidade excluída!",
+        description: "O processo foi removido com sucesso.",
+      });
+
+      setDeleteDialogOpen(false);
+      setConformidadeToDelete(null);
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   }
@@ -248,23 +278,35 @@ const Conformidades = () => {
               <Card key={conformidade.id}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="flex-1">
                       <CardTitle className="text-lg">CPF: {conformidade.cpf}</CardTitle>
                       <CardDescription className="mt-1">
                         CCA: {conformidade.codigo_cca} | Enviado em:{" "}
                         {new Date(conformidade.created_at).toLocaleDateString("pt-BR")}
                       </CardDescription>
                     </div>
-                    {profile?.role === "cca" && (
+                    <div className="flex items-center gap-2">
+                      {profile?.role === "cca" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/agendamentos?conformidade=${conformidade.id}`)}
+                        >
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Agendar
+                        </Button>
+                      )}
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        onClick={() => navigate(`/agendamentos?conformidade=${conformidade.id}`)}
+                        onClick={() => {
+                          setConformidadeToDelete(conformidade.id);
+                          setDeleteDialogOpen(true);
+                        }}
                       >
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Agendar
+                        <Trash2 className="w-4 h-4 text-destructive" />
                       </Button>
-                    )}
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -290,6 +332,25 @@ const Conformidades = () => {
           )}
         </div>
       </main>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta conformidade? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConformidadeToDelete(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConformidade} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

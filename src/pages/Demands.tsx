@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Check, X, Filter } from "lucide-react";
+import { ArrowLeft, Plus, Check, X, Filter, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { z } from "zod";
 
 const demandSchema = z.object({
@@ -49,6 +50,8 @@ const Demands = () => {
   const [description, setDescription] = useState("");
   const [responseText, setResponseText] = useState("");
   const [selectedDemand, setSelectedDemand] = useState<any>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [demandToDelete, setDemandToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -258,6 +261,33 @@ const Demands = () => {
     );
   };
 
+  const handleDeleteDemand = async () => {
+    if (!demandToDelete) return;
+
+    try {
+      const { error } = await supabase
+        .from("demands")
+        .delete()
+        .eq("id", demandToDelete);
+
+      if (error) throw error;
+
+      toast({
+        title: "Demanda excluída!",
+        description: "A demanda foi removida com sucesso.",
+      });
+
+      setDeleteDialogOpen(false);
+      setDemandToDelete(null);
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const filteredDemands = demands.filter((demand) => {
     const statusMatch = filterStatus === "all" || demand.status === filterStatus;
     const ccaMatch = filterCCA === "all" || demand.codigo_cca === filterCCA;
@@ -436,14 +466,26 @@ const Demands = () => {
               <Card key={demand.id}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="flex-1">
                       <CardTitle className="text-lg">{getTypeLabel(demand.type)}</CardTitle>
                       <CardDescription className="mt-1">
                         CCA: {demand.codigo_cca} | Criado em:{" "}
                         {new Date(demand.created_at).toLocaleDateString("pt-BR")}
                       </CardDescription>
                     </div>
-                    {getStatusBadge(demand.status)}
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(demand.status)}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setDemandToDelete(demand.id);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -512,6 +554,25 @@ const Demands = () => {
           )}
         </div>
       </main>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta demanda? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDemandToDelete(null)}>
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteDemand} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
