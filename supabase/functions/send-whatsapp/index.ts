@@ -53,6 +53,7 @@ const handler = async (req: Request): Promise<Response> => {
     
     // Format phone number (remove non-digits and ensure it has country code)
     let formattedPhone = phoneToUse.replace(/\D/g, "");
+    // Always add 55 (Brazil country code) if not present
     if (!formattedPhone.startsWith("55")) {
       formattedPhone = "55" + formattedPhone;
     }

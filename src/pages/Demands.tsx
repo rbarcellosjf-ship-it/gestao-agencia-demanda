@@ -140,9 +140,11 @@ const Demands = () => {
             `*CPF:* ${cpf || "N/A"}\n` +
             `*Descrição:* ${description || "N/A"}`;
 
-          await supabase.functions.invoke("send-whatsapp", {
+          console.log("Sending WhatsApp to manager:", managerData.phone);
+          const result = await supabase.functions.invoke("send-whatsapp", {
             body: { phone: managerData.phone, message },
           });
+          console.log("WhatsApp result:", result);
         }
       } catch (whatsappError) {
         console.error("Failed to send WhatsApp notification:", whatsappError);
@@ -195,9 +197,11 @@ const Demands = () => {
               `*Resposta:* ${responseText}\n\n` +
               `A gerência analisou sua demanda.`;
 
-            await supabase.functions.invoke("send-whatsapp", {
+            console.log("Sending WhatsApp to CCA:", ccaData.phone);
+            const result = await supabase.functions.invoke("send-whatsapp", {
               body: { phone: ccaData.phone, message },
             });
+            console.log("WhatsApp result:", result);
           }
         } catch (whatsappError) {
           console.error("Failed to send WhatsApp notification:", whatsappError);
