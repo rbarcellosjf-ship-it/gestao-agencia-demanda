@@ -123,6 +123,31 @@ const Demands = () => {
 
       if (error) throw error;
 
+      // Send WhatsApp notification to manager (agencia)
+      try {
+        const { data: managerData } = await supabase
+          .from("profiles")
+          .select("phone, full_name")
+          .eq("role", "agencia")
+          .limit(1)
+          .maybeSingle();
+
+        if (managerData?.phone) {
+          const typeLabel = getTypeLabel(type as Database["public"]["Enums"]["demand_type"]);
+          const message = `🔔 *Nova Demanda Criada*\n\n` +
+            `*CCA:* ${profile?.full_name || "N/A"} (${profile?.codigo_cca})\n` +
+            `*Tipo:* ${typeLabel}\n` +
+            `*CPF:* ${cpf || "N/A"}\n` +
+            `*Descrição:* ${description || "N/A"}`;
+
+          await supabase.functions.invoke("send-whatsapp", {
+            body: { phone: managerData.phone, message },
+          });
+        }
+      } catch (whatsappError) {
+        console.error("Failed to send WhatsApp notification:", whatsappError);
+      }
+
       toast({
         title: "Demanda criada!",
         description: "Sua demanda foi registrada com sucesso.",
@@ -151,6 +176,33 @@ const Demands = () => {
         .eq("id", demandId);
 
       if (error) throw error;
+
+      // Send WhatsApp notification to CCA about the response
+      if (selectedDemand && responseText) {
+        try {
+          const { data: ccaData } = await supabase
+            .from("profiles")
+            .select("phone, full_name")
+            .eq("user_id", selectedDemand.cca_user_id)
+            .maybeSingle();
+
+          if (ccaData?.phone) {
+            const typeLabel = getTypeLabel(selectedDemand.type);
+            const statusLabel = status === "concluida" ? "✅ Concluída" : "❌ Cancelada";
+            const message = `🔔 *Demanda Respondida*\n\n` +
+              `*Status:* ${statusLabel}\n` +
+              `*Tipo:* ${typeLabel}\n` +
+              `*Resposta:* ${responseText}\n\n` +
+              `A gerência analisou sua demanda.`;
+
+            await supabase.functions.invoke("send-whatsapp", {
+              body: { phone: ccaData.phone, message },
+            });
+          }
+        } catch (whatsappError) {
+          console.error("Failed to send WhatsApp notification:", whatsappError);
+        }
+      }
 
       toast({
         title: "Demanda atualizada!",
