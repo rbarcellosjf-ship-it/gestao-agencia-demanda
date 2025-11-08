@@ -11,6 +11,10 @@ interface WhatsAppRequest {
   message: string;
 }
 
+// Test mode: use this number for all messages during testing
+const TEST_MODE = true;
+const TEST_PHONE = "32999610741";
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -44,11 +48,16 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Use test phone if in test mode
+    let phoneToUse = TEST_MODE ? TEST_PHONE : phone;
+    
     // Format phone number (remove non-digits and ensure it has country code)
-    let formattedPhone = phone.replace(/\D/g, "");
+    let formattedPhone = phoneToUse.replace(/\D/g, "");
     if (!formattedPhone.startsWith("55")) {
       formattedPhone = "55" + formattedPhone;
     }
+    
+    console.log(`Test mode: ${TEST_MODE}, Original phone: ${phone}, Using phone: ${formattedPhone}`);
 
     // Green API endpoint for sending messages
     const greenApiUrl = `https://api.green-api.com/waInstance${instanceId}/sendMessage/${token}`;

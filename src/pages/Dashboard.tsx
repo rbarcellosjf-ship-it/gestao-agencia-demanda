@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, FileText, Calendar, Users, Plus } from "lucide-react";
+import { LogOut, FileText, Calendar, Users, Plus, User } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const Dashboard = () => {
@@ -71,10 +71,16 @@ const Dashboard = () => {
               Olá, {profile?.full_name} ({profile?.role === "agencia" ? "Gerente" : "CCA"})
             </p>
           </div>
-          <Button onClick={handleLogout} variant="outline" size="sm">
-            <LogOut className="w-4 h-4 mr-2" />
-            Sair
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={() => navigate("/profile")} variant="outline" size="sm">
+              <User className="w-4 h-4 mr-2" />
+              Meu Perfil
+            </Button>
+            <Button onClick={handleLogout} variant="outline" size="sm">
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
+          </div>
         </div>
       </header>
 
