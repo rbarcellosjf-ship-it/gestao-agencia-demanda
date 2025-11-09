@@ -10,6 +10,8 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useUserRole } from "@/hooks/useUserRole";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
+import { NotificationSettings } from "@/components/NotificationSettings";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -19,6 +21,9 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const { role, loading: roleLoading } = useUserRole();
   const { loading: dashboardLoading, stats, pendingDemandsList, refreshData } = useDashboardData();
+  
+  // Ativar notificações em tempo real
+  useRealtimeNotifications({ userId: user?.id || null, userRole: role });
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -101,6 +106,11 @@ const Dashboard = () => {
       </header>
 
       <main className="container mx-auto px-4 py-4 md:py-8">
+        {/* Configurações de Notificação */}
+        <div className="mb-6">
+          <NotificationSettings />
+        </div>
+
         {/* Dashboard Statistics */}
         <DashboardStats
           pendingDemands={stats.pendingDemands}
