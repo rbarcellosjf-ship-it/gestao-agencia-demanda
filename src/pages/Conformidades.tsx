@@ -11,6 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Calendar, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 const conformidadeSchema = z.object({
   cpf: z.string().min(11, "CPF inválido"),
@@ -24,6 +27,7 @@ const Conformidades = () => {
   const { toast } = useToast();
   const [profile, setProfile] = useState<any>(null);
   const [conformidades, setConformidades] = useState<any[]>([]);
+  const [agendamentos, setAgendamentos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -38,7 +42,7 @@ const Conformidades = () => {
   useEffect(() => {
     loadData();
 
-    const channel = supabase
+    const conformidadesChannel = supabase
       .channel("conformidades-changes")
       .on(
         "postgres_changes",
@@ -53,8 +57,24 @@ const Conformidades = () => {
       )
       .subscribe();
 
+    const agendamentosChannel = supabase
+      .channel("agendamentos-changes-conformidades")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "agendamentos",
+        },
+        () => {
+          loadData();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(conformidadesChannel);
+      supabase.removeChannel(agendamentosChannel);
     };
   }, []);
 
@@ -65,15 +85,11 @@ const Conformidades = () => {
       return;
     }
 
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profileData } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", session.user.id)
       .single();
-
-    console.log("Profile Data:", profileData);
-    console.log("Profile Error:", profileError);
-    console.log("User ID:", session.user.id);
     
     setProfile(profileData);
 
@@ -83,6 +99,13 @@ const Conformidades = () => {
       .order("created_at", { ascending: false });
 
     setConformidades(conformidadesData || []);
+
+    // Load agendamentos for conformidades
+    const { data: agendamentosData } = await supabase
+      .from("agendamentos")
+      .select("*");
+
+    setAgendamentos(agendamentosData || []);
     setLoading(false);
   };
 
@@ -147,6 +170,10 @@ const Conformidades = () => {
       style: "currency",
       currency: "BRL",
     }).format(value);
+  };
+
+  const getAgendamentoForConformidade = (conformidadeId: string) => {
+    return agendamentos.find(ag => ag.conformidade_id === conformidadeId);
   };
 
   const handleDeleteConformidade = async () => {
@@ -278,61 +305,71 @@ const Conformidades = () => {
               </CardContent>
             </Card>
           ) : (
-            conformidades.map((conformidade) => (
-              <Card key={conformidade.id}>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">CPF: {conformidade.cpf}</CardTitle>
-                      <CardDescription className="mt-1">
-                        CCA: {conformidade.codigo_cca} | Enviado em:{" "}
-                        {new Date(conformidade.created_at).toLocaleDateString("pt-BR")}
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {profile?.role === "cca" && (
+            conformidades.map((conformidade) => {
+              const agendamento = getAgendamentoForConformidade(conformidade.id);
+              
+              return (
+                <Card key={conformidade.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <CardTitle className="text-lg">CPF: {conformidade.cpf}</CardTitle>
+                        <CardDescription className="mt-1">
+                          CCA: {conformidade.codigo_cca} | Enviado em:{" "}
+                          {new Date(conformidade.created_at).toLocaleDateString("pt-BR")}
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {profile?.role === "cca" && !agendamento && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/agendamentos?conformidade=${conformidade.id}`)}
+                          >
+                            <Calendar className="w-4 h-4 mr-2" />
+                            Agendar
+                          </Button>
+                        )}
+                        {agendamento && (
+                          <Badge variant="secondary" className="text-sm px-3 py-1">
+                            <Calendar className="w-4 h-4 mr-2" />
+                            Agendado: {format(new Date(agendamento.data_hora), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                          </Badge>
+                        )}
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          onClick={() => navigate(`/agendamentos?conformidade=${conformidade.id}`)}
+                          onClick={() => {
+                            setConformidadeToDelete(conformidade.id);
+                            setDeleteDialogOpen(true);
+                          }}
                         >
-                          <Calendar className="w-4 h-4 mr-2" />
-                          Agendar
+                          <Trash2 className="w-4 h-4 text-destructive" />
                         </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setConformidadeToDelete(conformidade.id);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
+                      </div>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Valor do Financiamento</p>
-                      <p className="font-semibold text-lg">
-                        {formatCurrency(parseFloat(conformidade.valor_financiamento))}
-                      </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Valor do Financiamento</p>
+                        <p className="font-semibold text-lg">
+                          {formatCurrency(parseFloat(conformidade.valor_financiamento))}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Modalidade</p>
+                        <p className="font-semibold">
+                          {conformidade.modalidade === "OUTRO"
+                            ? conformidade.modalidade_outro
+                            : conformidade.modalidade}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Modalidade</p>
-                      <p className="font-semibold">
-                        {conformidade.modalidade === "OUTRO"
-                          ? conformidade.modalidade_outro
-                          : conformidade.modalidade}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              );
+            })
           )}
         </div>
       </main>
