@@ -65,12 +65,16 @@ const Conformidades = () => {
       return;
     }
 
-    const { data: profileData } = await supabase
+    const { data: profileData, error: profileError } = await supabase
       .from("profiles")
       .select("*")
       .eq("user_id", session.user.id)
       .single();
 
+    console.log("Profile Data:", profileData);
+    console.log("Profile Error:", profileError);
+    console.log("User ID:", session.user.id);
+    
     setProfile(profileData);
 
     const { data: conformidadesData } = await supabase
