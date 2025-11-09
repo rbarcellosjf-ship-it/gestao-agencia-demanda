@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 const agendamentoSchema = z.object({
   conformidade_id: z.string().uuid(),
@@ -195,17 +196,17 @@ const Agendamentos = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 md:gap-4">
             <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
+              <ArrowLeft className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Voltar</span>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Agendamentos</h1>
-              <p className="text-sm text-muted-foreground">
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">Agendamentos</h1>
+              <p className="text-xs md:text-sm text-muted-foreground">
                 Calendário de assinaturas e entrevistas
               </p>
             </div>
@@ -358,6 +359,8 @@ const Agendamentos = () => {
           )}
         </div>
       </main>
+
+      <MobileBottomNav />
     </div>
   );
 };

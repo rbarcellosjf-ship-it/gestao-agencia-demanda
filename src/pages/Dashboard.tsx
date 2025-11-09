@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { useUserRole } from "@/hooks/useUserRole";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -15,6 +17,7 @@ const Dashboard = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { role, loading: roleLoading } = useUserRole();
   const { loading: dashboardLoading, stats, pendingDemandsList, refreshData } = useDashboardData();
 
   useEffect(() => {
@@ -57,7 +60,7 @@ const Dashboard = () => {
     });
   };
 
-  if (loading || dashboardLoading) {
+  if (loading || dashboardLoading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -69,29 +72,35 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-primary">Agência Manchester</h1>
-            <p className="text-sm text-muted-foreground">
-              Olá, {profile?.full_name} ({profile?.role === "agencia" ? "Gerente" : "CCA"})
+            <h1 className="text-xl md:text-2xl font-bold text-primary">Agência Manchester</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              Olá, {profile?.full_name} ({role === "agencia" ? "Gerente" : "CCA"})
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={() => navigate("/profile")} variant="outline" size="sm">
+          <div className="flex gap-1 md:gap-2">
+            <Button onClick={() => navigate("/profile")} variant="outline" size="sm" className="hidden md:flex">
               <User className="w-4 h-4 mr-2" />
               Meu Perfil
             </Button>
-            <Button onClick={handleLogout} variant="outline" size="sm">
+            <Button onClick={() => navigate("/profile")} variant="outline" size="icon" className="md:hidden">
+              <User className="w-4 h-4" />
+            </Button>
+            <Button onClick={handleLogout} variant="outline" size="sm" className="hidden md:flex">
               <LogOut className="w-4 h-4 mr-2" />
               Sair
+            </Button>
+            <Button onClick={handleLogout} variant="outline" size="icon" className="md:hidden">
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-4 md:py-8">
         {/* Dashboard Statistics */}
         <DashboardStats
           pendingDemands={stats.pendingDemands}
@@ -104,7 +113,7 @@ const Dashboard = () => {
         <QuickActions
           demands={pendingDemandsList}
           onDemandUpdate={refreshData}
-          userRole={profile?.role || ""}
+          userRole={role || ""}
         />
 
         {/* Main Action Cards */}
@@ -116,7 +125,7 @@ const Dashboard = () => {
                 Demandas
               </CardTitle>
               <CardDescription>
-                {profile?.role === "cca" 
+                {role === "cca" 
                   ? "Criar e acompanhar suas demandas"
                   : "Gerenciar todas as demandas recebidas"
                 }
@@ -167,6 +176,8 @@ const Dashboard = () => {
           </Card>
         </div>
       </main>
+
+      <MobileBottomNav />
     </div>
   );
 };

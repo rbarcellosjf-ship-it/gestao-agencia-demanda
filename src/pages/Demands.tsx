@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Plus, Check, X, Filter, Trash2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { z } from "zod";
+import { useUserRole } from "@/hooks/useUserRole";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 const demandSchema = z.object({
   type: z.enum([
@@ -41,6 +43,7 @@ const Demands = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCCA, setFilterCCA] = useState<string>("all");
   const [ccaList, setCcaList] = useState<string[]>([]);
+  const { role, loading: roleLoading } = useUserRole();
 
   // Form state
   const [type, setType] = useState<string>("");
@@ -128,12 +131,20 @@ const Demands = () => {
 
       // Send WhatsApp notification to manager (agencia)
       try {
-        const { data: managerData } = await supabase
-          .from("profiles")
-          .select("phone, full_name")
+        const { data: agenciaRoles } = await supabase
+          .from("user_roles")
+          .select("user_id")
           .eq("role", "agencia")
           .limit(1)
           .maybeSingle();
+
+        if (!agenciaRoles) return;
+
+        const { data: managerData } = await supabase
+          .from("profiles")
+          .select("phone, full_name")
+          .eq("user_id", agenciaRoles.user_id)
+          .single();
 
         if (managerData?.phone) {
           const typeLabel = getTypeLabel(type as Database["public"]["Enums"]["demand_type"]);
@@ -294,27 +305,27 @@ const Demands = () => {
     return statusMatch && ccaMatch;
   });
 
-  if (loading) {
+  if (loading || roleLoading) {
     return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 md:gap-4">
             <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
+              <ArrowLeft className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Voltar</span>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Demandas</h1>
-              <p className="text-sm text-muted-foreground">
-                {profile?.role === "agencia" ? "Gerenciar todas as demandas" : "Suas demandas"}
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">Demandas</h1>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                {role === "agencia" ? "Gerenciar todas as demandas" : "Suas demandas"}
               </p>
             </div>
           </div>
-          {profile?.role === "cca" && (
+          {role === "cca" && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -573,6 +584,8 @@ const Demands = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <MobileBottomNav />
     </div>
   );
 };

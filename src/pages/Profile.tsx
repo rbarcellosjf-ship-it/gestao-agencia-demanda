@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Save } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -17,6 +19,7 @@ const Profile = () => {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [codigoCca, setCodigoCca] = useState("");
+  const { role, loading: roleLoading } = useUserRole();
 
   useEffect(() => {
     loadProfile();
@@ -66,7 +69,7 @@ const Profile = () => {
       };
 
       // Only update codigo_cca if user is CCA
-      if (profile?.role === "cca") {
+      if (role === "cca") {
         updates.codigo_cca = codigoCca;
       }
 
@@ -94,28 +97,28 @@ const Profile = () => {
     }
   };
 
-  if (loading) {
+  if (loading || roleLoading) {
     return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3 md:py-4 flex items-center gap-2 md:gap-4">
           <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Voltar
+            <ArrowLeft className="w-4 h-4 md:mr-2" />
+            <span className="hidden md:inline">Voltar</span>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Meu Perfil</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-xl md:text-2xl font-bold text-foreground">Meu Perfil</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">
               Visualize e edite suas informações
             </p>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
+      <main className="container mx-auto px-4 py-4 md:py-8 max-w-2xl">
         <Card>
           <CardHeader>
             <CardTitle>Informações Pessoais</CardTitle>
@@ -143,7 +146,7 @@ const Profile = () => {
                 <Label htmlFor="role">Perfil</Label>
                 <Input
                   id="role"
-                  value={profile?.role === "agencia" ? "Gerente" : "CCA"}
+                  value={role === "agencia" ? "Gerente" : "CCA"}
                   disabled
                   className="bg-muted"
                 />
@@ -173,7 +176,7 @@ const Profile = () => {
                 </p>
               </div>
 
-              {profile?.role === "cca" && (
+              {role === "cca" && (
                 <div className="space-y-2">
                   <Label htmlFor="codigoCca">Código CCA *</Label>
                   <Input
@@ -193,6 +196,8 @@ const Profile = () => {
           </CardContent>
         </Card>
       </main>
+
+      <MobileBottomNav />
     </div>
   );
 };

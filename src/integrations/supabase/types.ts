@@ -140,7 +140,6 @@ export type Database = {
           full_name: string
           id: string
           phone: string
-          role: Database["public"]["Enums"]["app_role"]
           updated_at: string
           user_id: string
         }
@@ -150,7 +149,6 @@ export type Database = {
           full_name: string
           id?: string
           phone: string
-          role: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           user_id: string
         }
@@ -160,8 +158,28 @@ export type Database = {
           full_name?: string
           id?: string
           phone?: string
-          role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
         }
         Relationships: []
@@ -172,7 +190,7 @@ export type Database = {
     }
     Functions: {
       get_user_role: {
-        Args: { user_id: string }
+        Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
       }
     }

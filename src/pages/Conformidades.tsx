@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 const conformidadeSchema = z.object({
   cpf: z.string().min(11, "CPF inválido"),
@@ -208,20 +209,18 @@ const Conformidades = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-border shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 md:gap-4">
             <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Voltar
+              <ArrowLeft className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Voltar</span>
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Conformidades</h1>
-              <p className="text-sm text-muted-foreground">
-                {profile?.role === "agencia"
-                  ? "Processos em conformidade"
-                  : "Enviar processos para conformidade"}
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">Conformidades</h1>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                Processos em conformidade
               </p>
             </div>
           </div>
@@ -390,6 +389,8 @@ const Conformidades = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <MobileBottomNav />
     </div>
   );
 };
