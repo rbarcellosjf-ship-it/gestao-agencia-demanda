@@ -225,14 +225,13 @@ const Conformidades = () => {
               </p>
             </div>
           </div>
-          {profile?.role === "cca" && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Enviar Processo
-                </Button>
-              </DialogTrigger>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Conformidade
+              </Button>
+            </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Enviar Processo para Conformidade</DialogTitle>
@@ -291,8 +290,7 @@ const Conformidades = () => {
                   </Button>
                 </form>
               </DialogContent>
-            </Dialog>
-          )}
+          </Dialog>
         </div>
       </header>
 

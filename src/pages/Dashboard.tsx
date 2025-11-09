@@ -96,7 +96,6 @@ const Dashboard = () => {
         <DashboardStats
           pendingDemands={stats.pendingDemands}
           completedDemands={stats.completedDemands}
-          cancelledDemands={stats.cancelledDemands}
           totalConformidades={stats.totalConformidades}
           upcomingAgendamentos={stats.upcomingAgendamentos}
         />
@@ -138,10 +137,7 @@ const Dashboard = () => {
                 Conformidades
               </CardTitle>
               <CardDescription>
-                {profile?.role === "cca"
-                  ? "Enviar processos para conformidade"
-                  : "Acompanhar processos em conformidade"
-                }
+                Processos em conformidade
               </CardDescription>
             </CardHeader>
             <CardContent>

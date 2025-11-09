@@ -6,7 +6,6 @@ export const useDashboardData = () => {
   const [stats, setStats] = useState({
     pendingDemands: 0,
     completedDemands: 0,
-    cancelledDemands: 0,
     totalConformidades: 0,
     upcomingAgendamentos: 0,
   });
@@ -23,7 +22,6 @@ export const useDashboardData = () => {
 
       const pending = demandsData?.filter((d) => d.status === "pendente") || [];
       const completed = demandsData?.filter((d) => d.status === "concluida") || [];
-      const cancelled = demandsData?.filter((d) => d.status === "cancelada") || [];
 
       setPendingDemandsList(pending);
 
@@ -46,7 +44,6 @@ export const useDashboardData = () => {
       setStats({
         pendingDemands: pending.length,
         completedDemands: completed.length,
-        cancelledDemands: cancelled.length,
         totalConformidades: conformidadesCount || 0,
         upcomingAgendamentos: agendamentosCount || 0,
       });

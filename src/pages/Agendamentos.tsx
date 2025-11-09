@@ -102,15 +102,12 @@ const Agendamentos = () => {
 
     setAgendamentos(agendamentosData || []);
 
-    if (profileData?.role === "cca") {
-      const { data: conformidadesData } = await supabase
-        .from("conformidades")
-        .select("*")
-        .eq("cca_user_id", session.user.id)
-        .order("created_at", { ascending: false });
+    const { data: conformidadesData } = await supabase
+      .from("conformidades")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-      setConformidades(conformidadesData || []);
-    }
+    setConformidades(conformidadesData || []);
 
     setLoading(false);
   };
@@ -213,14 +210,13 @@ const Agendamentos = () => {
               </p>
             </div>
           </div>
-          {profile?.role === "cca" && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Novo Agendamento
-                </Button>
-              </DialogTrigger>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Agendamento
+              </Button>
+            </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Criar Agendamento</DialogTitle>
@@ -306,8 +302,7 @@ const Agendamentos = () => {
                   </Button>
                 </form>
               </DialogContent>
-            </Dialog>
-          )}
+          </Dialog>
         </div>
       </header>
 
@@ -338,7 +333,11 @@ const Agendamentos = () => {
                             </CardTitle>
                             <CardDescription className="mt-1">
                               CPF: {agendamento.conformidades?.cpf} | CCA:{" "}
-                              {agendamento.conformidades?.codigo_cca}
+                              {agendamento.conformidades?.codigo_cca} | Valor:{" "}
+                              {new Intl.NumberFormat("pt-BR", {
+                                style: "currency",
+                                currency: "BRL",
+                              }).format(Number(agendamento.conformidades?.valor_financiamento))}
                             </CardDescription>
                           </div>
                         </div>
