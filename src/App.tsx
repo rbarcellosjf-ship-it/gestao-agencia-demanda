@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import Demands from "./pages/Demands";
 import Conformidades from "./pages/Conformidades";
 import Agendamentos from "./pages/Agendamentos";
+import EmailTemplates from "./pages/EmailTemplates";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
           <Route path="/demands" element={<Demands />} />
           <Route path="/conformidades" element={<Conformidades />} />
           <Route path="/agendamentos" element={<Agendamentos />} />
+          <Route path="/email-templates" element={<EmailTemplates />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

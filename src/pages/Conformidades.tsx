@@ -8,13 +8,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Calendar, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Trash2, Mail } from "lucide-react";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { useEmailTemplate, generateEmail } from "@/hooks/useEmailTemplate";
+import { formatEmailData } from "@/lib/emailUtils";
+import { useUserRole } from "@/hooks/useUserRole";
 
 const conformidadeSchema = z.object({
   cpf: z.string().min(11, "CPF inválido"),
@@ -26,11 +29,15 @@ const conformidadeSchema = z.object({
 const Conformidades = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { role } = useUserRole();
   const [profile, setProfile] = useState<any>(null);
   const [conformidades, setConformidades] = useState<any[]>([]);
   const [agendamentos, setAgendamentos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // Hook para buscar template de email
+  const { data: emailTemplate } = useEmailTemplate('conformidade_prioridade');
 
   // Form state
   const [cpf, setCpf] = useState("");
@@ -204,6 +211,36 @@ const Conformidades = () => {
     }
   };
 
+  const handlePedirPrioridade = (conformidade: any) => {
+    if (!emailTemplate || !profile) {
+      toast({
+        title: "Erro",
+        description: "Template de e-mail não encontrado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const emailData = formatEmailData(conformidade, profile);
+      const email = generateEmail(emailTemplate, emailData);
+      
+      const mailtoLink = `mailto:${profile.email}?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`;
+      window.location.href = mailtoLink;
+      
+      toast({
+        title: "E-mail preparado!",
+        description: "O cliente de e-mail será aberto com o conteúdo pré-formatado.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao gerar e-mail",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
   }
@@ -317,7 +354,18 @@ const Conformidades = () => {
                         </CardDescription>
                       </div>
                       <div className="flex items-center gap-2">
-                        {profile?.role === "cca" && !agendamento && (
+                        {role === "cca" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePedirPrioridade(conformidade)}
+                            title="Solicitar prioridade via e-mail"
+                          >
+                            <Mail className="w-4 h-4 mr-2" />
+                            Pedir Prioridade
+                          </Button>
+                        )}
+                        {role === "cca" && !agendamento && (
                           <Button
                             variant="outline"
                             size="sm"

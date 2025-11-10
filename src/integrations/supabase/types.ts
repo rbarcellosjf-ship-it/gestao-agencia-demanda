@@ -133,6 +133,45 @@ export type Database = {
         }
         Relationships: []
       }
+      email_templates: {
+        Row: {
+          available_variables: Json
+          body: string
+          created_at: string
+          description: string | null
+          id: string
+          module: string
+          name: string
+          subject: string
+          template_key: string
+          updated_at: string
+        }
+        Insert: {
+          available_variables?: Json
+          body: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module: string
+          name: string
+          subject: string
+          template_key: string
+          updated_at?: string
+        }
+        Update: {
+          available_variables?: Json
+          body?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module?: string
+          name?: string
+          subject?: string
+          template_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           codigo_cca: string | null

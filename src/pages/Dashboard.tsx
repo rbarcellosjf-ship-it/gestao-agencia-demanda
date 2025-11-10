@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, FileText, Calendar, Users, Plus, User } from "lucide-react";
+import { LogOut, FileText, Calendar, Users, Plus, User, Mail } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { QuickActions } from "@/components/dashboard/QuickActions";
@@ -184,6 +184,26 @@ const Dashboard = () => {
               </Button>
             </CardContent>
           </Card>
+
+          {role === "agencia" && (
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/email-templates")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-primary" />
+                  Templates de E-mail
+                </CardTitle>
+                <CardDescription>
+                  Gerenciar e-mails automáticos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full" variant="outline">
+                  <Mail className="w-4 h-4 mr-2" />
+                  Gerenciar Templates
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
 
