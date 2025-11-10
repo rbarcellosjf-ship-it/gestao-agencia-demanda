@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, FileText, Calendar, Users, Plus, User, Mail } from "lucide-react";
+import { LogOut, FileText, Calendar, Users, Plus, User, Mail, Settings } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { QuickActions } from "@/components/dashboard/QuickActions";
@@ -204,6 +204,24 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           )}
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/settings")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="w-5 h-5 text-primary" />
+                Configurações
+              </CardTitle>
+              <CardDescription>
+                Perfil e notificações
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" variant="outline">
+                <Settings className="w-4 h-4 mr-2" />
+                Gerenciar Configurações
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </main>
 

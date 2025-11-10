@@ -1,0 +1,427 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, Save, MessageSquare } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { Textarea } from "@/components/ui/textarea";
+import { 
+  useWhatsAppTemplates, 
+  useUpdateWhatsAppTemplate, 
+  useCreateWhatsAppTemplate,
+  useDeleteWhatsAppTemplate 
+} from "@/hooks/useWhatsAppTemplate";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { formatCPF } from "@/lib/cpfValidator";
+
+const Settings = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { role } = useUserRole();
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<any>(null);
+
+  // Profile fields
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [codigoCCA, setCodigoCCA] = useState("");
+
+  // WhatsApp template state
+  const [editingTemplate, setEditingTemplate] = useState<any>(null);
+  const [templateName, setTemplateName] = useState("");
+  const [templateKey, setTemplateKey] = useState("");
+  const [templateMessage, setTemplateMessage] = useState("");
+  const [templateDemandType, setTemplateDemandType] = useState("all");
+  const [templateDescription, setTemplateDescription] = useState("");
+
+  const { data: whatsappTemplates } = useWhatsAppTemplates();
+  const updateTemplate = useUpdateWhatsAppTemplate();
+  const createTemplate = useCreateWhatsAppTemplate();
+  const deleteTemplate = useDeleteWhatsAppTemplate();
+
+  useEffect(() => {
+    loadProfile();
+  }, []);
+
+  const loadProfile = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      navigate("/auth");
+      return;
+    }
+
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .single();
+
+    if (profileData) {
+      setProfile(profileData);
+      setFullName(profileData.full_name || "");
+      setPhone(profileData.phone || "");
+      setCodigoCCA(profileData.codigo_cca || "");
+    }
+
+    setLoading(false);
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          full_name: fullName,
+          phone: phone,
+          codigo_cca: codigoCCA || null,
+        })
+        .eq("user_id", session.user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Perfil atualizado!",
+        description: "Suas informações foram salvas com sucesso.",
+      });
+
+      loadProfile();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    try {
+      if (editingTemplate) {
+        await updateTemplate.mutateAsync({
+          id: editingTemplate.id,
+          name: templateName,
+          message: templateMessage,
+          demand_type: templateDemandType,
+          description: templateDescription,
+        });
+      } else {
+        await createTemplate.mutateAsync({
+          name: templateName,
+          template_key: templateKey,
+          message: templateMessage,
+          demand_type: templateDemandType,
+          description: templateDescription,
+          available_variables: {},
+        });
+      }
+
+      resetTemplateForm();
+    } catch (error) {
+      // Error handled by mutation
+    }
+  };
+
+  const handleEditTemplate = (template: any) => {
+    setEditingTemplate(template);
+    setTemplateName(template.name);
+    setTemplateKey(template.template_key);
+    setTemplateMessage(template.message);
+    setTemplateDemandType(template.demand_type || "all");
+    setTemplateDescription(template.description || "");
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    await deleteTemplate.mutateAsync(id);
+  };
+
+  const resetTemplateForm = () => {
+    setEditingTemplate(null);
+    setTemplateName("");
+    setTemplateKey("");
+    setTemplateMessage("");
+    setTemplateDemandType("all");
+    setTemplateDescription("");
+  };
+
+  const formatPhoneNumber = (value: string) => {
+    const cleaned = value.replace(/\D/g, '');
+    if (cleaned.length <= 2) {
+      return cleaned;
+    } else if (cleaned.length <= 7) {
+      return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+    } else if (cleaned.length <= 11) {
+      return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7)}`;
+    } else {
+      return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
+    }
+  };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+  }
+
+  return (
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
+      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 md:gap-4">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+              <ArrowLeft className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Voltar</span>
+            </Button>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">Configurações</h1>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                Gerencie suas informações e notificações
+              </p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8 max-w-4xl">
+        <Tabs defaultValue="profile" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="profile">Meu Perfil</TabsTrigger>
+            {role === "agencia" && (
+              <TabsTrigger value="whatsapp">Templates WhatsApp</TabsTrigger>
+            )}
+          </TabsList>
+
+          <TabsContent value="profile" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Informações Pessoais</CardTitle>
+                <CardDescription>
+                  Atualize suas informações de perfil e telefone para notificações
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fullName">Nome Completo *</Label>
+                    <Input
+                      id="fullName"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Telefone (WhatsApp) *</Label>
+                    <Input
+                      id="phone"
+                      placeholder="(00) 00000-0000"
+                      value={phone}
+                      onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+                      maxLength={15}
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Este número será usado para receber notificações via WhatsApp
+                    </p>
+                  </div>
+
+                  {role === "cca" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="codigoCCA">Código CCA</Label>
+                      <Input
+                        id="codigoCCA"
+                        value={codigoCCA}
+                        onChange={(e) => setCodigoCCA(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <Button type="submit" className="w-full">
+                    <Save className="w-4 h-4 mr-2" />
+                    Salvar Alterações
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {role === "agencia" && (
+            <TabsContent value="whatsapp" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    {editingTemplate ? "Editar Template" : "Novo Template"}
+                  </CardTitle>
+                  <CardDescription>
+                    Crie templates personalizados para mensagens WhatsApp
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="templateName">Nome do Template *</Label>
+                    <Input
+                      id="templateName"
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      placeholder="Ex: Nova Demanda Criada"
+                    />
+                  </div>
+
+                  {!editingTemplate && (
+                    <div className="space-y-2">
+                      <Label htmlFor="templateKey">Chave do Template *</Label>
+                      <Input
+                        id="templateKey"
+                        value={templateKey}
+                        onChange={(e) => setTemplateKey(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
+                        placeholder="Ex: nova_demanda"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use apenas letras minúsculas, números e underline
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="templateDemandType">Tipo de Demanda</Label>
+                    <Select value={templateDemandType} onValueChange={setTemplateDemandType}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas</SelectItem>
+                        <SelectItem value="conformidade">Conformidade</SelectItem>
+                        <SelectItem value="demanda">Demanda</SelectItem>
+                        <SelectItem value="agendamento">Agendamento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="templateMessage">Mensagem *</Label>
+                    <Textarea
+                      id="templateMessage"
+                      value={templateMessage}
+                      onChange={(e) => setTemplateMessage(e.target.value)}
+                      rows={8}
+                      placeholder="Use {{variavel}} para inserir dados dinâmicos"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Variáveis disponíveis: {"{"}{"nome_cca}"}, {"{"}{"codigo_cca}"}, {"{"}{"tipo_demanda}"}, {"{"}{"cpf}"}, {"{"}{"descricao}"}
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="templateDescription">Descrição</Label>
+                    <Input
+                      id="templateDescription"
+                      value={templateDescription}
+                      onChange={(e) => setTemplateDescription(e.target.value)}
+                      placeholder="Breve descrição do template"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <Button onClick={handleSaveTemplate} className="flex-1">
+                      <Save className="w-4 h-4 mr-2" />
+                      {editingTemplate ? "Atualizar" : "Criar"} Template
+                    </Button>
+                    {editingTemplate && (
+                      <Button onClick={resetTemplateForm} variant="outline">
+                        Cancelar
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5" />
+                    Templates Existentes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {whatsappTemplates?.map((template) => (
+                      <Card key={template.id}>
+                        <CardHeader className="pb-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <CardTitle className="text-base">{template.name}</CardTitle>
+                              <CardDescription className="text-xs mt-1">
+                                Chave: {template.template_key} | Tipo: {template.demand_type || 'all'}
+                              </CardDescription>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditTemplate(template)}
+                              >
+                                Editar
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="destructive" size="sm">
+                                    Excluir
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Tem certeza que deseja excluir este template? Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteTemplate(template.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Excluir
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <pre className="text-xs bg-muted p-3 rounded whitespace-pre-wrap">
+                            {template.message}
+                          </pre>
+                          {template.description && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              {template.description}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+        </Tabs>
+      </main>
+
+      <MobileBottomNav />
+    </div>
+  );
+};
+
+export default Settings;
