@@ -18,9 +18,12 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useEmailTemplate, generateEmail } from "@/hooks/useEmailTemplate";
 import { formatEmailData } from "@/lib/emailUtils";
 import { useUserRole } from "@/hooks/useUserRole";
+import { validateCPF, formatCPF } from "@/lib/cpfValidator";
 
 const conformidadeSchema = z.object({
-  cpf: z.string().min(11, "CPF inválido"),
+  cpf: z.string()
+    .min(11, "CPF inválido")
+    .refine(validateCPF, { message: "CPF inválido" }),
   valor_financiamento: z.number().positive("Valor deve ser positivo"),
   modalidade: z.enum(["SBPE", "MCMV", "OUTRO"]),
   modalidade_outro: z.string().optional(),
@@ -280,9 +283,13 @@ const Conformidades = () => {
                       id="cpf"
                       placeholder="000.000.000-00"
                       value={cpf}
-                      onChange={(e) => setCpf(e.target.value)}
+                      onChange={(e) => setCpf(formatCPF(e.target.value))}
+                      maxLength={14}
                       required
                     />
+                    {cpf && !validateCPF(cpf) && (
+                      <p className="text-xs text-destructive">CPF inválido</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="valor">Valor do Financiamento *</Label>

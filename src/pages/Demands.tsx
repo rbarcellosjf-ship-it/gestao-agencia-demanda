@@ -19,6 +19,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { PDFViewer } from "@/components/PDFViewer";
 import { useEmailTemplate, generateEmail } from "@/hooks/useEmailTemplate";
 import { format } from "date-fns";
+import { validateCPF, formatCPF } from "@/lib/cpfValidator";
 
 const demandSchema = z.object({
   type: z.enum([
@@ -31,7 +32,10 @@ const demandSchema = z.object({
     "incluir_pis_siopi",
     "outras"
   ]),
-  cpf: z.string().optional(),
+  cpf: z.string().optional().refine(
+    (val) => !val || validateCPF(val),
+    { message: "CPF inválido" }
+  ),
   matricula: z.string().optional(),
   cartorio: z.string().optional(),
   description: z.string().optional(),
@@ -505,13 +509,17 @@ const Demands = () => {
                     type === "solicitar_avaliacao_sigdu" ||
                     type === "incluir_pis_siopi") && (
                     <div className="space-y-2">
-                      <Label htmlFor="cpf">CPF</Label>
+                      <Label htmlFor="cpf">CPF *</Label>
                       <Input
                         id="cpf"
                         placeholder="000.000.000-00"
                         value={cpf}
-                        onChange={(e) => setCpf(e.target.value)}
+                        onChange={(e) => setCpf(formatCPF(e.target.value))}
+                        maxLength={14}
                       />
+                      {cpf && !validateCPF(cpf) && (
+                        <p className="text-xs text-destructive">CPF inválido</p>
+                      )}
                     </div>
                   )}
 
