@@ -138,11 +138,8 @@ const Demands = () => {
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('demand-pdfs')
-        .getPublicUrl(filePath);
-
-      return publicUrl;
+      // Retorna apenas o path, não a URL completa
+      return filePath;
     } catch (error) {
       console.error('Error uploading PDF:', error);
       return null;
@@ -226,13 +223,13 @@ const Demands = () => {
         console.error("Failed to send WhatsApp notification:", whatsappError);
       }
 
+      setDialogOpen(false);
+      resetForm();
+      
       toast({
         title: "Demanda criada!",
         description: "Sua demanda foi registrada com sucesso.",
       });
-
-      setDialogOpen(false);
-      resetForm();
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -369,29 +366,35 @@ const Demands = () => {
   };
 
   const handleViewPdf = async (pdfPath: string | null, fileName: string) => {
-    if (!pdfPath) return;
-    
-    // Se for uma URL completa, usa diretamente
-    if (pdfPath.startsWith('http')) {
-      setViewingPdfUrl(pdfPath);
-      setViewingPdfName(fileName);
-      setPdfViewerOpen(true);
-      return;
-    }
-
-    // Se não, busca do storage
-    try {
-      const { data } = supabase.storage
-        .from('demand-pdfs')
-        .getPublicUrl(pdfPath);
-
-      setViewingPdfUrl(data.publicUrl);
-      setViewingPdfName(fileName);
-      setPdfViewerOpen(true);
-    } catch (error) {
+    if (!pdfPath) {
       toast({
         title: "Erro",
-        description: "Não foi possível abrir o PDF",
+        description: "Arquivo PDF não encontrado",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      // Cria uma URL assinada válida por 1 hora para buckets privados
+      const { data, error } = await supabase.storage
+        .from('demand-pdfs')
+        .createSignedUrl(pdfPath, 3600); // 3600 segundos = 1 hora
+
+      if (error) throw error;
+
+      if (!data?.signedUrl) {
+        throw new Error('URL assinada não gerada');
+      }
+
+      setViewingPdfUrl(data.signedUrl);
+      setViewingPdfName(fileName);
+      setPdfViewerOpen(true);
+    } catch (error: any) {
+      console.error('Error opening PDF:', error);
+      toast({
+        title: "Erro ao abrir PDF",
+        description: error.message || "Não foi possível carregar o arquivo",
         variant: "destructive",
       });
     }
