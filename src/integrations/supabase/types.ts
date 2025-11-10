@@ -87,6 +87,7 @@ export type Database = {
       }
       demands: {
         Row: {
+          carta_solicitacao_pdf: string | null
           cartorio: string | null
           cca_user_id: string
           codigo_cca: string
@@ -94,14 +95,18 @@ export type Database = {
           cpf: string | null
           created_at: string
           description: string | null
+          ficha_cadastro_pdf: string | null
           id: string
           matricula: string | null
+          matricula_imovel_pdf: string | null
+          numero_pis: string | null
           response_text: string | null
           status: Database["public"]["Enums"]["demand_status"]
           type: Database["public"]["Enums"]["demand_type"]
           updated_at: string
         }
         Insert: {
+          carta_solicitacao_pdf?: string | null
           cartorio?: string | null
           cca_user_id: string
           codigo_cca: string
@@ -109,14 +114,18 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           description?: string | null
+          ficha_cadastro_pdf?: string | null
           id?: string
           matricula?: string | null
+          matricula_imovel_pdf?: string | null
+          numero_pis?: string | null
           response_text?: string | null
           status?: Database["public"]["Enums"]["demand_status"]
           type: Database["public"]["Enums"]["demand_type"]
           updated_at?: string
         }
         Update: {
+          carta_solicitacao_pdf?: string | null
           cartorio?: string | null
           cca_user_id?: string
           codigo_cca?: string
@@ -124,8 +133,11 @@ export type Database = {
           cpf?: string | null
           created_at?: string
           description?: string | null
+          ficha_cadastro_pdf?: string | null
           id?: string
           matricula?: string | null
+          matricula_imovel_pdf?: string | null
+          numero_pis?: string | null
           response_text?: string | null
           status?: Database["public"]["Enums"]["demand_status"]
           type?: Database["public"]["Enums"]["demand_type"]
@@ -244,6 +256,7 @@ export type Database = {
         | "cancela_proposta_siopi"
         | "solicitar_avaliacao_sigdu"
         | "outras"
+        | "incluir_pis_siopi"
       modalidade_financiamento: "SBPE" | "MCMV" | "OUTRO"
     }
     CompositeTypes: {
@@ -382,6 +395,7 @@ export const Constants = {
         "cancela_proposta_siopi",
         "solicitar_avaliacao_sigdu",
         "outras",
+        "incluir_pis_siopi",
       ],
       modalidade_financiamento: ["SBPE", "MCMV", "OUTRO"],
     },

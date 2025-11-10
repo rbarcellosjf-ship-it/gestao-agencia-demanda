@@ -11,11 +11,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Check, X, Filter, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Check, X, Filter, Trash2, FileText, Mail } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { z } from "zod";
 import { useUserRole } from "@/hooks/useUserRole";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { PDFViewer } from "@/components/PDFViewer";
+import { useEmailTemplate, generateEmail } from "@/hooks/useEmailTemplate";
+import { format } from "date-fns";
 
 const demandSchema = z.object({
   type: z.enum([
@@ -25,12 +28,14 @@ const demandSchema = z.object({
     "cancela_avaliacao_sicaq",
     "cancela_proposta_siopi",
     "solicitar_avaliacao_sigdu",
+    "incluir_pis_siopi",
     "outras"
   ]),
   cpf: z.string().optional(),
   matricula: z.string().optional(),
   cartorio: z.string().optional(),
   description: z.string().optional(),
+  numero_pis: z.string().optional(),
 });
 
 const Demands = () => {
@@ -44,6 +49,7 @@ const Demands = () => {
   const [filterCCA, setFilterCCA] = useState<string>("all");
   const [ccaList, setCcaList] = useState<string[]>([]);
   const { role, loading: roleLoading } = useUserRole();
+  const { data: sigduTemplate } = useEmailTemplate('sigdu_solicitacao');
 
   // Form state
   const [type, setType] = useState<string>("");
@@ -51,10 +57,22 @@ const Demands = () => {
   const [matricula, setMatricula] = useState("");
   const [cartorio, setCartorio] = useState("");
   const [description, setDescription] = useState("");
+  const [numeroPis, setNumeroPis] = useState("");
   const [responseText, setResponseText] = useState("");
   const [selectedDemand, setSelectedDemand] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [demandToDelete, setDemandToDelete] = useState<string | null>(null);
+
+  // PDF upload state
+  const [cartaSolicitacaoFile, setCartaSolicitacaoFile] = useState<File | null>(null);
+  const [fichaCadastroFile, setFichaCadastroFile] = useState<File | null>(null);
+  const [matriculaImovelFile, setMatriculaImovelFile] = useState<File | null>(null);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+
+  // PDF viewer state
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [viewingPdfUrl, setViewingPdfUrl] = useState("");
+  const [viewingPdfName, setViewingPdfName] = useState("");
 
   useEffect(() => {
     loadData();
@@ -108,14 +126,54 @@ const Demands = () => {
     setLoading(false);
   };
 
+  const uploadPdf = async (file: File, fieldName: string): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `${fieldName}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('demand-pdfs')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('demand-pdfs')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading PDF:', error);
+      return null;
+    }
+  };
+
   const handleCreateDemand = async (e: React.FormEvent) => {
     e.preventDefault();
 
     try {
-      demandSchema.parse({ type, cpf, matricula, cartorio, description });
+      demandSchema.parse({ type, cpf, matricula, cartorio, description, numero_pis: numeroPis });
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
+
+      setUploadingPdf(true);
+
+      // Upload PDFs if present
+      let cartaSolicitacaoPdfUrl = null;
+      let fichaCadastroPdfUrl = null;
+      let matriculaImovelPdfUrl = null;
+
+      if (cartaSolicitacaoFile) {
+        cartaSolicitacaoPdfUrl = await uploadPdf(cartaSolicitacaoFile, 'carta_solicitacao');
+      }
+      if (fichaCadastroFile) {
+        fichaCadastroPdfUrl = await uploadPdf(fichaCadastroFile, 'ficha_cadastro');
+      }
+      if (matriculaImovelFile) {
+        matriculaImovelPdfUrl = await uploadPdf(matriculaImovelFile, 'matricula_imovel');
+      }
 
       const { error } = await supabase.from("demands").insert({
         cca_user_id: session.user.id,
@@ -125,6 +183,10 @@ const Demands = () => {
         matricula: matricula || null,
         cartorio: cartorio || null,
         description: description || null,
+        numero_pis: numeroPis || null,
+        carta_solicitacao_pdf: cartaSolicitacaoPdfUrl,
+        ficha_cadastro_pdf: fichaCadastroPdfUrl,
+        matricula_imovel_pdf: matriculaImovelPdfUrl,
       });
 
       if (error) throw error;
@@ -177,6 +239,8 @@ const Demands = () => {
         description: error.message,
         variant: "destructive",
       });
+    } finally {
+      setUploadingPdf(false);
     }
   };
 
@@ -244,6 +308,10 @@ const Demands = () => {
     setMatricula("");
     setCartorio("");
     setDescription("");
+    setNumeroPis("");
+    setCartaSolicitacaoFile(null);
+    setFichaCadastroFile(null);
+    setMatriculaImovelFile(null);
   };
 
   const getTypeLabel = (type: string) => {
@@ -254,6 +322,7 @@ const Demands = () => {
       cancela_avaliacao_sicaq: "Cancela Avaliação SICAQ",
       cancela_proposta_siopi: "Cancela Proposta SIOPI",
       solicitar_avaliacao_sigdu: "Solicitar Avaliação SIGDU",
+      incluir_pis_siopi: "Incluir PIS no SIOPI",
       outras: "Outras",
     };
     return labels[type] || type;
@@ -293,6 +362,74 @@ const Demands = () => {
     } catch (error: any) {
       toast({
         title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleViewPdf = async (pdfPath: string | null, fileName: string) => {
+    if (!pdfPath) return;
+    
+    // Se for uma URL completa, usa diretamente
+    if (pdfPath.startsWith('http')) {
+      setViewingPdfUrl(pdfPath);
+      setViewingPdfName(fileName);
+      setPdfViewerOpen(true);
+      return;
+    }
+
+    // Se não, busca do storage
+    try {
+      const { data } = supabase.storage
+        .from('demand-pdfs')
+        .getPublicUrl(pdfPath);
+
+      setViewingPdfUrl(data.publicUrl);
+      setViewingPdfName(fileName);
+      setPdfViewerOpen(true);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível abrir o PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSendSigduEmail = (demand: any) => {
+    if (!sigduTemplate || !profile) {
+      toast({
+        title: "Erro",
+        description: "Template de e-mail não encontrado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const emailData = {
+        cpf: demand.cpf || '',
+        matricula: demand.matricula || '',
+        codigo_cca: profile.codigo_cca || '',
+        nome_cca: profile.full_name || '',
+        data_solicitacao: format(new Date(demand.created_at), "dd/MM/yyyy"),
+        telefone_cca: profile.phone || '',
+        observacoes: demand.description || 'Sem observações adicionais'
+      };
+
+      const email = generateEmail(sigduTemplate, emailData);
+      
+      const mailtoLink = `mailto:${profile.email}?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`;
+      window.location.href = mailtoLink;
+      
+      toast({
+        title: "E-mail preparado!",
+        description: "O cliente de e-mail será aberto com o conteúdo pré-formatado.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao gerar e-mail",
         description: error.message,
         variant: "destructive",
       });
@@ -352,6 +489,7 @@ const Demands = () => {
                         <SelectItem value="cancela_avaliacao_sicaq">Cancela Avaliação SICAQ</SelectItem>
                         <SelectItem value="cancela_proposta_siopi">Cancela Proposta SIOPI</SelectItem>
                         <SelectItem value="solicitar_avaliacao_sigdu">Solicitar Avaliação SIGDU</SelectItem>
+                        <SelectItem value="incluir_pis_siopi">Incluir PIS no SIOPI</SelectItem>
                         <SelectItem value="outras">Outras</SelectItem>
                       </SelectContent>
                     </Select>
@@ -360,7 +498,9 @@ const Demands = () => {
                   {(type === "autoriza_reavaliacao" ||
                     type === "desconsidera_avaliacoes" ||
                     type === "cancela_avaliacao_sicaq" ||
-                    type === "cancela_proposta_siopi") && (
+                    type === "cancela_proposta_siopi" ||
+                    type === "solicitar_avaliacao_sigdu" ||
+                    type === "incluir_pis_siopi") && (
                     <div className="space-y-2">
                       <Label htmlFor="cpf">CPF</Label>
                       <Input
@@ -368,6 +508,53 @@ const Demands = () => {
                         placeholder="000.000.000-00"
                         value={cpf}
                         onChange={(e) => setCpf(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  {type === "cancela_avaliacao_sicaq" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="carta_solicitacao">Carta de Solicitação (PDF - Opcional)</Label>
+                      <Input
+                        id="carta_solicitacao"
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => setCartaSolicitacaoFile(e.target.files?.[0] || null)}
+                      />
+                    </div>
+                  )}
+
+                  {type === "incluir_pis_siopi" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="ficha_cadastro">Ficha Cadastro (PDF - Opcional)</Label>
+                        <Input
+                          id="ficha_cadastro"
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => setFichaCadastroFile(e.target.files?.[0] || null)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="numero_pis">Número de PIS</Label>
+                        <Input
+                          id="numero_pis"
+                          placeholder="000.00000.00-0"
+                          value={numeroPis}
+                          onChange={(e) => setNumeroPis(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {type === "solicitar_avaliacao_sigdu" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="matricula_imovel">Matrícula Imóvel (PDF - Opcional)</Label>
+                      <Input
+                        id="matricula_imovel"
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => setMatriculaImovelFile(e.target.files?.[0] || null)}
                       />
                     </div>
                   )}
@@ -411,8 +598,8 @@ const Demands = () => {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full">
-                    Criar Demanda
+                  <Button type="submit" className="w-full" disabled={uploadingPdf}>
+                    {uploadingPdf ? "Enviando..." : "Criar Demanda"}
                   </Button>
                 </form>
               </DialogContent>
@@ -422,7 +609,7 @@ const Demands = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {profile?.role === "agencia" && (
+        {role === "agencia" && (
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -486,6 +673,16 @@ const Demands = () => {
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusBadge(demand.status)}
+                      {demand.type === "solicitar_avaliacao_sigdu" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSendSigduEmail(demand)}
+                          title="Enviar solicitação por e-mail"
+                        >
+                          <Mail className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -516,11 +713,56 @@ const Demands = () => {
                         <strong>Cartório:</strong> {demand.cartorio}
                       </p>
                     )}
+                    {demand.numero_pis && (
+                      <p>
+                        <strong>Número de PIS:</strong> {demand.numero_pis}
+                      </p>
+                    )}
                     {demand.description && (
                       <p>
                         <strong>Observações:</strong> {demand.description}
                       </p>
                     )}
+                    
+                    {/* PDF Files */}
+                    {(demand.carta_solicitacao_pdf || demand.ficha_cadastro_pdf || demand.matricula_imovel_pdf) && (
+                      <div className="mt-3 space-y-2">
+                        <p className="font-semibold">Arquivos anexados:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {demand.carta_solicitacao_pdf && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewPdf(demand.carta_solicitacao_pdf, "Carta de Solicitação")}
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              Carta de Solicitação
+                            </Button>
+                          )}
+                          {demand.ficha_cadastro_pdf && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewPdf(demand.ficha_cadastro_pdf, "Ficha Cadastro")}
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              Ficha Cadastro
+                            </Button>
+                          )}
+                          {demand.matricula_imovel_pdf && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewPdf(demand.matricula_imovel_pdf, "Matrícula Imóvel")}
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              Matrícula Imóvel
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {demand.response_text && (
                       <div className="mt-4 p-3 bg-muted rounded-md">
                         <p className="font-semibold text-success">Resposta:</p>
@@ -528,7 +770,7 @@ const Demands = () => {
                       </div>
                     )}
                   </div>
-                  {profile?.role === "agencia" && demand.status === "pendente" && (
+                  {role === "agencia" && demand.status === "pendente" && (
                     <div className="mt-4 space-y-3">
                       <Textarea
                         placeholder="Resposta da demanda..."
@@ -584,6 +826,13 @@ const Demands = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <PDFViewer
+        fileUrl={viewingPdfUrl}
+        fileName={viewingPdfName}
+        open={pdfViewerOpen}
+        onOpenChange={setPdfViewerOpen}
+      />
 
       <MobileBottomNav />
     </div>

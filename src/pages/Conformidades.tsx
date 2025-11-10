@@ -354,17 +354,15 @@ const Conformidades = () => {
                         </CardDescription>
                       </div>
                       <div className="flex items-center gap-2">
-                        {role === "cca" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handlePedirPrioridade(conformidade)}
-                            title="Solicitar prioridade via e-mail"
-                          >
-                            <Mail className="w-4 h-4 mr-2" />
-                            Pedir Prioridade
-                          </Button>
-                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handlePedirPrioridade(conformidade)}
+                          title="Solicitar prioridade via e-mail"
+                        >
+                          <Mail className="w-4 h-4 mr-2" />
+                          Pedir Prioridade
+                        </Button>
                         {role === "cca" && !agendamento && (
                           <Button
                             variant="outline"
