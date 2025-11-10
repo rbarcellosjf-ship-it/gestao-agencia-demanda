@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Check, X, Filter, Trash2, FileText, Mail } from "lucide-react";
+import { ArrowLeft, Plus, Check, X, Filter, Trash2, FileText, Mail, Lock } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { z } from "zod";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -31,6 +31,7 @@ const demandSchema = z.object({
     "cancela_proposta_siopi",
     "solicitar_avaliacao_sigdu",
     "incluir_pis_siopi",
+    "autoriza_vendedor_restricao",
     "outras"
   ]),
   cpf: z.string().optional().refine(
@@ -98,6 +99,7 @@ const sendWhatsAppToManager = async (
     cancela_proposta_siopi: "Cancela Proposta SIOPI",
     solicitar_avaliacao_sigdu: "Solicitar Avaliação SIGDU",
     incluir_pis_siopi: "Incluir PIS no SIOPI",
+    autoriza_vendedor_restricao: "Autorização de Vendedor com Restrição",
     outras: "Outras",
   };
   const typeLabel = typeLabels[type] || type;
@@ -169,6 +171,7 @@ const sendWhatsAppToCCA = async (
     cancela_proposta_siopi: "Cancela Proposta SIOPI",
     solicitar_avaliacao_sigdu: "Solicitar Avaliação SIGDU",
     incluir_pis_siopi: "Incluir PIS no SIOPI",
+    autoriza_vendedor_restricao: "Autorização de Vendedor com Restrição",
     outras: "Outras",
   };
   const typeLabel = typeLabels[demand.type] || demand.type;
@@ -235,7 +238,10 @@ const Demands = () => {
   const [cartaSolicitacaoFile, setCartaSolicitacaoFile] = useState<File | null>(null);
   const [fichaCadastroFile, setFichaCadastroFile] = useState<File | null>(null);
   const [matriculaImovelFile, setMatriculaImovelFile] = useState<File | null>(null);
+  const [moAutorizacaoFile, setMoAutorizacaoFile] = useState<File | null>(null);
+  const [moAutorizacaoAssinadoFile, setMoAutorizacaoAssinadoFile] = useState<File | null>(null);
   const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // PDF viewer state
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
@@ -329,6 +335,7 @@ const Demands = () => {
       let cartaSolicitacaoPdfUrl = null;
       let fichaCadastroPdfUrl = null;
       let matriculaImovelPdfUrl = null;
+      let moAutorizacaoPdfUrl = null;
 
       if (cartaSolicitacaoFile) {
         cartaSolicitacaoPdfUrl = await uploadPdf(cartaSolicitacaoFile, 'carta_solicitacao');
@@ -338,6 +345,9 @@ const Demands = () => {
       }
       if (matriculaImovelFile) {
         matriculaImovelPdfUrl = await uploadPdf(matriculaImovelFile, 'matricula_imovel');
+      }
+      if (moAutorizacaoFile) {
+        moAutorizacaoPdfUrl = await uploadPdf(moAutorizacaoFile, 'mo_autorizacao');
       }
 
       const { error } = await supabase.from("demands").insert({
@@ -352,6 +362,8 @@ const Demands = () => {
         carta_solicitacao_pdf: cartaSolicitacaoPdfUrl,
         ficha_cadastro_pdf: fichaCadastroPdfUrl,
         matricula_imovel_pdf: matriculaImovelPdfUrl,
+        mo_autorizacao_pdf: moAutorizacaoPdfUrl,
+        status: type === "autoriza_vendedor_restricao" ? "aguardando_assinatura" : "pendente",
       });
 
       if (error) throw error;
@@ -426,6 +438,8 @@ const Demands = () => {
     setCartaSolicitacaoFile(null);
     setFichaCadastroFile(null);
     setMatriculaImovelFile(null);
+    setMoAutorizacaoFile(null);
+    setMoAutorizacaoAssinadoFile(null);
   };
 
   const getTypeLabel = (type: string) => {
@@ -437,6 +451,7 @@ const Demands = () => {
       cancela_proposta_siopi: "Cancela Proposta SIOPI",
       solicitar_avaliacao_sigdu: "Solicitar Avaliação SIGDU",
       incluir_pis_siopi: "Incluir PIS no SIOPI",
+      autoriza_vendedor_restricao: "Autorização de Vendedor com Restrição",
       outras: "Outras",
     };
     return labels[type] || type;
@@ -445,12 +460,23 @@ const Demands = () => {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive"> = {
       pendente: "default",
+      aguardando_assinatura: "default",
+      assinado: "secondary",
       concluida: "secondary",
       cancelada: "destructive",
     };
+    
+    const labels: Record<string, string> = {
+      pendente: "Pendente",
+      aguardando_assinatura: "Aguardando Assinatura",
+      assinado: "Assinado",
+      concluida: "Concluída",
+      cancelada: "Cancelada",
+    };
+    
     return (
       <Badge variant={variants[status] || "default"}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {labels[status] || status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
@@ -556,6 +582,173 @@ const Demands = () => {
     }
   };
 
+  const handleOpenGovBRSigning = async (demand: any) => {
+    if (!demand.mo_autorizacao_pdf) {
+      toast({
+        title: "Erro",
+        description: "PDF de autorização não encontrado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Generate signed URL for the PDF (valid for 1 hour)
+      const { data, error } = await supabase.storage
+        .from('demand-pdfs')
+        .createSignedUrl(demand.mo_autorizacao_pdf, 3600);
+
+      if (error) throw error;
+
+      if (!data?.signedUrl) {
+        throw new Error('URL assinada não gerada');
+      }
+
+      // Open Gov.BR signing portal in a new tab
+      window.open('https://assinador.iti.gov.br/', '_blank');
+
+      toast({
+        title: "Gov.BR aberto!",
+        description: "Faça o download do PDF, assine no Gov.BR e depois faça upload do arquivo assinado.",
+        duration: 8000,
+      });
+
+      // Also open the PDF for download
+      window.open(data.signedUrl, '_blank');
+    } catch (error: any) {
+      console.error('Error opening Gov.BR:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Não foi possível abrir o Gov.BR",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUploadSignedPdf = async (demand: any, file: File) => {
+    try {
+      setUploadingPdf(true);
+      
+      // Upload the signed PDF
+      const signedPdfPath = await uploadPdf(file, 'mo_autorizacao_assinado');
+      
+      if (!signedPdfPath) {
+        throw new Error('Erro ao fazer upload do PDF assinado');
+      }
+
+      // Update the demand with the signed PDF and change status
+      const { error } = await supabase
+        .from('demands')
+        .update({
+          mo_autorizacao_assinado_pdf: signedPdfPath,
+          status: 'assinado',
+          assinatura_data: new Date().toISOString(),
+        })
+        .eq('id', demand.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "PDF assinado enviado!",
+        description: "O documento assinado foi carregado com sucesso.",
+      });
+
+      // Close the file input
+      const fileInput = document.getElementById(`signed-pdf-${demand.id}`) as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+      
+    } catch (error: any) {
+      console.error('Error uploading signed PDF:', error);
+      toast({
+        title: "Erro ao enviar PDF",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingPdf(false);
+    }
+  };
+
+  const handleSendSignedDocumentEmail = async (demand: any) => {
+    if (!demand.mo_autorizacao_assinado_pdf) {
+      toast({
+        title: "Erro",
+        description: "PDF assinado não encontrado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setSendingEmail(true);
+
+      // Get CCA email
+      const { data: ccaData, error: ccaError } = await supabase
+        .from("profiles")
+        .select("email:user_id(email), full_name")
+        .eq("user_id", demand.cca_user_id)
+        .single();
+
+      if (ccaError) throw ccaError;
+
+      // Get user email from auth
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+
+      const { data: ccaProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", demand.cca_user_id)
+        .single();
+
+      // Get CCA user data
+      const { data: userData } = await supabase.auth.admin.getUserById(demand.cca_user_id);
+
+      const ccaEmail = userData?.user?.email;
+      
+      if (!ccaEmail) {
+        throw new Error('Email do CCA não encontrado');
+      }
+
+      console.log('📧 Sending email to:', ccaEmail);
+
+      // Call edge function to send email with attachment
+      const { data, error } = await supabase.functions.invoke('send-signed-document-email', {
+        body: {
+          demandId: demand.id,
+          ccaEmail: ccaEmail,
+          ccaName: ccaProfile?.full_name || 'CCA',
+          cpf: demand.cpf || '',
+          matricula: demand.matricula || '',
+          pdfPath: demand.mo_autorizacao_assinado_pdf,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Email enviado!",
+        description: `O PDF assinado foi enviado para ${ccaEmail}`,
+      });
+
+      // Update demand to concluded
+      await supabase
+        .from('demands')
+        .update({ status: 'concluida' })
+        .eq('id', demand.id);
+
+    } catch (error: any) {
+      console.error('Error sending email:', error);
+      toast({
+        title: "Erro ao enviar email",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSendingEmail(false);
+    }
+  };
+
   const filteredDemands = demands.filter((demand) => {
     const statusMatch = filterStatus === "all" || demand.status === filterStatus;
     const ccaMatch = filterCCA === "all" || demand.codigo_cca === filterCCA;
@@ -610,6 +803,7 @@ const Demands = () => {
                         <SelectItem value="cancela_proposta_siopi">Cancela Proposta SIOPI</SelectItem>
                         <SelectItem value="solicitar_avaliacao_sigdu">Solicitar Avaliação SIGDU</SelectItem>
                         <SelectItem value="incluir_pis_siopi">Incluir PIS no SIOPI</SelectItem>
+                        <SelectItem value="autoriza_vendedor_restricao">Autorização de Vendedor com Restrição</SelectItem>
                         <SelectItem value="outras">Outras</SelectItem>
                       </SelectContent>
                     </Select>
@@ -620,7 +814,8 @@ const Demands = () => {
                     type === "cancela_avaliacao_sicaq" ||
                     type === "cancela_proposta_siopi" ||
                     type === "solicitar_avaliacao_sigdu" ||
-                    type === "incluir_pis_siopi") && (
+                    type === "incluir_pis_siopi" ||
+                    type === "autoriza_vendedor_restricao") && (
                     <div className="space-y-2">
                       <Label htmlFor="cpf">CPF *</Label>
                       <Input
@@ -681,6 +876,33 @@ const Demands = () => {
                         onChange={(e) => setMatriculaImovelFile(e.target.files?.[0] || null)}
                       />
                     </div>
+                  )}
+
+                  {type === "autoriza_vendedor_restricao" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="matricula">Matrícula da Operação (MO)</Label>
+                        <Input
+                          id="matricula"
+                          placeholder="Ex: 12345"
+                          value={matricula}
+                          onChange={(e) => setMatricula(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="mo_autorizacao">MO de Autorização (PDF) *</Label>
+                        <Input
+                          id="mo_autorizacao"
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => setMoAutorizacaoFile(e.target.files?.[0] || null)}
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Este PDF será assinado digitalmente no Gov.BR pela gerência
+                        </p>
+                      </div>
+                    </>
                   )}
 
                   {type === "vincula_imovel" && (
@@ -751,6 +973,8 @@ const Demands = () => {
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="pendente">Pendente</SelectItem>
+                    <SelectItem value="aguardando_assinatura">Aguardando Assinatura</SelectItem>
+                    <SelectItem value="assinado">Assinado</SelectItem>
                     <SelectItem value="concluida">Concluída</SelectItem>
                     <SelectItem value="cancelada">Cancelada</SelectItem>
                   </SelectContent>
@@ -849,7 +1073,7 @@ const Demands = () => {
                     )}
                     
                     {/* PDF Files */}
-                    {(demand.carta_solicitacao_pdf || demand.ficha_cadastro_pdf || demand.matricula_imovel_pdf) && (
+                    {(demand.carta_solicitacao_pdf || demand.ficha_cadastro_pdf || demand.matricula_imovel_pdf || demand.mo_autorizacao_pdf || demand.mo_autorizacao_assinado_pdf) && (
                       <div className="mt-3 space-y-2">
                         <p className="font-semibold">Arquivos anexados:</p>
                         <div className="flex flex-wrap gap-2">
@@ -883,7 +1107,79 @@ const Demands = () => {
                               Matrícula Imóvel
                             </Button>
                           )}
+                          {demand.mo_autorizacao_pdf && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewPdf(demand.mo_autorizacao_pdf, "MO de Autorização")}
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              MO de Autorização
+                            </Button>
+                          )}
+                          {demand.mo_autorizacao_assinado_pdf && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewPdf(demand.mo_autorizacao_assinado_pdf, "MO de Autorização Assinado")}
+                              className="bg-success/10 border-success text-success hover:bg-success/20"
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              MO Assinado ✓
+                            </Button>
+                          )}
                         </div>
+                      </div>
+                    )}
+
+                    {/* Special actions for vendor authorization */}
+                    {demand.type === "autoriza_vendedor_restricao" && role === "agencia" && (
+                      <div className="mt-4 space-y-3 p-4 bg-muted/50 rounded-md border border-border">
+                        <p className="font-semibold text-sm">🔐 Assinatura Digital Gov.BR</p>
+                        
+                        {demand.status === "aguardando_assinatura" && (
+                          <>
+                            <Button
+                              onClick={() => handleOpenGovBRSigning(demand)}
+                              className="w-full"
+                              variant="default"
+                            >
+                              🔐 Assinar no Gov.BR
+                            </Button>
+                            
+                            <div className="space-y-2">
+                              <Label htmlFor={`signed-pdf-${demand.id}`} className="text-sm">
+                                Ou faça upload do PDF já assinado:
+                              </Label>
+                              <Input
+                                id={`signed-pdf-${demand.id}`}
+                                type="file"
+                                accept=".pdf"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleUploadSignedPdf(demand, file);
+                                }}
+                                disabled={uploadingPdf}
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {demand.status === "assinado" && demand.mo_autorizacao_assinado_pdf && (
+                          <Button
+                            onClick={() => handleSendSignedDocumentEmail(demand)}
+                            className="w-full"
+                            disabled={sendingEmail}
+                          >
+                            {sendingEmail ? "Enviando..." : "✉️ Enviar PDF Assinado por Email"}
+                          </Button>
+                        )}
+
+                        {demand.assinatura_data && (
+                          <p className="text-xs text-muted-foreground">
+                            Assinado em: {new Date(demand.assinatura_data).toLocaleDateString('pt-BR')}
+                          </p>
+                        )}
                       </div>
                     )}
 
@@ -894,7 +1190,7 @@ const Demands = () => {
                       </div>
                     )}
                   </div>
-                  {role === "agencia" && demand.status === "pendente" && (
+                  {role === "agencia" && demand.status === "pendente" && demand.type !== "autoriza_vendedor_restricao" && (
                     <div className="mt-4 space-y-3">
                       <Textarea
                         placeholder="Resposta da demanda..."

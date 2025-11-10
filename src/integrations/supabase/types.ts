@@ -87,6 +87,7 @@ export type Database = {
       }
       demands: {
         Row: {
+          assinatura_data: string | null
           carta_solicitacao_pdf: string | null
           cartorio: string | null
           cca_user_id: string
@@ -99,6 +100,8 @@ export type Database = {
           id: string
           matricula: string | null
           matricula_imovel_pdf: string | null
+          mo_autorizacao_assinado_pdf: string | null
+          mo_autorizacao_pdf: string | null
           numero_pis: string | null
           response_text: string | null
           status: Database["public"]["Enums"]["demand_status"]
@@ -106,6 +109,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assinatura_data?: string | null
           carta_solicitacao_pdf?: string | null
           cartorio?: string | null
           cca_user_id: string
@@ -118,6 +122,8 @@ export type Database = {
           id?: string
           matricula?: string | null
           matricula_imovel_pdf?: string | null
+          mo_autorizacao_assinado_pdf?: string | null
+          mo_autorizacao_pdf?: string | null
           numero_pis?: string | null
           response_text?: string | null
           status?: Database["public"]["Enums"]["demand_status"]
@@ -125,6 +131,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assinatura_data?: string | null
           carta_solicitacao_pdf?: string | null
           cartorio?: string | null
           cca_user_id?: string
@@ -137,6 +144,8 @@ export type Database = {
           id?: string
           matricula?: string | null
           matricula_imovel_pdf?: string | null
+          mo_autorizacao_assinado_pdf?: string | null
+          mo_autorizacao_pdf?: string | null
           numero_pis?: string | null
           response_text?: string | null
           status?: Database["public"]["Enums"]["demand_status"]
@@ -283,7 +292,12 @@ export type Database = {
     }
     Enums: {
       app_role: "agencia" | "cca"
-      demand_status: "pendente" | "concluida" | "cancelada"
+      demand_status:
+        | "pendente"
+        | "concluida"
+        | "cancelada"
+        | "aguardando_assinatura"
+        | "assinado"
       demand_type:
         | "autoriza_reavaliacao"
         | "desconsidera_avaliacoes"
@@ -293,6 +307,7 @@ export type Database = {
         | "solicitar_avaliacao_sigdu"
         | "outras"
         | "incluir_pis_siopi"
+        | "autoriza_vendedor_restricao"
       modalidade_financiamento: "SBPE" | "MCMV" | "OUTRO"
     }
     CompositeTypes: {
@@ -422,7 +437,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["agencia", "cca"],
-      demand_status: ["pendente", "concluida", "cancelada"],
+      demand_status: [
+        "pendente",
+        "concluida",
+        "cancelada",
+        "aguardando_assinatura",
+        "assinado",
+      ],
       demand_type: [
         "autoriza_reavaliacao",
         "desconsidera_avaliacoes",
@@ -432,6 +453,7 @@ export const Constants = {
         "solicitar_avaliacao_sigdu",
         "outras",
         "incluir_pis_siopi",
+        "autoriza_vendedor_restricao",
       ],
       modalidade_financiamento: ["SBPE", "MCMV", "OUTRO"],
     },
