@@ -43,6 +43,167 @@ const demandSchema = z.object({
   numero_pis: z.string().optional(),
 });
 
+// Helper function to send WhatsApp to manager
+const sendWhatsAppToManager = async (
+  type: string, 
+  cpf: string, 
+  description: string, 
+  profile: any,
+  novaDemandaTemplate: any
+) => {
+  console.log('🔔 [WhatsApp Manager] Starting notification...');
+  
+  const { data: agenciaRoles, error: roleError } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "agencia")
+    .limit(1)
+    .maybeSingle();
+
+  if (roleError) {
+    console.error('❌ [WhatsApp Manager] Error fetching agencia role:', roleError);
+    throw roleError;
+  }
+
+  if (!agenciaRoles?.user_id) {
+    console.warn('⚠️ [WhatsApp Manager] No agencia user found');
+    return;
+  }
+
+  console.log('✓ [WhatsApp Manager] Found agencia user:', agenciaRoles.user_id);
+
+  const { data: managerData, error: managerError } = await supabase
+    .from("profiles")
+    .select("phone, full_name")
+    .eq("user_id", agenciaRoles.user_id)
+    .single();
+
+  if (managerError) {
+    console.error('❌ [WhatsApp Manager] Error fetching manager data:', managerError);
+    throw managerError;
+  }
+
+  if (!managerData?.phone) {
+    console.warn('⚠️ [WhatsApp Manager] Manager has no phone number');
+    return;
+  }
+
+  console.log('✓ [WhatsApp Manager] Manager phone found:', managerData.phone);
+
+  const typeLabels: Record<string, string> = {
+    autoriza_reavaliacao: "Autoriza Reavaliação",
+    desconsidera_avaliacoes: "Desconsidera Avaliações",
+    vincula_imovel: "Vincula Imóvel",
+    cancela_avaliacao_sicaq: "Cancela Avaliação SICAQ",
+    cancela_proposta_siopi: "Cancela Proposta SIOPI",
+    solicitar_avaliacao_sigdu: "Solicitar Avaliação SIGDU",
+    incluir_pis_siopi: "Incluir PIS no SIOPI",
+    outras: "Outras",
+  };
+  const typeLabel = typeLabels[type] || type;
+  
+  let message: string;
+  if (novaDemandaTemplate) {
+    const templateData = {
+      nome_cca: profile?.full_name || "N/A",
+      codigo_cca: profile?.codigo_cca || "N/A",
+      tipo_demanda: typeLabel,
+      cpf: cpf || "N/A",
+      descricao: description || "N/A"
+    };
+    message = generateWhatsAppMessage(novaDemandaTemplate, templateData);
+  } else {
+    message = `🔔 *Nova Demanda Criada*\n\n` +
+      `*CCA:* ${profile?.full_name || "N/A"} (${profile?.codigo_cca})\n` +
+      `*Tipo:* ${typeLabel}\n` +
+      `*CPF:* ${cpf || "N/A"}\n` +
+      `*Descrição:* ${description || "N/A"}`;
+  }
+
+  console.log('📤 [WhatsApp Manager] Sending message...');
+  
+  const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+    body: { phone: managerData.phone, message },
+  });
+  
+  if (error) {
+    console.error('❌ [WhatsApp Manager] Send error:', error);
+    throw error;
+  }
+
+  console.log('✅ [WhatsApp Manager] Message sent successfully:', data);
+};
+
+// Helper function to send WhatsApp to CCA
+const sendWhatsAppToCCA = async (
+  demand: any,
+  status: string,
+  responseText: string,
+  demandaRespondidaTemplate: any
+) => {
+  console.log('🔔 [WhatsApp CCA] Starting notification...');
+  
+  const { data: ccaData, error: ccaError } = await supabase
+    .from("profiles")
+    .select("phone, full_name")
+    .eq("user_id", demand.cca_user_id)
+    .maybeSingle();
+
+  if (ccaError) {
+    console.error('❌ [WhatsApp CCA] Error fetching CCA data:', ccaError);
+    throw ccaError;
+  }
+
+  if (!ccaData?.phone) {
+    console.warn('⚠️ [WhatsApp CCA] CCA has no phone number');
+    return;
+  }
+
+  console.log('✓ [WhatsApp CCA] CCA phone found:', ccaData.phone);
+
+  const typeLabels: Record<string, string> = {
+    autoriza_reavaliacao: "Autoriza Reavaliação",
+    desconsidera_avaliacoes: "Desconsidera Avaliações",
+    vincula_imovel: "Vincula Imóvel",
+    cancela_avaliacao_sicaq: "Cancela Avaliação SICAQ",
+    cancela_proposta_siopi: "Cancela Proposta SIOPI",
+    solicitar_avaliacao_sigdu: "Solicitar Avaliação SIGDU",
+    incluir_pis_siopi: "Incluir PIS no SIOPI",
+    outras: "Outras",
+  };
+  const typeLabel = typeLabels[demand.type] || demand.type;
+  const statusLabel = status === "concluida" ? "✅ Concluída" : "❌ Cancelada";
+  
+  let message: string;
+  if (demandaRespondidaTemplate) {
+    const templateData = {
+      status: statusLabel,
+      tipo_demanda: typeLabel,
+      resposta: responseText
+    };
+    message = generateWhatsAppMessage(demandaRespondidaTemplate, templateData);
+  } else {
+    message = `🔔 *Demanda Respondida*\n\n` +
+      `*Status:* ${statusLabel}\n` +
+      `*Tipo:* ${typeLabel}\n` +
+      `*Resposta:* ${responseText}\n\n` +
+      `A gerência analisou sua demanda.`;
+  }
+
+  console.log('📤 [WhatsApp CCA] Sending message...');
+  
+  const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+    body: { phone: ccaData.phone, message },
+  });
+  
+  if (error) {
+    console.error('❌ [WhatsApp CCA] Send error:', error);
+    throw error;
+  }
+
+  console.log('✅ [WhatsApp CCA] Message sent successfully:', data);
+};
+
 const Demands = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -195,76 +356,10 @@ const Demands = () => {
 
       if (error) throw error;
 
-      // Send WhatsApp notification to manager (agencia)
-      console.log('=== Starting WhatsApp notification to manager ===');
-      try {
-        const { data: agenciaRoles, error: roleError } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .eq("role", "agencia")
-          .limit(1)
-          .maybeSingle();
-
-        console.log('Agencia role query result:', { agenciaRoles, roleError });
-
-        if (roleError) {
-          console.error('Error fetching agencia role:', roleError);
-        }
-
-        if (agenciaRoles?.user_id) {
-          const { data: managerData, error: managerError } = await supabase
-            .from("profiles")
-            .select("phone, full_name")
-            .eq("user_id", agenciaRoles.user_id)
-            .single();
-
-          console.log('Manager data query result:', { managerData, managerError });
-
-          if (managerError) {
-            console.error('Error fetching manager data:', managerError);
-          }
-
-          if (managerData?.phone) {
-            const typeLabel = getTypeLabel(type as Database["public"]["Enums"]["demand_type"]);
-            
-            let message: string;
-            if (novaDemandaTemplate) {
-              // Use template personalizado
-              const templateData = {
-                nome_cca: profile?.full_name || "N/A",
-                codigo_cca: profile?.codigo_cca || "N/A",
-                tipo_demanda: typeLabel,
-                cpf: cpf || "N/A",
-                descricao: description || "N/A"
-              };
-              message = generateWhatsAppMessage(novaDemandaTemplate, templateData);
-            } else {
-              // Fallback para mensagem padrão
-              message = `🔔 *Nova Demanda Criada*\n\n` +
-                `*CCA:* ${profile?.full_name || "N/A"} (${profile?.codigo_cca})\n` +
-                `*Tipo:* ${typeLabel}\n` +
-                `*CPF:* ${cpf || "N/A"}\n` +
-                `*Descrição:* ${description || "N/A"}`;
-            }
-
-            console.log("Sending WhatsApp to manager:", managerData.phone, "Message:", message);
-            
-            const { data: whatsappResult, error: whatsappError } = await supabase.functions.invoke("send-whatsapp", {
-              body: { phone: managerData.phone, message },
-            });
-            
-            console.log("WhatsApp invoke result:", { whatsappResult, whatsappError });
-
-            if (whatsappError) {
-              console.error('WhatsApp error:', whatsappError);
-            }
-          }
-        }
-      } catch (whatsappError: any) {
-        console.error("Failed to send WhatsApp notification:", whatsappError);
-      }
-
-      console.log('=== End WhatsApp notification ===');
+      // Send WhatsApp notification to manager (agencia) - RUNS INDEPENDENTLY
+      sendWhatsAppToManager(type, cpf, description, profile, novaDemandaTemplate).catch(err => {
+        console.error("WhatsApp notification failed but demand was created:", err);
+      });
       
       // Close dialog and reset form AFTER everything is done
       setDialogOpen(false);
@@ -298,78 +393,12 @@ const Demands = () => {
 
       if (error) throw error;
 
-      // Send WhatsApp notification to CCA about the response
-      console.log('=== Starting WhatsApp notification to CCA ===');
+      // Send WhatsApp notification to CCA about the response - RUNS INDEPENDENTLY
       if (selectedDemand && responseText) {
-        try {
-          const { data: ccaData, error: ccaError } = await supabase
-            .from("profiles")
-            .select("phone, full_name")
-            .eq("user_id", selectedDemand.cca_user_id)
-            .maybeSingle();
-
-          console.log('CCA data query result:', { ccaData, ccaError });
-
-          if (ccaError) {
-            console.error('Error fetching CCA data:', ccaError);
-            throw ccaError;
-          }
-
-          if (!ccaData?.phone) {
-            console.log('CCA has no phone number registered');
-            toast({
-              title: "Aviso",
-              description: "CCA não possui telefone cadastrado para notificação",
-              variant: "default"
-            });
-            return;
-          }
-
-          const typeLabel = getTypeLabel(selectedDemand.type);
-          const statusLabel = status === "concluida" ? "✅ Concluída" : "❌ Cancelada";
-          
-          let message: string;
-          if (demandaRespondidaTemplate) {
-            // Use template personalizado
-            const templateData = {
-              status: statusLabel,
-              tipo_demanda: typeLabel,
-              resposta: responseText
-            };
-            message = generateWhatsAppMessage(demandaRespondidaTemplate, templateData);
-          } else {
-            // Fallback para mensagem padrão
-            message = `🔔 *Demanda Respondida*\n\n` +
-              `*Status:* ${statusLabel}\n` +
-              `*Tipo:* ${typeLabel}\n` +
-              `*Resposta:* ${responseText}\n\n` +
-              `A gerência analisou sua demanda.`;
-          }
-
-          console.log("Sending WhatsApp to CCA:", ccaData.phone, "Message:", message);
-          
-          const { data: whatsappResult, error: whatsappError } = await supabase.functions.invoke("send-whatsapp", {
-            body: { phone: ccaData.phone, message },
-          });
-          
-          console.log("WhatsApp invoke result:", { whatsappResult, whatsappError });
-
-          if (whatsappError) {
-            console.error('WhatsApp error:', whatsappError);
-            throw whatsappError;
-          }
-
-          console.log('WhatsApp notification sent successfully');
-        } catch (whatsappError: any) {
-          console.error("Failed to send WhatsApp notification:", whatsappError);
-          toast({
-            title: "Erro ao enviar WhatsApp",
-            description: whatsappError.message || "Não foi possível enviar notificação",
-            variant: "destructive"
-          });
-        }
+        sendWhatsAppToCCA(selectedDemand, status, responseText, demandaRespondidaTemplate).catch(err => {
+          console.error("WhatsApp notification to CCA failed:", err);
+        });
       }
-      console.log('=== End WhatsApp notification ===');
 
       toast({
         title: "Demanda atualizada!",
