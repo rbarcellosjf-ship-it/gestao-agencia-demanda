@@ -151,7 +151,7 @@ const EmailTemplates = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-6">
+    <div className="min-h-screen bg-background pb-24 md:pb-6">
       <div className="sticky top-0 z-10 bg-background border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -276,7 +276,7 @@ const EmailTemplates = () => {
         )}
       </div>
 
-      <div className="fixed bottom-20 right-4 md:hidden">
+      <div className="fixed bottom-24 right-4 md:hidden">
         <Button onClick={handleNewTemplate} size="lg" className="rounded-full shadow-lg">
           <Plus className="h-6 w-6" />
         </Button>

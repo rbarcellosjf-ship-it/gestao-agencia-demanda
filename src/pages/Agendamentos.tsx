@@ -196,7 +196,7 @@ const Agendamentos = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="min-h-screen bg-background pb-24 md:pb-0">
       <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
         <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
           <div className="flex items-center gap-2 md:gap-4">
