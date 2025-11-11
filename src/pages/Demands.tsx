@@ -48,6 +48,7 @@ const demandSchema = z.object({
 const sendWhatsAppToManager = async (
   type: string, 
   cpf: string, 
+  matricula: string,
   description: string, 
   profile: any,
   novaDemandaTemplate: any
@@ -105,7 +106,31 @@ const sendWhatsAppToManager = async (
   const typeLabel = typeLabels[type] || type;
   
   let message: string;
-  if (novaDemandaTemplate) {
+  
+  // Use specific template for vendor authorization
+  if (type === "autoriza_vendedor_restricao") {
+    const { data: autorizacaoTemplate } = await supabase
+      .from('whatsapp_templates')
+      .select('*')
+      .eq('template_key', 'nova_autorizacao_vendedor')
+      .maybeSingle();
+    
+    if (autorizacaoTemplate) {
+      const templateData = {
+        nome_cca: profile?.full_name || "N/A",
+        codigo_cca: profile?.codigo_cca || "N/A",
+        cpf: cpf || "N/A",
+        matricula: matricula || "N/A"
+      };
+      message = generateWhatsAppMessage(autorizacaoTemplate as any, templateData);
+    } else {
+      message = `🔐 *Nova Autorização de Vendedor com Restrição*\n\n` +
+        `*CCA:* ${profile?.full_name || "N/A"} (${profile?.codigo_cca})\n` +
+        `*CPF:* ${cpf || "N/A"}\n` +
+        `*Matrícula:* ${matricula || "N/A"}\n\n` +
+        `📄 PDF anexado para assinatura digital no Gov.BR`;
+    }
+  } else if (novaDemandaTemplate) {
     const templateData = {
       nome_cca: profile?.full_name || "N/A",
       codigo_cca: profile?.codigo_cca || "N/A",
@@ -369,7 +394,7 @@ const Demands = () => {
       if (error) throw error;
 
       // Send WhatsApp notification to manager (agencia) - RUNS INDEPENDENTLY
-      sendWhatsAppToManager(type, cpf, description, profile, novaDemandaTemplate).catch(err => {
+      sendWhatsAppToManager(type, cpf, matricula, description, profile, novaDemandaTemplate).catch(err => {
         console.error("WhatsApp notification failed but demand was created:", err);
       });
       
