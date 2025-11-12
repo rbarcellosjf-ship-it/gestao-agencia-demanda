@@ -629,22 +629,37 @@ const Demands = () => {
         throw new Error('URL assinada não gerada');
       }
 
-      // Open Gov.BR signing portal in a new tab
-      window.open('https://assinador.iti.br/assinatura/', '_blank');
+      // Download PDF programmatically to avoid popup blockers
+      const link = document.createElement('a');
+      link.href = data.signedUrl;
+      link.download = `autorizacao_${demand.cpf || 'documento'}.pdf`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Open Gov.BR signing portal after a short delay
+      setTimeout(() => {
+        const govBRWindow = window.open('https://assinador.iti.br/assinatura/', '_blank');
+        if (!govBRWindow) {
+          toast({
+            title: "Atenção",
+            description: "Permita popups para abrir o Gov.BR automaticamente",
+            variant: "destructive",
+          });
+        }
+      }, 500);
 
       toast({
-        title: "Gov.BR aberto!",
-        description: "Faça o download do PDF, assine no Gov.BR e depois faça upload do arquivo assinado.",
+        title: "Download iniciado!",
+        description: "PDF baixado. Assine no Gov.BR e depois faça upload do arquivo assinado.",
         duration: 8000,
       });
-
-      // Also open the PDF for download
-      window.open(data.signedUrl, '_blank');
     } catch (error: any) {
       console.error('Error opening Gov.BR:', error);
       toast({
         title: "Erro",
-        description: error.message || "Não foi possível abrir o Gov.BR",
+        description: error.message || "Não foi possível baixar o PDF",
         variant: "destructive",
       });
     }
