@@ -90,14 +90,10 @@ const handler = async (req: Request): Promise<Response> => {
     const arrayBuffer = await pdfData.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
     
-    // Convert to base64 in chunks to avoid stack overflow
-    let binary = '';
-    const chunkSize = 8192;
-    for (let i = 0; i < buffer.length; i += chunkSize) {
-      const chunk = buffer.slice(i, i + chunkSize);
-      binary += String.fromCharCode.apply(null, Array.from(chunk));
-    }
-    const base64Pdf = btoa(binary);
+    // Use TextDecoder for efficient binary to base64 conversion
+    const decoder = new TextDecoder('latin1');
+    const binaryString = decoder.decode(buffer);
+    const base64Pdf = btoa(binaryString);
 
     console.log("✓ [Send Signed Document] PDF converted to base64");
 
@@ -209,6 +205,38 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     console.log("✅ [Send Signed Document] Email sent successfully:", emailResponse);
+
+    // Send WhatsApp notification
+    console.log("📱 [Send Signed Document] Sending WhatsApp notification...");
+    
+    try {
+      const { data: ccaProfilePhone } = await supabaseClient
+        .from('profiles')
+        .select('phone')
+        .eq('user_id', ccaUserId)
+        .single();
+
+      if (ccaProfilePhone?.phone) {
+        const whatsappMessage = `🔐 *Autorização Assinada Digitalmente*\n\nOlá ${ccaName}!\n\nA autorização de vendedor com restrição foi assinada digitalmente e enviada para seu email.\n\n📋 *CPF:* ${cpf || 'N/A'}\n🏠 *Matrícula:* ${matricula || 'N/A'}\n📅 *Data da Assinatura:* ${dataAssinatura}\n\nO PDF assinado foi enviado para ${ccaEmail}`;
+
+        const { error: whatsappError } = await supabaseClient.functions.invoke('send-whatsapp', {
+          body: {
+            phone: ccaProfilePhone.phone,
+            message: whatsappMessage
+          }
+        });
+
+        if (whatsappError) {
+          console.error("⚠️ [Send Signed Document] WhatsApp notification failed:", whatsappError);
+        } else {
+          console.log("✅ [Send Signed Document] WhatsApp notification sent");
+        }
+      } else {
+        console.log("⚠️ [Send Signed Document] No phone number found for CCA");
+      }
+    } catch (whatsappError) {
+      console.error("⚠️ [Send Signed Document] WhatsApp notification error:", whatsappError);
+    }
 
     return new Response(JSON.stringify({ 
       success: true

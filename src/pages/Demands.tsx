@@ -707,6 +707,11 @@ const Demands = () => {
     try {
       setSendingEmail(true);
 
+      toast({
+        title: "Enviando...",
+        description: "Processando e enviando o PDF assinado por email e WhatsApp",
+      });
+
       console.log('📧 Sending email for demand:', demand.id);
 
       // Call edge function to send email with attachment
@@ -724,8 +729,8 @@ const Demands = () => {
       if (error) throw error;
 
       toast({
-        title: "Email enviado!",
-        description: "O PDF assinado foi enviado com sucesso para o CCA",
+        title: "✅ Enviado com sucesso!",
+        description: "O PDF assinado foi enviado por email e WhatsApp para o CCA",
       });
 
       // Update demand to concluded
