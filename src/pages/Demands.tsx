@@ -618,6 +618,11 @@ const Demands = () => {
     }
 
     try {
+      toast({
+        title: "Preparando download...",
+        description: "Aguarde enquanto preparamos o PDF",
+      });
+
       // Generate signed URL for the PDF (valid for 1 hour)
       const { data, error } = await supabase.storage
         .from('demand-pdfs')
@@ -629,29 +634,29 @@ const Demands = () => {
         throw new Error('URL assinada não gerada');
       }
 
-      // Download PDF programmatically to avoid popup blockers
+      // Download using fetch + Blob (robust and reliable)
+      const response = await fetch(data.signedUrl);
+      if (!response.ok) throw new Error('Erro ao baixar PDF');
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // Create download link
       const link = document.createElement('a');
-      link.href = data.signedUrl;
+      link.href = blobUrl;
       link.download = `autorizacao_${demand.cpf || 'documento'}.pdf`;
-      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      // Clean up blob URL
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 
-      // Open Gov.BR signing portal after a short delay
-      setTimeout(() => {
-        const govBRWindow = window.open('https://assinador.iti.br/assinatura/', '_blank');
-        if (!govBRWindow) {
-          toast({
-            title: "Atenção",
-            description: "Permita popups para abrir o Gov.BR automaticamente",
-            variant: "destructive",
-          });
-        }
-      }, 500);
+      // Open Gov.BR signing portal
+      window.open('https://assinador.iti.br/assinatura/', '_blank');
 
       toast({
-        title: "Download iniciado!",
+        title: "Download concluído!",
         description: "PDF baixado. Assine no Gov.BR e depois faça upload do arquivo assinado.",
         duration: 8000,
       });
