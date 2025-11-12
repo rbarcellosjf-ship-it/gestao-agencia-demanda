@@ -707,42 +707,14 @@ const Demands = () => {
     try {
       setSendingEmail(true);
 
-      // Get CCA email
-      const { data: ccaData, error: ccaError } = await supabase
-        .from("profiles")
-        .select("email:user_id(email), full_name")
-        .eq("user_id", demand.cca_user_id)
-        .single();
-
-      if (ccaError) throw ccaError;
-
-      // Get user email from auth
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-
-      const { data: ccaProfile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("user_id", demand.cca_user_id)
-        .single();
-
-      // Get CCA user data
-      const { data: userData } = await supabase.auth.admin.getUserById(demand.cca_user_id);
-
-      const ccaEmail = userData?.user?.email;
-      
-      if (!ccaEmail) {
-        throw new Error('Email do CCA não encontrado');
-      }
-
-      console.log('📧 Sending email to:', ccaEmail);
+      console.log('📧 Sending email for demand:', demand.id);
 
       // Call edge function to send email with attachment
+      // The edge function will fetch CCA email and name using service role
       const { data, error } = await supabase.functions.invoke('send-signed-document-email', {
         body: {
           demandId: demand.id,
-          ccaEmail: ccaEmail,
-          ccaName: ccaProfile?.full_name || 'CCA',
+          ccaUserId: demand.cca_user_id,
           cpf: demand.cpf || '',
           matricula: demand.matricula || '',
           pdfPath: demand.mo_autorizacao_assinado_pdf,
@@ -753,7 +725,7 @@ const Demands = () => {
 
       toast({
         title: "Email enviado!",
-        description: `O PDF assinado foi enviado para ${ccaEmail}`,
+        description: "O PDF assinado foi enviado com sucesso para o CCA",
       });
 
       // Update demand to concluded

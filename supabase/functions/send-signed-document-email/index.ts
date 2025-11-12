@@ -12,8 +12,7 @@ const corsHeaders = {
 
 interface SendSignedDocumentRequest {
   demandId: string;
-  ccaEmail: string;
-  ccaName: string;
+  ccaUserId: string;
   cpf: string;
   matricula: string;
   pdfPath: string;
@@ -28,19 +27,50 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     console.log("📧 [Send Signed Document] Starting email send process...");
     
-    const { demandId, ccaEmail, ccaName, cpf, matricula, pdfPath }: SendSignedDocumentRequest = await req.json();
+    const { demandId, ccaUserId, cpf, matricula, pdfPath }: SendSignedDocumentRequest = await req.json();
 
-    if (!ccaEmail || !pdfPath) {
-      throw new Error("Email do CCA e caminho do PDF são obrigatórios");
+    if (!ccaUserId || !pdfPath) {
+      throw new Error("ID do usuário CCA e caminho do PDF são obrigatórios");
     }
 
     console.log("✓ [Send Signed Document] Request validated");
 
-    // Create Supabase client to download the signed PDF
+    // Create Supabase client with service role to access auth and storage
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
+
+    console.log("📧 [Send Signed Document] Fetching CCA user data...");
+
+    // Get CCA profile
+    const { data: ccaProfile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('full_name')
+      .eq('user_id', ccaUserId)
+      .single();
+
+    if (profileError) {
+      console.error("❌ [Send Signed Document] Error fetching profile:", profileError);
+      throw new Error(`Erro ao buscar perfil do CCA: ${profileError.message}`);
+    }
+
+    // Get CCA email from auth
+    const { data: { user: ccaUser }, error: authError } = await supabaseClient.auth.admin.getUserById(ccaUserId);
+
+    if (authError || !ccaUser) {
+      console.error("❌ [Send Signed Document] Error fetching user:", authError);
+      throw new Error(`Erro ao buscar usuário do CCA: ${authError?.message || 'Usuário não encontrado'}`);
+    }
+
+    const ccaEmail = ccaUser.email;
+    const ccaName = ccaProfile?.full_name || 'CCA';
+
+    if (!ccaEmail) {
+      throw new Error('Email do CCA não encontrado');
+    }
+
+    console.log("✓ [Send Signed Document] CCA data fetched:", { email: ccaEmail, name: ccaName });
 
     console.log("📄 [Send Signed Document] Downloading PDF from storage...");
 
