@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.80.0";
 import { Resend } from "https://esm.sh/resend@4.0.0";
+import { encode as base64Encode } from "https://deno.land/std@0.190.0/encoding/base64.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -84,20 +85,10 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Erro ao baixar PDF: ${downloadError.message}`);
     }
 
-    console.log("✓ [Send Signed Document] PDF downloaded successfully");
+    const pdfSize = pdfData.size;
+    console.log(`✓ [Send Signed Document] PDF downloaded successfully (${(pdfSize / 1024).toFixed(2)} KB)`);
 
-    // Convert PDF blob to base64 for Resend attachment
-    const arrayBuffer = await pdfData.arrayBuffer();
-    const buffer = new Uint8Array(arrayBuffer);
-    
-    // Use TextDecoder for efficient binary to base64 conversion
-    const decoder = new TextDecoder('latin1');
-    const binaryString = decoder.decode(buffer);
-    const base64Pdf = btoa(binaryString);
-
-    console.log("✓ [Send Signed Document] PDF converted to base64");
-
-    // Generate email content
+    // Generate email content FIRST
     const dataAssinatura = new Date().toLocaleDateString('pt-BR');
     
     // Fetch email template from database
@@ -153,6 +144,46 @@ const handler = async (req: Request): Promise<Response> => {
         <p>Você também pode acessar o documento diretamente no sistema de gestão a qualquer momento.</p>
       `;
     }
+
+    // Check if PDF is too large for email attachment (10MB limit for reliability)
+    const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10MB
+    interface EmailAttachment {
+      filename: string;
+      content: string;
+    }
+    let attachments: EmailAttachment[] = [];
+
+    if (pdfSize > MAX_ATTACHMENT_SIZE) {
+      console.log(`⚠️ [Send Signed Document] PDF too large (${(pdfSize / 1024 / 1024).toFixed(2)} MB), creating signed URL instead`);
+      
+      // Create a signed URL valid for 7 days
+      const { data: signedUrlData, error: urlError } = await supabaseClient.storage
+        .from('demand-pdfs')
+        .createSignedUrl(pdfPath, 604800); // 7 days in seconds
+
+      if (urlError) {
+        console.error("❌ [Send Signed Document] Error creating signed URL:", urlError);
+        throw new Error(`Erro ao criar URL assinada: ${urlError.message}`);
+      }
+
+      console.log("✓ [Send Signed Document] Signed URL created successfully");
+
+      // Add download link to email body
+      emailBodyText += `\n\n<p style="margin-top: 30px;"><a href="${signedUrlData.signedUrl}" style="display: inline-block; padding: 12px 24px; background: #667eea; color: white; text-decoration: none; border-radius: 6px;">📥 Baixar PDF Assinado</a></p>\n<p style="font-size: 12px; color: #666;">O link de download é válido por 7 dias.</p>`;
+    } else {
+      // Convert PDF to base64 using Deno's standard library (robust and efficient)
+      const arrayBuffer = await pdfData.arrayBuffer();
+      const base64Pdf = base64Encode(arrayBuffer);
+
+      console.log(`✓ [Send Signed Document] PDF converted to base64 (${(pdfSize / 1024).toFixed(2)} KB)`);
+
+      attachments = [
+        {
+          filename: `autorizacao_assinada_${matricula || 'documento'}.pdf`,
+          content: base64Pdf,
+        },
+      ];
+    }
     
     const htmlContent = `
       <!DOCTYPE html>
@@ -190,18 +221,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("📤 [Send Signed Document] Sending email via Resend...");
 
-    // Send email with PDF attachment
+    // Send email with PDF attachment or download link
     const emailResponse = await resend.emails.send({
       from: "Sistema de Gestão <onboarding@resend.dev>",
       to: [ccaEmail],
-      subject: `Autorização Assinada - MO ${matricula || 'N/A'}`,
+      subject: emailSubject,
       html: htmlContent,
-      attachments: [
-        {
-          filename: `autorizacao_assinada_${matricula || 'documento'}.pdf`,
-          content: base64Pdf,
-        },
-      ],
+      attachments: attachments,
     });
 
     console.log("✅ [Send Signed Document] Email sent successfully:", emailResponse);
