@@ -630,7 +630,7 @@ const Demands = () => {
       }
 
       // Open Gov.BR signing portal in a new tab
-      window.open('https://assinador.iti.gov.br/', '_blank');
+      window.open('https://assinador.iti.br/assinatura/', '_blank');
 
       toast({
         title: "Gov.BR aberto!",
@@ -904,30 +904,19 @@ const Demands = () => {
                   )}
 
                   {type === "autoriza_vendedor_restricao" && (
-                    <>
-                      <div className="space-y-2">
-                        <Label htmlFor="matricula">Matrícula da Operação (MO)</Label>
-                        <Input
-                          id="matricula"
-                          placeholder="Ex: 12345"
-                          value={matricula}
-                          onChange={(e) => setMatricula(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="mo_autorizacao">MO de Autorização (PDF) *</Label>
-                        <Input
-                          id="mo_autorizacao"
-                          type="file"
-                          accept=".pdf"
-                          onChange={(e) => setMoAutorizacaoFile(e.target.files?.[0] || null)}
-                          required
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Este PDF será assinado digitalmente no Gov.BR pela gerência
-                        </p>
-                      </div>
-                    </>
+                    <div className="space-y-2">
+                      <Label htmlFor="mo_autorizacao">MO de Autorização (PDF) *</Label>
+                      <Input
+                        id="mo_autorizacao"
+                        type="file"
+                        accept=".pdf"
+                        onChange={(e) => setMoAutorizacaoFile(e.target.files?.[0] || null)}
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Este PDF será assinado digitalmente no Gov.BR pela gerência
+                      </p>
+                    </div>
                   )}
 
                   {type === "vincula_imovel" && (
@@ -1164,13 +1153,13 @@ const Demands = () => {
                         
                         {demand.status === "aguardando_assinatura" && (
                           <>
-                            <Button
-                              onClick={() => handleOpenGovBRSigning(demand)}
-                              className="w-full"
-                              variant="default"
-                            >
-                              🔐 Assinar no Gov.BR
-                            </Button>
+                  <Button
+                    onClick={() => handleOpenGovBRSigning(demand)}
+                    size="sm"
+                    variant="default"
+                  >
+                    🔐 Assinar no Gov.BR
+                  </Button>
                             
                             <div className="space-y-2">
                               <Label htmlFor={`signed-pdf-${demand.id}`} className="text-sm">

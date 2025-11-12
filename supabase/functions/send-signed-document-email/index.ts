@@ -66,6 +66,60 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate email content
     const dataAssinatura = new Date().toLocaleDateString('pt-BR');
     
+    // Fetch email template from database
+    const { data: template, error: templateError } = await supabaseClient
+      .from('email_templates')
+      .select('*')
+      .eq('template_key', 'autorizacao_assinada')
+      .single();
+
+    console.log("📧 [Send Signed Document] Template fetch result:", { found: !!template, error: templateError });
+
+    let emailSubject = `Autorização Assinada - MO ${matricula || 'N/A'}`;
+    let emailBodyText = '';
+
+    if (template && !templateError) {
+      // Replace template variables
+      const variables: Record<string, string> = {
+        nome_cca: ccaName,
+        cpf: cpf || 'N/A',
+        matricula: matricula || 'N/A',
+        data_assinatura: dataAssinatura
+      };
+      
+      emailSubject = template.subject.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => variables[key] || match);
+      emailBodyText = template.body.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => variables[key] || match);
+      
+      // Convert line breaks to HTML
+      emailBodyText = emailBodyText.replace(/\n/g, '<br>');
+      
+      console.log("✓ [Send Signed Document] Template variables replaced");
+    } else {
+      // Fallback to hardcoded HTML content
+      console.log("⚠️ [Send Signed Document] Using fallback HTML content");
+      emailBodyText = `
+        <p>Olá <strong>${ccaName}</strong>,</p>
+        
+        <p>A autorização de vendedor com restrição foi assinada digitalmente e está pronta para uso.</p>
+        
+        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <div class="detail">
+            <span class="label">📋 CPF:</span> ${cpf || 'N/A'}
+          </div>
+          <div class="detail">
+            <span class="label">🏠 Matrícula:</span> ${matricula || 'N/A'}
+          </div>
+          <div class="detail">
+            <span class="label">📅 Data da Assinatura:</span> ${dataAssinatura}
+          </div>
+        </div>
+        
+        <p>O <strong>PDF assinado digitalmente</strong> está anexado a este email para sua conveniência.</p>
+        
+        <p>Você também pode acessar o documento diretamente no sistema de gestão a qualquer momento.</p>
+      `;
+    }
+    
     const htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -88,25 +142,7 @@ const handler = async (req: Request): Promise<Response> => {
               <h1 style="margin: 0;">🔐 Autorização Assinada Digitalmente</h1>
             </div>
             <div class="content">
-              <p>Olá <strong>${ccaName}</strong>,</p>
-              
-              <p>A autorização de vendedor com restrição foi assinada digitalmente e está pronta para uso.</p>
-              
-              <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <div class="detail">
-                  <span class="label">📋 CPF:</span> ${cpf || 'N/A'}
-                </div>
-                <div class="detail">
-                  <span class="label">🏠 Matrícula:</span> ${matricula || 'N/A'}
-                </div>
-                <div class="detail">
-                  <span class="label">📅 Data da Assinatura:</span> ${dataAssinatura}
-                </div>
-              </div>
-              
-              <p>O <strong>PDF assinado digitalmente</strong> está anexado a este email para sua conveniência.</p>
-              
-              <p>Você também pode acessar o documento diretamente no sistema de gestão a qualquer momento.</p>
+              ${emailBodyText}
               
               <div class="footer">
                 <p>Este é um email automático do Sistema de Gestão.</p>
