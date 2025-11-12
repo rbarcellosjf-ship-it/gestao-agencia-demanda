@@ -89,7 +89,15 @@ const handler = async (req: Request): Promise<Response> => {
     // Convert PDF blob to base64 for Resend attachment
     const arrayBuffer = await pdfData.arrayBuffer();
     const buffer = new Uint8Array(arrayBuffer);
-    const base64Pdf = btoa(String.fromCharCode(...buffer));
+    
+    // Convert to base64 in chunks to avoid stack overflow
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < buffer.length; i += chunkSize) {
+      const chunk = buffer.slice(i, i + chunkSize);
+      binary += String.fromCharCode.apply(null, Array.from(chunk));
+    }
+    const base64Pdf = btoa(binary);
 
     console.log("✓ [Send Signed Document] PDF converted to base64");
 
