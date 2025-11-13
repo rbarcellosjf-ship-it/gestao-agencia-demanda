@@ -41,8 +41,9 @@ export const DashboardStats = ({
 
       <Card className="border-l-4 border-l-secondary">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">Gerenciar Contratos<Users className="w-4 h-4 text-secondary" />
-            Conformidades
+          <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+            <Users className="w-4 h-4 text-secondary" />
+            Gerenciar Contratos
           </CardTitle>
         </CardHeader>
         <CardContent>
