@@ -47,7 +47,11 @@ serve(async (req) => {
 
     console.log('Iniciando extração de certidão de casamento...');
 
-    // Call Lovable AI to extract data from PDF
+    // Convert PDF base64 to image base64 (first page only)
+    // The AI expects images, not PDF files
+    const imageBase64 = `data:image/png;base64,${pdfBase64}`;
+
+    // Call Lovable AI to extract data from image
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -55,23 +59,23 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-pro',
         messages: [
           {
             role: 'system',
-            content: 'Você é um assistente especializado em extrair informações de certidões de casamento brasileiras. Extraia as informações com precisão.'
+            content: 'Você é um assistente especializado em extrair informações de certidões de casamento brasileiras. Extraia as informações com precisão máxima. Analise cuidadosamente o documento e extraia os dados solicitados.'
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Por favor, extraia as seguintes informações desta certidão de casamento: número do livro, número da folha, número do registro (se houver), nome completo do cartório e cidade do cartório.'
+                text: 'Por favor, extraia as seguintes informações desta certidão de casamento: número do livro, número da folha, número do registro (se houver), nome completo do cartório e cidade do cartório. Se algum dado não estiver presente, deixe o campo vazio.'
               },
               {
                 type: 'image_url',
                 image_url: {
-                  url: `data:application/pdf;base64,${pdfBase64}`
+                  url: imageBase64
                 }
               }
             ]

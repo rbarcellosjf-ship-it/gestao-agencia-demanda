@@ -153,16 +153,16 @@ const Dashboard = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-secondary" />
-                Conformidades
+                Gerenciar Contratos
               </CardTitle>
               <CardDescription>
-                Processos em conformidade
+                Contratos e conformidades
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Button className="w-full" variant="secondary">
                 <Plus className="w-4 h-4 mr-2" />
-                Acessar Conformidades
+                Novo Contrato
               </Button>
             </CardContent>
           </Card>

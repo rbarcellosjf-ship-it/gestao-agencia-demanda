@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, FileText, Upload, Loader2 } from "lucide-react";
+import { Copy, FileText, Upload, Loader2, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import * as pdfjsLib from 'pdfjs-dist';
 
 const LeitorDocumentos = () => {
   const { toast } = useToast();
@@ -16,18 +17,34 @@ const LeitorDocumentos = () => {
   const [loadingCertidao, setLoadingCertidao] = useState(false);
   const [loadingMatricula, setLoadingMatricula] = useState(false);
 
-  const convertToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        // Remove the data:application/pdf;base64, prefix
-        const base64Data = base64.split(',')[1];
-        resolve(base64Data);
-      };
-      reader.onerror = reject;
-    });
+  // Set up PDF.js worker
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+
+  const convertPdfToImage = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1);
+    
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    
+    if (!context) {
+      throw new Error('Não foi possível criar contexto do canvas');
+    }
+    
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    
+    await page.render({
+      canvasContext: context,
+      viewport: viewport,
+      canvas: canvas
+    }).promise;
+    
+    // Convert canvas to base64 (PNG format, without the data:image/png;base64, prefix)
+    const base64 = canvas.toDataURL('image/png').split(',')[1];
+    return base64;
   };
 
   const handleExtractCertidao = async () => {
@@ -42,7 +59,7 @@ const LeitorDocumentos = () => {
 
     setLoadingCertidao(true);
     try {
-      const base64 = await convertToBase64(certidaoFile);
+      const base64 = await convertPdfToImage(certidaoFile);
 
       const { data, error } = await supabase.functions.invoke('extrair-certidao', {
         body: { pdfBase64: base64 }
@@ -83,7 +100,7 @@ const LeitorDocumentos = () => {
 
     setLoadingMatricula(true);
     try {
-      const base64 = await convertToBase64(matriculaFile);
+      const base64 = await convertPdfToImage(matriculaFile);
 
       const { data, error } = await supabase.functions.invoke('extrair-matricula', {
         body: { pdfBase64: base64 }
@@ -118,6 +135,11 @@ const LeitorDocumentos = () => {
       title: "Copiado!",
       description: "Texto copiado para a área de transferência",
     });
+  };
+
+  const handleSendEmail = (text: string, subject: string) => {
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+    window.location.href = mailtoLink;
   };
 
   return (
@@ -185,21 +207,31 @@ const LeitorDocumentos = () => {
             </Button>
 
             {certidaoTexto && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Texto Jurídico Gerado:</label>
+              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+                <label className="text-sm font-semibold text-foreground">Texto Jurídico Gerado:</label>
                 <Textarea
                   value={certidaoTexto}
                   readOnly
-                  className="min-h-[120px] bg-muted"
+                  className="min-h-[140px] bg-background border-border font-mono text-sm"
                 />
-                <Button
-                  onClick={() => handleCopy(certidaoTexto)}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copiar Texto
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleCopy(certidaoTexto)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copiar
+                  </Button>
+                  <Button
+                    onClick={() => handleSendEmail(certidaoTexto, "Certidão de Casamento")}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    Enviar Email
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
@@ -260,21 +292,31 @@ const LeitorDocumentos = () => {
             </Button>
 
             {matriculaTexto && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Texto Jurídico Gerado:</label>
+              <div className="space-y-3 p-4 bg-muted/50 rounded-lg border">
+                <label className="text-sm font-semibold text-foreground">Texto Jurídico Gerado:</label>
                 <Textarea
                   value={matriculaTexto}
                   readOnly
-                  className="min-h-[120px] bg-muted"
+                  className="min-h-[140px] bg-background border-border font-mono text-sm"
                 />
-                <Button
-                  onClick={() => handleCopy(matriculaTexto)}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <Copy className="mr-2 h-4 w-4" />
-                  Copiar Texto
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => handleCopy(matriculaTexto)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copiar
+                  </Button>
+                  <Button
+                    onClick={() => handleSendEmail(matriculaTexto, "Descrição do Imóvel")}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    Enviar Email
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
