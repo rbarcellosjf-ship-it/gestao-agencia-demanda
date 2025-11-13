@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, FileText, Upload, Loader2, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import * as pdfjsLib from 'pdfjs-dist';
 
 const LeitorDocumentos = () => {
   const { toast } = useToast();
@@ -17,34 +16,18 @@ const LeitorDocumentos = () => {
   const [loadingCertidao, setLoadingCertidao] = useState(false);
   const [loadingMatricula, setLoadingMatricula] = useState(false);
 
-  // Set up PDF.js worker
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-
-  const convertPdfToImage = async (file: File): Promise<string> => {
-    const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const page = await pdf.getPage(1);
-    
-    const viewport = page.getViewport({ scale: 2.0 });
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    
-    if (!context) {
-      throw new Error('Não foi possível criar contexto do canvas');
-    }
-    
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-    
-    await page.render({
-      canvasContext: context,
-      viewport: viewport,
-      canvas: canvas
-    }).promise;
-    
-    // Convert canvas to base64 (PNG format, without the data:image/png;base64, prefix)
-    const base64 = canvas.toDataURL('image/png').split(',')[1];
-    return base64;
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        // Remove the data:application/pdf;base64, prefix
+        const base64Data = base64.split(',')[1];
+        resolve(base64Data);
+      };
+      reader.onerror = reject;
+    });
   };
 
   const handleExtractCertidao = async () => {
@@ -59,7 +42,7 @@ const LeitorDocumentos = () => {
 
     setLoadingCertidao(true);
     try {
-      const base64 = await convertPdfToImage(certidaoFile);
+      const base64 = await convertToBase64(certidaoFile);
 
       const { data, error } = await supabase.functions.invoke('extrair-certidao', {
         body: { pdfBase64: base64 }
@@ -100,7 +83,7 @@ const LeitorDocumentos = () => {
 
     setLoadingMatricula(true);
     try {
-      const base64 = await convertPdfToImage(matriculaFile);
+      const base64 = await convertToBase64(matriculaFile);
 
       const { data, error } = await supabase.functions.invoke('extrair-matricula', {
         body: { pdfBase64: base64 }
