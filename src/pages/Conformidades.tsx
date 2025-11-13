@@ -19,6 +19,8 @@ import { useEmailTemplate, generateEmail } from "@/hooks/useEmailTemplate";
 import { formatEmailData } from "@/lib/emailUtils";
 import { useUserRole } from "@/hooks/useUserRole";
 import { validateCPF, formatCPF } from "@/lib/cpfValidator";
+import { StatusSelect } from "@/components/StatusSelect";
+import { AgendarAssinaturaDialog } from "@/components/AgendarAssinaturaDialog";
 
 const conformidadeSchema = z.object({
   cpf: z.string()
@@ -258,9 +260,9 @@ const Conformidades = () => {
               <span className="hidden md:inline">Voltar</span>
             </Button>
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">Conformidades</h1>
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">Gerenciar Contratos</h1>
               <p className="text-xs md:text-sm text-muted-foreground">
-                Processos em conformidade
+                Contratos e agendamentos
               </p>
             </div>
           </div>
@@ -268,13 +270,13 @@ const Conformidades = () => {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="w-4 h-4 mr-2" />
-                Conformidade
+                Incluir Contrato
               </Button>
             </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Enviar Processo para Conformidade</DialogTitle>
-                  <DialogDescription>Preencha os dados do processo</DialogDescription>
+                  <DialogTitle>Incluir Contrato</DialogTitle>
+                  <DialogDescription>Preencha os dados do contrato</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleCreateConformidade} className="space-y-4">
                   <div className="space-y-2">
@@ -329,7 +331,7 @@ const Conformidades = () => {
                     </div>
                   )}
                   <Button type="submit" className="w-full">
-                    Enviar para Conformidade
+                    Incluir Contrato
                   </Button>
                 </form>
               </DialogContent>
@@ -352,7 +354,7 @@ const Conformidades = () => {
               return (
                 <Card key={conformidade.id}>
                   <CardHeader>
-                    <div className="flex justify-between items-start">
+                    <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                       <div className="flex-1">
                         <CardTitle className="text-lg">CPF: {conformidade.cpf}</CardTitle>
                         <CardDescription className="mt-1">
@@ -360,32 +362,7 @@ const Conformidades = () => {
                           {new Date(conformidade.created_at).toLocaleDateString("pt-BR")}
                         </CardDescription>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handlePedirPrioridade(conformidade)}
-                          title="Solicitar prioridade via e-mail"
-                        >
-                          <Mail className="w-4 h-4 mr-2" />
-                          Pedir Prioridade
-                        </Button>
-                        {role === "cca" && !agendamento && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => navigate(`/agendamentos?conformidade=${conformidade.id}`)}
-                          >
-                            <Calendar className="w-4 h-4 mr-2" />
-                            Agendar
-                          </Button>
-                        )}
-                        {agendamento && (
-                          <Badge variant="secondary" className="text-sm px-3 py-1">
-                            <Calendar className="w-4 h-4 mr-2" />
-                            Agendado: {format(new Date(agendamento.data_hora), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                          </Badge>
-                        )}
+                      <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -399,8 +376,8 @@ const Conformidades = () => {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Valor do Financiamento</p>
                         <p className="font-semibold text-lg">
@@ -415,6 +392,33 @@ const Conformidades = () => {
                             : conformidade.modalidade}
                         </p>
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground">Status do Contrato</Label>
+                      <StatusSelect 
+                        conformidadeId={conformidade.id}
+                        currentStatus={conformidade.status || "Em conformidade"}
+                        dataAgendamento={conformidade.data_agendamento}
+                      />
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handlePedirPrioridade(conformidade)}
+                        title="Solicitar prioridade via e-mail"
+                        className="w-full md:w-auto"
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Pedir Prioridade
+                      </Button>
+                      
+                      <AgendarAssinaturaDialog 
+                        conformidade={conformidade}
+                        profile={profile}
+                      />
                     </div>
                   </CardContent>
                 </Card>

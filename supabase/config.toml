@@ -5,3 +5,12 @@ verify_jwt = false
 
 [functions.send-signed-document-email]
 verify_jwt = false
+
+[functions.agendar-entrevista]
+verify_jwt = false
+
+[functions.whatsapp-webhook]
+verify_jwt = false
+
+[functions.enviar-lembretes]
+verify_jwt = false

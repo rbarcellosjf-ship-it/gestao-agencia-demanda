@@ -52,15 +52,44 @@ export type Database = {
           },
         ]
       }
+      configuracoes: {
+        Row: {
+          chave: string
+          created_at: string | null
+          descricao: string | null
+          id: string
+          updated_at: string | null
+          valor: string
+        }
+        Insert: {
+          chave: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          updated_at?: string | null
+          valor: string
+        }
+        Update: {
+          chave?: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+          updated_at?: string | null
+          valor?: string
+        }
+        Relationships: []
+      }
       conformidades: {
         Row: {
           cca_user_id: string
           codigo_cca: string
           cpf: string
           created_at: string
+          data_agendamento: string | null
           id: string
           modalidade: Database["public"]["Enums"]["modalidade_financiamento"]
           modalidade_outro: string | null
+          status: string | null
           valor_financiamento: number
         }
         Insert: {
@@ -68,9 +97,11 @@ export type Database = {
           codigo_cca: string
           cpf: string
           created_at?: string
+          data_agendamento?: string | null
           id?: string
           modalidade: Database["public"]["Enums"]["modalidade_financiamento"]
           modalidade_outro?: string | null
+          status?: string | null
           valor_financiamento: number
         }
         Update: {
@@ -78,9 +109,11 @@ export type Database = {
           codigo_cca?: string
           cpf?: string
           created_at?: string
+          data_agendamento?: string | null
           id?: string
           modalidade?: Database["public"]["Enums"]["modalidade_financiamento"]
           modalidade_outro?: string | null
+          status?: string | null
           valor_financiamento?: number
         }
         Relationships: []
@@ -192,6 +225,83 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      entrevistas_agendamento: {
+        Row: {
+          agencia: string | null
+          chat_id: string | null
+          cliente_nome: string
+          conformidade_id: string | null
+          contrato_id: string | null
+          created_at: string | null
+          data_confirmada: string | null
+          data_opcao_1: string
+          data_opcao_2: string
+          endereco_agencia: string | null
+          horario_fim: string
+          horario_inicio: string
+          id: string
+          lembrete_enviado_em: string | null
+          mensagem_id: string | null
+          nome_empresa: string | null
+          opcao_escolhida: number | null
+          status: string | null
+          telefone: string
+          updated_at: string | null
+        }
+        Insert: {
+          agencia?: string | null
+          chat_id?: string | null
+          cliente_nome: string
+          conformidade_id?: string | null
+          contrato_id?: string | null
+          created_at?: string | null
+          data_confirmada?: string | null
+          data_opcao_1: string
+          data_opcao_2: string
+          endereco_agencia?: string | null
+          horario_fim: string
+          horario_inicio: string
+          id?: string
+          lembrete_enviado_em?: string | null
+          mensagem_id?: string | null
+          nome_empresa?: string | null
+          opcao_escolhida?: number | null
+          status?: string | null
+          telefone: string
+          updated_at?: string | null
+        }
+        Update: {
+          agencia?: string | null
+          chat_id?: string | null
+          cliente_nome?: string
+          conformidade_id?: string | null
+          contrato_id?: string | null
+          created_at?: string | null
+          data_confirmada?: string | null
+          data_opcao_1?: string
+          data_opcao_2?: string
+          endereco_agencia?: string | null
+          horario_fim?: string
+          horario_inicio?: string
+          id?: string
+          lembrete_enviado_em?: string | null
+          mensagem_id?: string | null
+          nome_empresa?: string | null
+          opcao_escolhida?: number | null
+          status?: string | null
+          telefone?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entrevistas_agendamento_conformidade_id_fkey"
+            columns: ["conformidade_id"]
+            isOneToOne: false
+            referencedRelation: "conformidades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
