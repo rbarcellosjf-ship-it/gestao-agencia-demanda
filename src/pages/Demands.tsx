@@ -54,6 +54,15 @@ const sendWhatsAppToManager = async (
   novaDemandaTemplate: any
 ) => {
   console.log('🔔 [WhatsApp Manager] Starting notification...');
+  console.log('🔔 [WhatsApp Manager] Input params:', { 
+    type, 
+    cpf, 
+    matricula, 
+    description, 
+    profileName: profile?.full_name,
+    profileCode: profile?.codigo_cca,
+    hasTemplate: !!novaDemandaTemplate 
+  });
   
   const { data: agenciaRoles, error: roleError } = await supabase
     .from("user_roles")
@@ -62,14 +71,16 @@ const sendWhatsAppToManager = async (
     .limit(1)
     .maybeSingle();
 
+  console.log('🔍 [WhatsApp Manager] Query result:', { agenciaRoles, roleError });
+
   if (roleError) {
     console.error('❌ [WhatsApp Manager] Error fetching agencia role:', roleError);
-    throw roleError;
+    throw new Error(`Failed to fetch agencia role: ${roleError.message}`);
   }
 
   if (!agenciaRoles?.user_id) {
     console.warn('⚠️ [WhatsApp Manager] No agencia user found');
-    return;
+    throw new Error('No agencia user found in the system');
   }
 
   console.log('✓ [WhatsApp Manager] Found agencia user:', agenciaRoles.user_id);
@@ -80,14 +91,16 @@ const sendWhatsAppToManager = async (
     .eq("user_id", agenciaRoles.user_id)
     .single();
 
+  console.log('🔍 [WhatsApp Manager] Manager data result:', { managerData, managerError });
+
   if (managerError) {
     console.error('❌ [WhatsApp Manager] Error fetching manager data:', managerError);
-    throw managerError;
+    throw new Error(`Failed to fetch manager profile: ${managerError.message}`);
   }
 
   if (!managerData?.phone) {
     console.warn('⚠️ [WhatsApp Manager] Manager has no phone number');
-    return;
+    throw new Error('Manager profile exists but has no phone number configured');
   }
 
   console.log('✓ [WhatsApp Manager] Manager phone found:', managerData.phone);
@@ -148,17 +161,25 @@ const sendWhatsAppToManager = async (
   }
 
   console.log('📤 [WhatsApp Manager] Sending message...');
+  console.log('📤 [WhatsApp Manager] Message payload:', { 
+    phone: managerData.phone, 
+    messageLength: message.length,
+    messagePreview: message.substring(0, 100) + '...'
+  });
   
   const { data, error } = await supabase.functions.invoke("send-whatsapp", {
     body: { phone: managerData.phone, message },
   });
   
+  console.log('📥 [WhatsApp Manager] Edge function response:', { data, error });
+  
   if (error) {
     console.error('❌ [WhatsApp Manager] Send error:', error);
-    throw error;
+    throw new Error(`Failed to send WhatsApp: ${error.message}`);
   }
 
   console.log('✅ [WhatsApp Manager] Message sent successfully:', data);
+  return data;
 };
 
 // Helper function to send WhatsApp to CCA
@@ -393,10 +414,26 @@ const Demands = () => {
 
       if (error) throw error;
 
+      console.log('✅ [Demand Created] Starting WhatsApp notification process...');
+      console.log('📋 [Demand Data]', { type, cpf, matricula, description, profile, hasTemplate: !!novaDemandaTemplate });
+
       // Send WhatsApp notification to manager (agencia) - RUNS INDEPENDENTLY
-      sendWhatsAppToManager(type, cpf, matricula, description, profile, novaDemandaTemplate).catch(err => {
-        console.error("WhatsApp notification failed but demand was created:", err);
-      });
+      sendWhatsAppToManager(type, cpf, matricula, description, profile, novaDemandaTemplate)
+        .then(() => {
+          console.log('✅ [WhatsApp] Notification sent successfully');
+          toast({
+            title: "WhatsApp enviado!",
+            description: "Notificação enviada para o gerente.",
+          });
+        })
+        .catch(err => {
+          console.error("❌ [WhatsApp] Notification failed:", err);
+          toast({
+            title: "WhatsApp não enviado",
+            description: `Erro: ${err.message}`,
+            variant: "destructive",
+          });
+        });
       
       // Close dialog and reset form AFTER everything is done
       setDialogOpen(false);
