@@ -57,7 +57,19 @@ serve(async (req) => {
     const contentArray: any[] = [
       {
         type: 'text',
-        text: 'Analise este documento de matrícula de imóvel e extraia: tipo do imóvel (apartamento, casa, terreno, lote, sala comercial, etc.) e endereço completo do imóvel incluindo rua, número, bairro, cidade e estado. Retorne apenas as informações encontradas.'
+        text: `Analise esta matrícula de imóvel e extraia as seguintes informações:
+
+1. TIPO DO IMÓVEL: Identifique o tipo (apartamento, casa, terreno, lote, sala comercial, etc.)
+
+2. ENDEREÇO DO IMÓVEL: Procure o endereço SOMENTE nestes locais específicos:
+   - Campo "Imóvel:" (geralmente no início da matrícula, logo após o número da matrícula)
+   - Seção "Averbação da Construção" ou "AV" com informações de construção (geralmente a averbação mais recente)
+   
+   IGNORE endereços que apareçam em outros campos como confrontações, proprietários anteriores, ou outras seções.
+   
+   Extraia o endereço completo conforme escrito nesses campos, incluindo: rua/avenida, número, complemento (se houver), bairro, cidade e estado.
+
+Retorne EXATAMENTE as informações encontradas nesses locais específicos, sem inventar ou inferir dados.`
       }
     ];
 
@@ -92,7 +104,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Você é um assistente especializado em extrair informações de matrículas de imóveis brasileiras. Analise cuidadosamente o documento e extraia as informações solicitadas com precisão.'
+            content: 'Você é um assistente especializado em extrair informações de matrículas de imóveis brasileiras. IMPORTANTE: O endereço do imóvel deve ser extraído SOMENTE de um destes dois locais específicos: 1) Campo "Imóvel:" no início da matrícula, ou 2) Seção "Averbação da Construção" (geralmente a AV mais recente com informações de construção). Não utilize endereços de outras seções do documento. Seja preciso e extraia exatamente como está escrito nesses campos.'
           },
           {
             role: 'user',
