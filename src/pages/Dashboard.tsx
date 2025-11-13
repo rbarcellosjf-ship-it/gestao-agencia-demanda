@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, FileText, Calendar, Users, Plus, User, Mail, Settings } from "lucide-react";
+import { LogOut, FileText, Calendar, Users, Plus, User, Mail, Settings, ScanText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { QuickActions } from "@/components/dashboard/QuickActions";
@@ -181,6 +181,24 @@ const Dashboard = () => {
               <Button className="w-full" variant="outline">
                 <Calendar className="w-4 h-4 mr-2" />
                 Ver Calendário
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/leitor-documentos")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ScanText className="w-5 h-5 text-primary" />
+                Leitor de Documentos
+              </CardTitle>
+              <CardDescription>
+                Extrair dados de certidões e matrículas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" variant="outline">
+                <ScanText className="w-4 h-4 mr-2" />
+                Extrair Documentos
               </Button>
             </CardContent>
           </Card>

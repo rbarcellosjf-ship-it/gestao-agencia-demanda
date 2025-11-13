@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from "react-router-dom";
-import { Home, FileText, Users, Calendar } from "lucide-react";
+import { Home, FileText, Users, Calendar, ScanText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MobileBottomNavProps {
@@ -13,8 +13,9 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
   const navItems = [
     { path: "/dashboard", icon: Home, label: "Início" },
     { path: "/demands", icon: FileText, label: "Demandas" },
-    { path: "/conformidades", icon: Users, label: "Conformidades" },
-    { path: "/agendamentos", icon: Calendar, label: "Agendamentos" },
+    { path: "/conformidades", icon: Users, label: "Contratos" },
+    { path: "/leitor-documentos", icon: ScanText, label: "Leitor" },
+    { path: "/agendamentos", icon: Calendar, label: "Agenda" },
   ];
 
   return (
