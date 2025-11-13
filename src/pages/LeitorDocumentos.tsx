@@ -4,12 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, FileText, Upload, Loader2, Mail } from "lucide-react";
+import { Copy, FileText, Upload, Loader2, Mail, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { pdfjs } from 'react-pdf';
-
-// Use the worker from the same pdfjs version
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const LeitorDocumentos = () => {
   const { toast } = useToast();
@@ -20,44 +17,17 @@ const LeitorDocumentos = () => {
   const [loadingCertidao, setLoadingCertidao] = useState(false);
   const [loadingMatricula, setLoadingMatricula] = useState(false);
 
-  const convertPdfToImage = async (file: File): Promise<string> => {
+  const convertToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const typedArray = new Uint8Array(e.target?.result as ArrayBuffer);
-          const pdf = await pdfjs.getDocument(typedArray).promise;
-          const page = await pdf.getPage(1);
-          
-          const scale = 2.0;
-          const viewport = page.getViewport({ scale });
-          
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
-          
-          if (!context) {
-            throw new Error('Não foi possível criar contexto do canvas');
-          }
-          
-          canvas.height = viewport.height;
-          canvas.width = viewport.width;
-          
-          const renderContext: any = {
-            canvasContext: context,
-            viewport: viewport
-          };
-          
-          await page.render(renderContext).promise;
-          
-          // Convert to base64 without prefix
-          const base64 = canvas.toDataURL('image/png').split(',')[1];
-          resolve(base64);
-        } catch (error) {
-          reject(error);
-        }
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        // Remove the data:image/...;base64, prefix
+        const base64Data = base64.split(',')[1];
+        resolve(base64Data);
       };
       reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
     });
   };
 
@@ -65,7 +35,7 @@ const LeitorDocumentos = () => {
     if (!certidaoFile) {
       toast({
         title: "Erro",
-        description: "Por favor, selecione um arquivo PDF",
+        description: "Por favor, selecione um arquivo",
         variant: "destructive",
       });
       return;
@@ -73,9 +43,9 @@ const LeitorDocumentos = () => {
 
     setLoadingCertidao(true);
     try {
-      console.log('Convertendo PDF para imagem...');
-      const base64 = await convertPdfToImage(certidaoFile);
-      console.log('PDF convertido, enviando para análise...');
+      console.log('Convertendo para base64...');
+      const base64 = await convertToBase64(certidaoFile);
+      console.log('Enviando para análise...', base64.substring(0, 50));
 
       const { data, error } = await supabase.functions.invoke('extrair-certidao', {
         body: { pdfBase64: base64 }
@@ -108,7 +78,7 @@ const LeitorDocumentos = () => {
     if (!matriculaFile) {
       toast({
         title: "Erro",
-        description: "Por favor, selecione um arquivo PDF",
+        description: "Por favor, selecione um arquivo",
         variant: "destructive",
       });
       return;
@@ -116,9 +86,9 @@ const LeitorDocumentos = () => {
 
     setLoadingMatricula(true);
     try {
-      console.log('Convertendo PDF para imagem...');
-      const base64 = await convertPdfToImage(matriculaFile);
-      console.log('PDF convertido, enviando para análise...');
+      console.log('Convertendo para base64...');
+      const base64 = await convertToBase64(matriculaFile);
+      console.log('Enviando para análise...', base64.substring(0, 50));
 
       const { data, error } = await supabase.functions.invoke('extrair-matricula', {
         body: { pdfBase64: base64 }
@@ -164,9 +134,16 @@ const LeitorDocumentos = () => {
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Leitor de Documentos</h1>
-        <p className="text-muted-foreground">
+        <p className="text-muted-foreground mb-4">
           Extraia informações de certidões de casamento e matrículas de imóvel
         </p>
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Dica:</strong> Para melhores resultados, faça upload de imagens (PNG, JPG) dos documentos. 
+            Se tiver um PDF, você pode tirar um screenshot ou usar um conversor online de PDF para imagem.
+          </AlertDescription>
+        </Alert>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -203,7 +180,7 @@ const LeitorDocumentos = () => {
               <Input
                 id="certidao-upload"
                 type="file"
-                accept="application/pdf"
+                accept="image/png,image/jpeg,image/jpg,application/pdf"
                 className="hidden"
                 onChange={(e) => setCertidaoFile(e.target.files?.[0] || null)}
               />
@@ -288,7 +265,7 @@ const LeitorDocumentos = () => {
               <Input
                 id="matricula-upload"
                 type="file"
-                accept="application/pdf"
+                accept="image/png,image/jpeg,image/jpg,application/pdf"
                 className="hidden"
                 onChange={(e) => setMatriculaFile(e.target.files?.[0] || null)}
               />
