@@ -12,6 +12,7 @@ import Conformidades from "./pages/Conformidades";
 import Agendamentos from "./pages/Agendamentos";
 import EmailTemplates from "./pages/EmailTemplates";
 import Settings from "./pages/Settings";
+import LeitorDocumentos from "./pages/LeitorDocumentos";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/agendamentos" element={<Agendamentos />} />
           <Route path="/email-templates" element={<EmailTemplates />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/leitor-documentos" element={<LeitorDocumentos />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

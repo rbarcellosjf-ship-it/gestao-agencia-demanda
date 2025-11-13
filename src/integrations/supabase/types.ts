@@ -187,6 +187,36 @@ export type Database = {
         }
         Relationships: []
       }
+      documentos_extraidos: {
+        Row: {
+          arquivo_url: string | null
+          created_at: string | null
+          dados_extraidos: Json
+          id: string
+          texto_gerado: string
+          tipo_documento: string
+          user_id: string | null
+        }
+        Insert: {
+          arquivo_url?: string | null
+          created_at?: string | null
+          dados_extraidos?: Json
+          id?: string
+          texto_gerado: string
+          tipo_documento: string
+          user_id?: string | null
+        }
+        Update: {
+          arquivo_url?: string | null
+          created_at?: string | null
+          dados_extraidos?: Json
+          id?: string
+          texto_gerado?: string
+          tipo_documento?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       email_templates: {
         Row: {
           available_variables: Json

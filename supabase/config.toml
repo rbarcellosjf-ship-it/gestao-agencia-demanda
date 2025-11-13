@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.enviar-lembretes]
 verify_jwt = false
+
+[functions.extrair-certidao]
+verify_jwt = false
+
+[functions.extrair-matricula]
+verify_jwt = false
