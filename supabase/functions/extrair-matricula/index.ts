@@ -33,19 +33,30 @@ serve(async (req) => {
       userId = user?.id;
     }
 
-    const { pdfBase64 } = await req.json();
+    const { pdfBase64, fileType } = await req.json();
 
     if (!pdfBase64) {
       return new Response(
-        JSON.stringify({ error: 'PDF base64 é obrigatório' }),
+        JSON.stringify({ error: 'Arquivo base64 é obrigatório' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('Iniciando extração de matrícula de imóvel...');
+    console.log('Tipo de arquivo:', fileType);
     console.log('Tamanho do base64:', pdfBase64.length);
 
-    // Call Lovable AI to extract data from PNG image
+    // Determine the correct MIME type
+    let mimeType = 'image/png';
+    if (fileType === 'application/pdf') {
+      mimeType = 'application/pdf';
+    } else if (fileType?.startsWith('image/')) {
+      mimeType = fileType;
+    }
+
+    console.log('MIME type usado:', mimeType);
+
+    // Call Lovable AI to extract data
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -53,23 +64,23 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: 'google/gemini-2.5-flash',
         messages: [
           {
             role: 'system',
-            content: 'Você é um assistente especializado em extrair informações de matrículas de imóveis brasileiras. Extraia as informações com precisão máxima da imagem fornecida.'
+            content: 'Você é um assistente especializado em extrair informações de matrículas de imóveis brasileiras. Analise cuidadosamente o documento e extraia as informações solicitadas com precisão.'
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Analise cuidadosamente esta imagem de uma matrícula de imóvel e extraia: tipo do imóvel (apartamento, casa, terreno, lote, sala comercial, etc.) e endereço completo do imóvel incluindo rua, número, bairro, cidade e estado.'
+                text: 'Analise este documento de matrícula de imóvel e extraia: tipo do imóvel (apartamento, casa, terreno, lote, sala comercial, etc.) e endereço completo do imóvel incluindo rua, número, bairro, cidade e estado. Retorne apenas as informações encontradas.'
               },
               {
                 type: 'image_url',
                 image_url: {
-                  url: `data:image/png;base64,${pdfBase64}`
+                  url: `data:${mimeType};base64,${pdfBase64}`
                 }
               }
             ]

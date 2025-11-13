@@ -17,15 +17,14 @@ const LeitorDocumentos = () => {
   const [loadingCertidao, setLoadingCertidao] = useState(false);
   const [loadingMatricula, setLoadingMatricula] = useState(false);
 
-  const convertToBase64 = (file: File): Promise<string> => {
+  const convertToBase64 = (file: File): Promise<{ base64: string, type: string }> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => {
-        const base64 = reader.result as string;
-        // Remove the data:image/...;base64, prefix
-        const base64Data = base64.split(',')[1];
-        resolve(base64Data);
+        const result = reader.result as string;
+        const base64Data = result.split(',')[1];
+        resolve({ base64: base64Data, type: file.type });
       };
       reader.onerror = reject;
     });
@@ -44,11 +43,12 @@ const LeitorDocumentos = () => {
     setLoadingCertidao(true);
     try {
       console.log('Convertendo para base64...');
-      const base64 = await convertToBase64(certidaoFile);
-      console.log('Enviando para análise...', base64.substring(0, 50));
+      const { base64, type } = await convertToBase64(certidaoFile);
+      console.log('Tipo de arquivo:', type);
+      console.log('Enviando para análise...');
 
       const { data, error } = await supabase.functions.invoke('extrair-certidao', {
-        body: { pdfBase64: base64 }
+        body: { pdfBase64: base64, fileType: type }
       });
 
       if (error) throw error;
@@ -87,11 +87,12 @@ const LeitorDocumentos = () => {
     setLoadingMatricula(true);
     try {
       console.log('Convertendo para base64...');
-      const base64 = await convertToBase64(matriculaFile);
-      console.log('Enviando para análise...', base64.substring(0, 50));
+      const { base64, type } = await convertToBase64(matriculaFile);
+      console.log('Tipo de arquivo:', type);
+      console.log('Enviando para análise...');
 
       const { data, error } = await supabase.functions.invoke('extrair-matricula', {
-        body: { pdfBase64: base64 }
+        body: { pdfBase64: base64, fileType: type }
       });
 
       if (error) throw error;
@@ -134,16 +135,9 @@ const LeitorDocumentos = () => {
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="mb-8">
         <h1 className="text-4xl font-bold mb-2">Leitor de Documentos</h1>
-        <p className="text-muted-foreground mb-4">
-          Extraia informações de certidões de casamento e matrículas de imóvel
+        <p className="text-muted-foreground">
+          Extraia informações de certidões de casamento e matrículas de imóvel - aceita PDFs e imagens
         </p>
-        <Alert>
-          <Info className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Dica:</strong> Para melhores resultados, faça upload de imagens (PNG, JPG) dos documentos. 
-            Se tiver um PDF, você pode tirar um screenshot ou usar um conversor online de PDF para imagem.
-          </AlertDescription>
-        </Alert>
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
@@ -155,7 +149,7 @@ const LeitorDocumentos = () => {
               Certidão de Casamento
             </CardTitle>
             <CardDescription>
-              Extraia dados jurídicos de certidões de casamento em PDF
+              Extraia dados jurídicos de certidões (PDF ou imagem)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -240,7 +234,7 @@ const LeitorDocumentos = () => {
               Matrícula do Imóvel
             </CardTitle>
             <CardDescription>
-              Extraia descrição jurídica de matrículas de imóveis em PDF
+              Extraia descrição jurídica de matrículas (PDF ou imagem)
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
