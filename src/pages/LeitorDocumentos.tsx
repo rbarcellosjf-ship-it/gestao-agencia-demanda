@@ -6,6 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Copy, FileText, Upload, Loader2, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Document, Page, pdfjs } from 'react-pdf';
+
+// Configure worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
 
 const LeitorDocumentos = () => {
   const { toast } = useToast();
@@ -16,17 +20,44 @@ const LeitorDocumentos = () => {
   const [loadingCertidao, setLoadingCertidao] = useState(false);
   const [loadingMatricula, setLoadingMatricula] = useState(false);
 
-  const convertToBase64 = (file: File): Promise<string> => {
+  const convertPdfToImage = async (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        // Remove the data:application/pdf;base64, prefix
-        const base64Data = base64.split(',')[1];
-        resolve(base64Data);
+      reader.onload = async (e) => {
+        try {
+          const typedArray = new Uint8Array(e.target?.result as ArrayBuffer);
+          const pdf = await pdfjs.getDocument(typedArray).promise;
+          const page = await pdf.getPage(1);
+          
+          const scale = 2.0;
+          const viewport = page.getViewport({ scale });
+          
+          const canvas = document.createElement('canvas');
+          const context = canvas.getContext('2d');
+          
+          if (!context) {
+            throw new Error('Não foi possível criar contexto do canvas');
+          }
+          
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          
+          const renderContext: any = {
+            canvasContext: context,
+            viewport: viewport
+          };
+          
+          await page.render(renderContext).promise;
+          
+          // Convert to base64 without prefix
+          const base64 = canvas.toDataURL('image/png').split(',')[1];
+          resolve(base64);
+        } catch (error) {
+          reject(error);
+        }
       };
       reader.onerror = reject;
+      reader.readAsArrayBuffer(file);
     });
   };
 
@@ -42,7 +73,9 @@ const LeitorDocumentos = () => {
 
     setLoadingCertidao(true);
     try {
-      const base64 = await convertToBase64(certidaoFile);
+      console.log('Convertendo PDF para imagem...');
+      const base64 = await convertPdfToImage(certidaoFile);
+      console.log('PDF convertido, enviando para análise...');
 
       const { data, error } = await supabase.functions.invoke('extrair-certidao', {
         body: { pdfBase64: base64 }
@@ -83,7 +116,9 @@ const LeitorDocumentos = () => {
 
     setLoadingMatricula(true);
     try {
-      const base64 = await convertToBase64(matriculaFile);
+      console.log('Convertendo PDF para imagem...');
+      const base64 = await convertPdfToImage(matriculaFile);
+      console.log('PDF convertido, enviando para análise...');
 
       const { data, error } = await supabase.functions.invoke('extrair-matricula', {
         body: { pdfBase64: base64 }

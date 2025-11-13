@@ -45,7 +45,7 @@ serve(async (req) => {
     console.log('Iniciando extração de matrícula de imóvel...');
     console.log('Tamanho do base64:', pdfBase64.length);
 
-    // Call Lovable AI to extract data from PDF
+    // Call Lovable AI to extract data from PNG image
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -57,19 +57,19 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: 'Você é um assistente especializado em extrair informações de matrículas de imóveis brasileiras. Extraia as informações com precisão máxima do documento PDF fornecido.'
+            content: 'Você é um assistente especializado em extrair informações de matrículas de imóveis brasileiras. Extraia as informações com precisão máxima da imagem fornecida.'
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Analise cuidadosamente este documento PDF de matrícula de imóvel e extraia: tipo do imóvel (apartamento, casa, terreno, lote, sala comercial, etc.) e endereço completo do imóvel incluindo rua, número, bairro, cidade e estado.'
+                text: 'Analise cuidadosamente esta imagem de uma matrícula de imóvel e extraia: tipo do imóvel (apartamento, casa, terreno, lote, sala comercial, etc.) e endereço completo do imóvel incluindo rua, número, bairro, cidade e estado.'
               },
               {
                 type: 'image_url',
                 image_url: {
-                  url: `data:application/pdf;base64,${pdfBase64}`
+                  url: `data:image/png;base64,${pdfBase64}`
                 }
               }
             ]
