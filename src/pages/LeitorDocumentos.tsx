@@ -8,11 +8,8 @@ import { Copy, FileText, Upload, Loader2, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { pdfjs } from 'react-pdf';
 
-// Configure worker using local package
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+// Use the worker from the same pdfjs version
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
 
 const LeitorDocumentos = () => {
   const { toast } = useToast();
