@@ -46,17 +46,41 @@ serve(async (req) => {
     console.log('Tipo de arquivo:', fileType);
     console.log('Tamanho do base64:', pdfBase64.length);
 
-    // Determine the correct MIME type
-    let mimeType = 'image/png';
-    if (fileType === 'application/pdf') {
-      mimeType = 'application/pdf';
-    } else if (fileType?.startsWith('image/')) {
-      mimeType = fileType;
+    // For PDFs, we need to use inline_data format instead of image_url
+    const isPdf = fileType === 'application/pdf';
+    const mimeType = isPdf ? 'application/pdf' : (fileType?.startsWith('image/') ? fileType : 'image/png');
+    
+    console.log('MIME type usado:', mimeType);
+    console.log('Formato:', isPdf ? 'inline_data (PDF)' : 'image_url (imagem)');
+
+    // Build content array based on file type
+    const contentArray: any[] = [
+      {
+        type: 'text',
+        text: 'Analise este documento de matrícula de imóvel e extraia: tipo do imóvel (apartamento, casa, terreno, lote, sala comercial, etc.) e endereço completo do imóvel incluindo rua, número, bairro, cidade e estado. Retorne apenas as informações encontradas.'
+      }
+    ];
+
+    if (isPdf) {
+      // For PDFs, use inline_data format
+      contentArray.push({
+        type: 'inline_data',
+        inline_data: {
+          mime_type: mimeType,
+          data: pdfBase64
+        }
+      });
+    } else {
+      // For images, use image_url format
+      contentArray.push({
+        type: 'image_url',
+        image_url: {
+          url: `data:${mimeType};base64,${pdfBase64}`
+        }
+      });
     }
 
-    console.log('MIME type usado:', mimeType);
-
-    // Call Lovable AI to extract data
+    // Call Lovable AI to extract data using Pro model for better document handling
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -64,7 +88,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-pro',
         messages: [
           {
             role: 'system',
@@ -72,18 +96,7 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: 'Analise este documento de matrícula de imóvel e extraia: tipo do imóvel (apartamento, casa, terreno, lote, sala comercial, etc.) e endereço completo do imóvel incluindo rua, número, bairro, cidade e estado. Retorne apenas as informações encontradas.'
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mimeType};base64,${pdfBase64}`
-                }
-              }
-            ]
+            content: contentArray
           }
         ],
         tools: [
