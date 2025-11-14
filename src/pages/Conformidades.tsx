@@ -23,6 +23,7 @@ import { StatusSelect } from "@/components/StatusSelect";
 import { AgendarAssinaturaDialog } from "@/components/AgendarAssinaturaDialog";
 import { ObservacoesField } from "@/components/ObservacoesField";
 import { Textarea } from "@/components/ui/textarea";
+import { DistribuirTarefaDialog } from "@/components/DistribuirTarefaDialog";
 
 const conformidadeSchema = z.object({
   cpf: z.string()
@@ -53,6 +54,11 @@ const Conformidades = () => {
   const [modalidadeOutro, setModalidadeOutro] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conformidadeToDelete, setConformidadeToDelete] = useState<string | null>(null);
+  
+  // Distribuir tarefa state
+  const [distribuirOpen, setDistribuirOpen] = useState(false);
+  const [distribuirTipo, setDistribuirTipo] = useState<"demanda" | "assinatura" | "comite">("comite");
+  const [distribuirReferenciaId, setDistribuirReferenciaId] = useState<string>("");
 
   useEffect(() => {
     loadData();
@@ -421,11 +427,9 @@ const Conformidades = () => {
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          // TODO: Implementar lógica de solicitar comitê de crédito
-                          toast({
-                            title: "Em desenvolvimento",
-                            description: "Funcionalidade em desenvolvimento.",
-                          });
+                          setDistribuirTipo("comite");
+                          setDistribuirReferenciaId(conformidade.id);
+                          setDistribuirOpen(true);
                         }}
                         title="Solicitar análise do comitê de crédito"
                         className="w-full md:w-auto"
@@ -467,6 +471,19 @@ const Conformidades = () => {
       </AlertDialog>
 
       <MobileBottomNav />
+      
+      <DistribuirTarefaDialog
+        open={distribuirOpen}
+        onOpenChange={setDistribuirOpen}
+        tipoTarefa={distribuirTipo}
+        referenciaId={distribuirReferenciaId}
+        onSuccess={() => {
+          toast({
+            title: "Sucesso!",
+            description: "Tarefa distribuída com sucesso.",
+          });
+        }}
+      />
     </div>
   );
 };

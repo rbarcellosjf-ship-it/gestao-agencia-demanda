@@ -13,7 +13,6 @@ import { useUserRole } from "@/hooks/useUserRole";
 interface AgenciaUser {
   user_id: string;
   full_name: string;
-  email: string;
   email_preferencia: string | null;
   phone: string;
   codigo_cca: string | null;
@@ -38,55 +37,41 @@ const Empregados = () => {
   }, [role, roleLoading, navigate]);
 
   const loadEmpregados = async () => {
+    setLoading(true);
     try {
-      // Buscar todos os usuários com role 'agencia'
-      const { data: agenciaRoles, error: roleError } = await supabase
+      const { data, error } = await supabase
         .from("user_roles")
-        .select("user_id")
+        .select(`
+          user_id,
+          profiles!inner(full_name, email_preferencia, phone, codigo_cca)
+        `)
         .eq("role", "agencia");
 
-      if (roleError) throw roleError;
+      if (error) throw error;
 
-      if (!agenciaRoles || agenciaRoles.length === 0) {
+      if (!data || data.length === 0) {
+        toast({
+          title: "Nenhum empregado encontrado",
+          description: "Não foram encontrados usuários com perfil de agência.",
+        });
         setEmpregados([]);
-        setLoading(false);
         return;
       }
 
-      const userIds = agenciaRoles.map(r => r.user_id);
-
-      // Buscar perfis dos usuários agencia
-      const { data: profilesData, error: profilesError } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, phone, codigo_cca, email_preferencia")
-        .in("user_id", userIds);
-
-      if (profilesError) throw profilesError;
-
-      // Buscar emails dos usuários (da tabela auth.users via RPC ou direct query se permitido)
-      // Como não podemos acessar auth.users diretamente, vamos usar o email do perfil se existir
-      // ou buscar de outra forma. Por ora, vamos assumir que temos acesso ao email via session
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      // Para cada perfil, precisamos do email. Vamos fazer uma abordagem diferente:
-      // Como não podemos acessar auth.users facilmente, vamos apenas mostrar os perfis
-      // e assumir que o email pode ser editado no campo email_preferencia
-      
-      const empregadosData: AgenciaUser[] = (profilesData || []).map(p => ({
-        user_id: p.user_id,
-        full_name: p.full_name,
-        email: "", // Não temos acesso direto ao email do auth.users
-        email_preferencia: p.email_preferencia,
-        phone: p.phone,
-        codigo_cca: p.codigo_cca,
+      const formattedUsers: AgenciaUser[] = data.map((item: any) => ({
+        user_id: item.user_id,
+        full_name: item.profiles.full_name,
+        email_preferencia: item.profiles.email_preferencia,
+        phone: item.profiles.phone,
+        codigo_cca: item.profiles.codigo_cca,
       }));
 
-      setEmpregados(empregadosData);
-    } catch (error) {
-      console.error("Erro ao carregar empregados:", error);
+      setEmpregados(formattedUsers);
+    } catch (error: any) {
+      console.error("Error loading empregados:", error);
       toast({
-        title: "Erro",
-        description: "Não foi possível carregar os empregados.",
+        title: "Erro ao carregar empregados",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
