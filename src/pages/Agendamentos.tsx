@@ -17,6 +17,7 @@ import { ptBR } from "date-fns/locale";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { ObservacoesField } from "@/components/ObservacoesField";
 
 const agendamentoSchema = z.object({
   conformidade_id: z.string().uuid(),
@@ -290,12 +291,10 @@ const Agendamentos = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="observacoes">Observações</Label>
-                    <Textarea
-                      id="observacoes"
-                      placeholder="Observações adicionais..."
+                    <ObservacoesField
                       value={observacoes}
-                      onChange={(e) => setObservacoes(e.target.value)}
-                      rows={3}
+                      onChange={setObservacoes}
+                      placeholder="Observações adicionais..."
                     />
                   </div>
                   <Button type="submit" className="w-full">
