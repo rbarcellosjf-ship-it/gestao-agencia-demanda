@@ -19,7 +19,7 @@ export function useTextImprovement() {
     setIsImproving(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("melhorar-observacoes", {
+      const { data, error } = await supabase.functions.invoke("enhance-text", {
         body: { text },
       });
 
@@ -28,7 +28,7 @@ export function useTextImprovement() {
         throw error;
       }
 
-      if (!data?.improvedText) {
+      if (!data?.enhancedText) {
         throw new Error("Resposta inválida do servidor");
       }
 
@@ -37,7 +37,7 @@ export function useTextImprovement() {
         description: "O texto foi reformulado com sucesso.",
       });
 
-      return data.improvedText;
+      return data.enhancedText;
     } catch (error: any) {
       console.error("Erro ao melhorar texto:", error);
       

@@ -9,7 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import Demands from "./pages/Demands";
 import Conformidades from "./pages/Conformidades";
-import Agendamentos from "./pages/Agendamentos";
+import Agendamentos from "./pages/AgendamentosNew";
 import Empregados from "./pages/Empregados";
 import EmailTemplates from "./pages/EmailTemplates";
 import Settings from "./pages/Settings";
