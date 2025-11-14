@@ -86,40 +86,18 @@ export function DistribuirTarefaDialog({
         ? empregados 
         : empregados.filter(e => e.user_id === selectedUserId);
 
-      // Create distribution records
-      for (const user of selectedUsers) {
-        const { error: insertError } = await (supabase as any)
-          .from("distribuicao_tarefas")
-          .insert({
-            tipo_tarefa: tipoTarefa,
-            referencia_id: referenciaId,
-            user_id: user.user_id,
-            status: "pendente",
-          });
+      const empregadosIds = selectedUsers.map(u => u.user_id);
+      
+      // Chamar edge function para distribuir tarefas e enviar emails
+      const { error: distribuirError } = await supabase.functions.invoke("distribuir-tarefa-email", {
+        body: {
+          tipoTarefa,
+          referenciaId,
+          empregadosIds,
+        },
+      });
 
-        if (insertError) throw insertError;
-
-        // Get email template
-        const { data: template } = await supabase
-          .from("email_templates")
-          .select("subject, body")
-          .eq("template_key", `task_${tipoTarefa}`)
-          .single();
-
-        const emailTo = user.email_preferencia || `${user.user_id}@example.com`;
-        const subject = template?.subject || `Nova tarefa: ${tipoTarefa}`;
-        const body = template?.body || `Você tem uma nova tarefa do tipo ${tipoTarefa}.`;
-
-        // Send email
-        await supabase.functions.invoke("send-task-email", {
-          body: {
-            to: emailTo,
-            subject,
-            body,
-            tipo_tarefa: tipoTarefa,
-          },
-        });
-      }
+      if (distribuirError) throw distribuirError;
 
       toast({
         title: "Tarefa distribuída!",

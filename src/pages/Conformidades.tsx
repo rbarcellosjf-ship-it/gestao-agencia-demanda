@@ -56,6 +56,7 @@ const Conformidades = () => {
   const [modalidadeOutro, setModalidadeOutro] = useState("");
   const [comiteCredito, setComiteCredito] = useState(false);
   const [observacoes, setObservacoes] = useState("");
+  const [entrevistaAprovada, setEntrevistaAprovada] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conformidadeToDelete, setConformidadeToDelete] = useState<string | null>(null);
   
@@ -192,6 +193,8 @@ const Conformidades = () => {
     setModalidadeOutro("");
     setComiteCredito(false);
     setObservacoes("");
+    setComiteCredito(false);
+    setEntrevistaAprovada(false);
   };
 
   const formatCurrency = (value: number) => {

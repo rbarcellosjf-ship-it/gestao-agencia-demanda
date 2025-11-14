@@ -1,0 +1,458 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useToast } from "@/hooks/use-toast";
+import { ArrowLeft, Plus, Calendar } from "lucide-react";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { EntrevistaCard } from "@/components/EntrevistaCard";
+import { DossieUpload } from "@/components/DossieUpload";
+import { ObservacoesField } from "@/components/ObservacoesField";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+const AgendamentosNew = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [entrevistas, setEntrevistas] = useState<any[]>([]);
+  const [assinaturas, setAssinaturas] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    cpf: "",
+    tipo_contrato: "",
+    modalidade_financiamento: "",
+    comite_credito: false,
+    data_hora: "",
+    observacoes: "",
+    dossie_cliente_url: "",
+  });
+
+  useEffect(() => {
+    loadData();
+
+    const entrevistasChannel = supabase
+      .channel("agendamentos-entrevistas")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "agendamentos",
+          filter: "tipo=eq.entrevista",
+        },
+        () => loadData()
+      )
+      .subscribe();
+
+    const assinaturasChannel = supabase
+      .channel("agendamentos-assinaturas")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "agendamentos",
+          filter: "tipo=eq.assinatura",
+        },
+        () => loadData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(entrevistasChannel);
+      supabase.removeChannel(assinaturasChannel);
+    };
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+
+      // Buscar entrevistas
+      const { data: entrevistasData, error: entrevistasError } = await supabase
+        .from("agendamentos")
+        .select("*")
+        .eq("tipo", "entrevista")
+        .order("data_hora", { ascending: false });
+
+      if (entrevistasError) throw entrevistasError;
+
+      // Buscar assinaturas
+      const { data: assinaturasData, error: assinaturasError } = await supabase
+        .from("agendamentos")
+        .select("*")
+        .eq("tipo", "assinatura")
+        .order("data_hora", { ascending: false });
+
+      if (assinaturasError) throw assinaturasError;
+
+      setEntrevistas(entrevistasData || []);
+      setAssinaturas(assinaturasData || []);
+    } catch (error: any) {
+      console.error("Error loading data:", error);
+      toast({
+        title: "Erro ao carregar agendamentos",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmitEntrevista = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      const { error } = await supabase.from("agendamentos").insert({
+        ...formData,
+        tipo: "entrevista",
+        cca_user_id: user.id,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Entrevista agendada!",
+        description: "A entrevista foi registrada com sucesso.",
+      });
+
+      setDialogOpen(false);
+      resetForm();
+      loadData();
+    } catch (error: any) {
+      console.error("Error creating entrevista:", error);
+      toast({
+        title: "Erro ao agendar entrevista",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      cpf: "",
+      tipo_contrato: "",
+      modalidade_financiamento: "",
+      comite_credito: false,
+      data_hora: "",
+      observacoes: "",
+      dossie_cliente_url: "",
+    });
+  };
+
+  const handleAprovar = async (id: string) => {
+    try {
+      const { error } = await supabase.functions.invoke("send-interview-result-email", {
+        body: {
+          entrevistaId: id,
+          aprovado: true,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Entrevista aprovada!",
+        description: "Conformidade atualizada e e-mail enviado ao CCA.",
+      });
+
+      loadData();
+    } catch (error: any) {
+      console.error("Error approving interview:", error);
+      toast({
+        title: "Erro ao aprovar",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReprovar = async (id: string) => {
+    const motivo = prompt("Motivo da reprovação:");
+    if (!motivo) return;
+
+    try {
+      const { error } = await supabase.functions.invoke("send-interview-result-email", {
+        body: {
+          entrevistaId: id,
+          aprovado: false,
+          motivo,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Entrevista reprovada",
+        description: "E-mail de reprovação enviado ao CCA.",
+      });
+
+      loadData();
+    } catch (error: any) {
+      console.error("Error rejecting interview:", error);
+      toast({
+        title: "Erro ao reprovar",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleEditar = (id: string) => {
+    toast({
+      title: "Em desenvolvimento",
+      description: "Função de edição será implementada em breve.",
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Carregando...
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background pb-24 md:pb-0">
+      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 md:gap-4">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
+              <ArrowLeft className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Voltar</span>
+            </Button>
+            <div>
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">
+                Agendamentos
+              </h1>
+              <p className="text-xs md:text-sm text-muted-foreground">
+                Entrevistas e Assinaturas
+              </p>
+            </div>
+          </div>
+          
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Plus className="w-4 h-4 mr-2" />
+                Nova Entrevista
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Agendar Entrevista</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSubmitEntrevista} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="cpf">CPF</Label>
+                    <Input
+                      id="cpf"
+                      value={formData.cpf}
+                      onChange={(e) =>
+                        setFormData({ ...formData, cpf: e.target.value })
+                      }
+                      placeholder="000.000.000-00"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="tipo_contrato">Tipo de Contrato</Label>
+                    <Select
+                      value={formData.tipo_contrato}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, tipo_contrato: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="individual">Individual</SelectItem>
+                        <SelectItem value="empreendimento">Empreendimento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="modalidade">Modalidade de Financiamento</Label>
+                    <Select
+                      value={formData.modalidade_financiamento}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, modalidade_financiamento: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mcmv">MCMV</SelectItem>
+                        <SelectItem value="sbpe">SBPE</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="data_hora">Data e Hora</Label>
+                    <Input
+                      id="data_hora"
+                      type="datetime-local"
+                      value={formData.data_hora}
+                      onChange={(e) =>
+                        setFormData({ ...formData, data_hora: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="comite"
+                    checked={formData.comite_credito}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, comite_credito: checked as boolean })
+                    }
+                  />
+                  <label htmlFor="comite" className="text-sm font-medium">
+                    Requer Comitê de Crédito
+                  </label>
+                </div>
+
+                <DossieUpload
+                  onUploadComplete={(url) =>
+                    setFormData({ ...formData, dossie_cliente_url: url })
+                  }
+                />
+
+                <ObservacoesField
+                  value={formData.observacoes}
+                  onChange={(value) =>
+                    setFormData({ ...formData, observacoes: value })
+                  }
+                  placeholder="Observações sobre a entrevista..."
+                />
+
+                <div className="flex justify-end gap-2 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDialogOpen(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button type="submit">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Agendar Entrevista
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-6">
+        <Tabs defaultValue="entrevistas" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="entrevistas">
+              Entrevistas ({entrevistas.length})
+            </TabsTrigger>
+            <TabsTrigger value="assinaturas">
+              Assinaturas ({assinaturas.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="entrevistas" className="space-y-4">
+            {entrevistas.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Nenhuma entrevista agendada
+                </CardContent>
+              </Card>
+            ) : (
+              entrevistas.map((entrevista) => (
+                <EntrevistaCard
+                  key={entrevista.id}
+                  entrevista={entrevista}
+                  onAprovar={handleAprovar}
+                  onReprovar={handleReprovar}
+                  onEditar={handleEditar}
+                />
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="assinaturas" className="space-y-4">
+            {assinaturas.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Nenhuma assinatura agendada
+                </CardContent>
+              </Card>
+            ) : (
+              assinaturas.map((assinatura) => (
+                <Card key={assinatura.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <CardTitle className="text-lg">
+                        CPF: {assinatura.cpf}
+                      </CardTitle>
+                      <span className="text-sm text-muted-foreground">
+                        {format(new Date(assinatura.data_hora), "dd/MM/yyyy HH:mm", {
+                          locale: ptBR,
+                        })}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 text-sm">
+                      <p>
+                        <span className="text-muted-foreground">Status:</span>{" "}
+                        {assinatura.status}
+                      </p>
+                      {assinatura.observacoes && (
+                        <p>
+                          <span className="text-muted-foreground">Observações:</span>{" "}
+                          {assinatura.observacoes}
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
+
+      <MobileBottomNav />
+    </div>
+  );
+};
+
+export default AgendamentosNew;
