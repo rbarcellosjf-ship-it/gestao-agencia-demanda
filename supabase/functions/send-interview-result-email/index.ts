@@ -55,15 +55,26 @@ const handler = async (req: Request): Promise<Response> => {
 
     // 3. Se aprovado, atualizar conformidade
     if (aprovado && entrevista.cpf) {
+      const normalizedCPF = entrevista.cpf.replace(/\D/g, '');
+      
+      console.log('[INTERVIEW_APPROVAL]', {
+        entrevistaId,
+        aprovado,
+        cpf: entrevista.cpf,
+        normalized: normalizedCPF,
+        cca_user_id: entrevista.cca_user_id
+      });
+      
       const { data: conformidades, error: confError } = await supabaseClient
         .from("conformidades")
         .select("id")
-        .eq("cpf", entrevista.cpf)
+        .or(`cpf.eq.${normalizedCPF},cpf.eq.${entrevista.cpf}`)
         .eq("cca_user_id", entrevista.cca_user_id);
 
       if (confError) {
         console.error("Error fetching conformidades:", confError);
       } else if (conformidades && conformidades.length > 0) {
+        console.log(`[INTERVIEW_APPROVAL] Found ${conformidades.length} conformidades to update`);
         for (const conf of conformidades) {
           const { error: updateConfError } = await supabaseClient
             .from("conformidades")
@@ -76,6 +87,8 @@ const handler = async (req: Request): Promise<Response> => {
 
           if (updateConfError) {
             console.error("Error updating conformidade:", updateConfError);
+          } else {
+            console.log(`[INTERVIEW_APPROVAL] Successfully updated conformidade ${conf.id}`);
           }
         }
       }

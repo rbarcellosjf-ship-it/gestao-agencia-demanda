@@ -49,6 +49,11 @@ export const validateCPF = (cpf: string): boolean => {
   return true;
 };
 
+export const normalizeCPF = (cpf: string): string => {
+  // Remove todos os caracteres não numéricos
+  return cpf.replace(/\D/g, '');
+};
+
 export const formatCPF = (cpf: string): string => {
   const cleanCPF = cpf.replace(/\D/g, '');
   
