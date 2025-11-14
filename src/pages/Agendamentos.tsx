@@ -2,59 +2,40 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Calendar as CalendarIcon, Clock } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { z } from "zod";
-import { cn } from "@/lib/utils";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
-import { ObservacoesField } from "@/components/ObservacoesField";
-
-const agendamentoSchema = z.object({
-  conformidade_id: z.string().uuid(),
-  data_hora: z.date(),
-  tipo: z.enum(["assinatura", "entrevista"]),
-  observacoes: z.string().optional(),
-});
+import { Badge } from "@/components/ui/badge";
 
 const Agendamentos = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const [profile, setProfile] = useState<any>(null);
-  const [agendamentos, setAgendamentos] = useState<any[]>([]);
-  const [conformidades, setConformidades] = useState<any[]>([]);
+  const [searchParams] = useSearchParams();
+  const [entrevistas, setEntrevistas] = useState<any[]>([]);
+  const [assinaturas, setAssinaturas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  // Form state
-  const [conformidadeId, setConformidadeId] = useState("");
-  const [date, setDate] = useState<Date>();
-  const [time, setTime] = useState("");
-  const [tipo, setTipo] = useState<string>("");
-  const [observacoes, setObservacoes] = useState("");
-
-  useEffect(() => {
-    const conformidadeParam = searchParams.get("conformidade");
-    if (conformidadeParam) {
-      setConformidadeId(conformidadeParam);
-      setDialogOpen(true);
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     loadData();
 
-    const channel = supabase
+    const entrevistasChannel = supabase
+      .channel("entrevistas-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "entrevistas_agendamento",
+        },
+        () => loadData()
+      )
+      .subscribe();
+
+    const agendamentosChannel = supabase
       .channel("agendamentos-changes")
       .on(
         "postgres_changes",
@@ -63,137 +44,77 @@ const Agendamentos = () => {
           schema: "public",
           table: "agendamentos",
         },
-        () => {
-          loadData();
-        }
+        () => loadData()
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(entrevistasChannel);
+      supabase.removeChannel(agendamentosChannel);
     };
   }, []);
 
   const loadData = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      navigate("/auth");
-      return;
-    }
-
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .single();
-
-    setProfile(profileData);
-
-    const { data: agendamentosData } = await supabase
-      .from("agendamentos")
-      .select(`
-        *,
-        conformidades (
-          cpf,
-          valor_financiamento,
-          modalidade,
-          codigo_cca
-        )
-      `)
-      .order("data_hora", { ascending: true });
-
-    setAgendamentos(agendamentosData || []);
-
-    const { data: conformidadesData } = await supabase
-      .from("conformidades")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    setConformidades(conformidadesData || []);
-
-    setLoading(false);
-  };
-
-  const handleCreateAgendamento = async (e: React.FormEvent) => {
-    e.preventDefault();
-
     try {
-      if (!date || !time) {
-        throw new Error("Data e hora são obrigatórios");
-      }
-
-      const [hours, minutes] = time.split(":");
-      const dataHora = new Date(date);
-      dataHora.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-      const validatedData = agendamentoSchema.parse({
-        conformidade_id: conformidadeId,
-        data_hora: dataHora,
-        tipo,
-        observacoes: observacoes || undefined,
-      });
-
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { error } = await supabase.from("agendamentos").insert({
-        conformidade_id: validatedData.conformidade_id,
-        cca_user_id: session.user.id,
-        data_hora: validatedData.data_hora.toISOString(),
-        tipo: validatedData.tipo,
-        observacoes: validatedData.observacoes || null,
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Agendamento criado!",
-        description: "O agendamento foi registrado com sucesso.",
-      });
-
-      setDialogOpen(false);
-      resetForm();
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        toast({
-          title: "Erro de validação",
-          description: error.errors[0].message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Erro",
-          description: error.message,
-          variant: "destructive",
-        });
+      if (!session) {
+        navigate("/auth");
+        return;
       }
+
+      // Buscar entrevistas
+      const { data: entrevistasData, error: entrevistasError } = await supabase
+        .from("entrevistas_agendamento")
+        .select(`
+          *,
+          conformidades (cpf, valor_financiamento, modalidade, codigo_cca)
+        `)
+        .order("created_at", { ascending: false });
+
+      if (entrevistasError) throw entrevistasError;
+
+      // Buscar assinaturas (agendamentos do tipo assinatura)
+      const { data: assinaturasData, error: assinaturasError } = await supabase
+        .from("agendamentos")
+        .select(`
+          *,
+          conformidades (cpf, valor_financiamento, modalidade, codigo_cca)
+        `)
+        .eq("tipo", "assinatura")
+        .order("data_hora", { ascending: false });
+
+      if (assinaturasError) throw assinaturasError;
+
+      setEntrevistas(entrevistasData || []);
+      setAssinaturas(assinaturasData || []);
+    } catch (error: any) {
+      console.error("Error loading data:", error);
+      toast({
+        title: "Erro ao carregar agendamentos",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setConformidadeId("");
-    setDate(undefined);
-    setTime("");
-    setTipo("");
-    setObservacoes("");
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      pendente: "outline",
+      confirmado: "default",
+      cancelado: "destructive",
+      concluido: "secondary",
+    };
+    return <Badge variant={variants[status] || "default"}>{status}</Badge>;
   };
-
-  const groupByDate = (agendamentos: any[]) => {
-    const grouped: Record<string, any[]> = {};
-    agendamentos.forEach((agendamento) => {
-      const dateKey = format(new Date(agendamento.data_hora), "yyyy-MM-dd");
-      if (!grouped[dateKey]) {
-        grouped[dateKey] = [];
-      }
-      grouped[dateKey].push(agendamento);
-    });
-    return grouped;
-  };
-
-  const groupedAgendamentos = groupByDate(agendamentos);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Carregando...
+      </div>
+    );
   }
 
   return (
@@ -206,158 +127,182 @@ const Agendamentos = () => {
               <span className="hidden md:inline">Voltar</span>
             </Button>
             <div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">Agendamentos</h1>
+              <h1 className="text-xl md:text-2xl font-bold text-foreground">
+                Agendamentos
+              </h1>
               <p className="text-xs md:text-sm text-muted-foreground">
-                Calendário de assinaturas e entrevistas
+                Entrevistas e Assinaturas
               </p>
             </div>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Novo Agendamento
-              </Button>
-            </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Criar Agendamento</DialogTitle>
-                  <DialogDescription>Agende uma assinatura ou entrevista</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleCreateAgendamento} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="conformidade">Processo em Conformidade *</Label>
-                    <Select value={conformidadeId} onValueChange={setConformidadeId} required>
-                      <SelectTrigger id="conformidade">
-                        <SelectValue placeholder="Selecione o processo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {conformidades.map((conf) => (
-                          <SelectItem key={conf.id} value={conf.id}>
-                            CPF: {conf.cpf} - {conf.modalidade}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tipo">Tipo *</Label>
-                    <Select value={tipo} onValueChange={setTipo} required>
-                      <SelectTrigger id="tipo">
-                        <SelectValue placeholder="Selecione o tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="assinatura">Assinatura</SelectItem>
-                        <SelectItem value="entrevista">Entrevista</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Data *</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !date && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {date ? format(date, "PPP", { locale: ptBR }) : "Selecione a data"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={date}
-                          onSelect={setDate}
-                          initialFocus
-                          className="pointer-events-auto"
-                          disabled={(date) => date < new Date()}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="time">Horário *</Label>
-                    <Input
-                      id="time"
-                      type="time"
-                      value={time}
-                      onChange={(e) => setTime(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="observacoes">Observações</Label>
-                    <ObservacoesField
-                      value={observacoes}
-                      onChange={setObservacoes}
-                      placeholder="Observações adicionais..."
-                    />
-                  </div>
-                  <Button type="submit" className="w-full">
-                    Criar Agendamento
-                  </Button>
-                </form>
-              </DialogContent>
-          </Dialog>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-8">
-          {Object.keys(groupedAgendamentos).length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                Nenhum agendamento encontrado
-              </CardContent>
-            </Card>
-          ) : (
-            Object.entries(groupedAgendamentos).map(([dateKey, items]) => (
-              <div key={dateKey} className="space-y-4">
-                <h2 className="text-xl font-semibold text-foreground">
-                  {format(new Date(dateKey), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-                </h2>
-                <div className="grid gap-4">
-                  {items.map((agendamento: any) => (
-                    <Card key={agendamento.id}>
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
+      <div className="container mx-auto px-4 py-6">
+        <Tabs defaultValue="entrevistas" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="entrevistas">
+              Entrevistas ({entrevistas.length})
+            </TabsTrigger>
+            <TabsTrigger value="assinaturas">
+              Assinaturas ({assinaturas.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="entrevistas" className="space-y-4">
+            {entrevistas.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Nenhuma entrevista agendada
+                </CardContent>
+              </Card>
+            ) : (
+              entrevistas.map((entrevista) => (
+                <Card key={entrevista.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">
+                          {entrevista.cliente_nome}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Telefone: {entrevista.telefone}
+                        </p>
+                      </div>
+                      {getStatusBadge(entrevista.status || "pendente")}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Opção 1</p>
+                        <p className="font-medium">
+                          {format(new Date(entrevista.data_opcao_1), "dd/MM/yyyy", {
+                            locale: ptBR,
+                          })}{" "}
+                          - {entrevista.horario_inicio} às {entrevista.horario_fim}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Opção 2</p>
+                        <p className="font-medium">
+                          {format(new Date(entrevista.data_opcao_2), "dd/MM/yyyy", {
+                            locale: ptBR,
+                          })}{" "}
+                          - {entrevista.horario_inicio} às {entrevista.horario_fim}
+                        </p>
+                      </div>
+                      {entrevista.data_confirmada && (
+                        <div className="md:col-span-2">
+                          <p className="text-muted-foreground">Data Confirmada</p>
+                          <p className="font-semibold text-primary">
+                            {format(
+                              new Date(entrevista.data_confirmada),
+                              "dd/MM/yyyy",
+                              { locale: ptBR }
+                            )}
+                          </p>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-muted-foreground">Local</p>
+                        <p className="font-medium">
+                          {entrevista.agencia} - {entrevista.endereco_agencia}
+                        </p>
+                      </div>
+                      {entrevista.conformidades && (
+                        <div>
+                          <p className="text-muted-foreground">CPF</p>
+                          <p className="font-medium">
+                            {entrevista.conformidades.cpf}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="assinaturas" className="space-y-4">
+            {assinaturas.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Nenhuma assinatura agendada
+                </CardContent>
+              </Card>
+            ) : (
+              assinaturas.map((assinatura) => (
+                <Card key={assinatura.id}>
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">
+                          {format(new Date(assinatura.data_hora), "dd/MM/yyyy HH:mm", {
+                            locale: ptBR,
+                          })}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {assinatura.tipo === "assinatura"
+                            ? "Assinatura de Documento"
+                            : assinatura.tipo}
+                        </p>
+                      </div>
+                      {getStatusBadge(assinatura.status || "Aguardando entrevista")}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                      {assinatura.conformidades && (
+                        <>
                           <div>
-                            <CardTitle className="text-lg flex items-center gap-2">
-                              <Clock className="w-5 h-5 text-primary" />
-                              {format(new Date(agendamento.data_hora), "HH:mm")} -{" "}
-                              {agendamento.tipo.charAt(0).toUpperCase() + agendamento.tipo.slice(1)}
-                            </CardTitle>
-                            <CardDescription className="mt-1">
-                              CPF: {agendamento.conformidades?.cpf} | CCA:{" "}
-                              {agendamento.conformidades?.codigo_cca} | Valor:{" "}
+                            <p className="text-muted-foreground">CPF</p>
+                            <p className="font-medium">
+                              {assinatura.conformidades.cpf}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Modalidade</p>
+                            <p className="font-medium">
+                              {assinatura.conformidades.modalidade}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">
+                              Valor do Financiamento
+                            </p>
+                            <p className="font-medium">
                               {new Intl.NumberFormat("pt-BR", {
                                 style: "currency",
                                 currency: "BRL",
-                              }).format(Number(agendamento.conformidades?.valor_financiamento))}
-                            </CardDescription>
+                              }).format(
+                                parseFloat(assinatura.conformidades.valor_financiamento)
+                              )}
+                            </p>
                           </div>
+                          <div>
+                            <p className="text-muted-foreground">Código CCA</p>
+                            <p className="font-medium">
+                              {assinatura.conformidades.codigo_cca}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      {assinatura.observacoes && (
+                        <div className="md:col-span-2">
+                          <p className="text-muted-foreground">Observações</p>
+                          <p className="font-medium">{assinatura.observacoes}</p>
                         </div>
-                      </CardHeader>
-                      <CardContent>
-                        {agendamento.observacoes && (
-                          <div className="text-sm">
-                            <p className="text-muted-foreground">Observações:</p>
-                            <p className="mt-1">{agendamento.observacoes}</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </main>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
 
       <MobileBottomNav />
     </div>
