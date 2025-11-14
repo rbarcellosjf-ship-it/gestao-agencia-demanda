@@ -23,12 +23,16 @@ import {
 } from "@/components/ui/dialog";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useCanCreateAgendamento } from "@/hooks/useCanCreateAgendamento";
+import { safeInsertAgendamento, formatAgendamentoError, type AgendamentoInput } from "@/lib/agendamentoUtils";
 
 const AgendamentosNew = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { canCreate, role } = useCanCreateAgendamento();
   const [entrevistas, setEntrevistas] = useState<any[]>([]);
   const [assinaturas, setAssinaturas] = useState<any[]>([]);
+  const [ccas, setCcas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   
@@ -41,10 +45,12 @@ const AgendamentosNew = () => {
     data_hora: "",
     observacoes: "",
     dossie_cliente_url: "",
+    cca_user_id: "", // Será preenchido automaticamente
   });
 
   useEffect(() => {
     loadData();
+    loadCCAs();
 
     const entrevistasChannel = supabase
       .channel("agendamentos-entrevistas")
@@ -120,6 +126,20 @@ const AgendamentosNew = () => {
     }
   };
 
+  const loadCCAs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, codigo_cca")
+        .order("full_name");
+
+      if (error) throw error;
+      setCcas(data || []);
+    } catch (error: any) {
+      console.error("Erro ao carregar CCAs:", error);
+    }
+  };
+
   const handleSubmitEntrevista = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -127,13 +147,29 @@ const AgendamentosNew = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase.from("agendamentos").insert({
-        ...formData,
-        tipo: "entrevista",
-        cca_user_id: user.id,
-      });
+      // Determinar o cca_user_id
+      let ccaUserId = formData.cca_user_id;
+      if (role === 'cca' || !ccaUserId) {
+        ccaUserId = user.id;
+      }
 
-      if (error) throw error;
+      const insertData: Partial<AgendamentoInput> = {
+        cpf: formData.cpf,
+        tipo_contrato: formData.tipo_contrato as 'individual' | 'empreendimento',
+        modalidade_financiamento: formData.modalidade_financiamento as 'mcmv' | 'sbpe',
+        comite_credito: formData.comite_credito,
+        data_hora: formData.data_hora,
+        observacoes: formData.observacoes || undefined,
+        dossie_cliente_url: formData.dossie_cliente_url || undefined,
+        tipo: "entrevista" as const,
+        cca_user_id: ccaUserId,
+      };
+
+      const { data, error } = await safeInsertAgendamento(insertData);
+
+      if (error) {
+        throw new Error(formatAgendamentoError(error));
+      }
 
       toast({
         title: "Entrevista agendada!",
@@ -162,6 +198,7 @@ const AgendamentosNew = () => {
       data_hora: "",
       observacoes: "",
       dossie_cliente_url: "",
+      cca_user_id: "",
     });
   };
 
@@ -259,7 +296,7 @@ const AgendamentosNew = () => {
           
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" disabled={!canCreate}>
                 <Plus className="w-4 h-4 mr-2" />
                 Nova Entrevista
               </Button>
@@ -269,6 +306,27 @@ const AgendamentosNew = () => {
                 <DialogTitle>Agendar Entrevista</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmitEntrevista} className="space-y-4">
+                {role === 'agencia' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="cca">CCA Responsável *</Label>
+                    <Select
+                      value={formData.cca_user_id}
+                      onValueChange={(value) => setFormData({ ...formData, cca_user_id: value })}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o CCA" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ccas.map((cca) => (
+                          <SelectItem key={cca.user_id} value={cca.user_id}>
+                            {cca.full_name} {cca.codigo_cca && `(${cca.codigo_cca})`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="cpf">CPF</Label>
