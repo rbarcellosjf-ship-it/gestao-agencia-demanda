@@ -82,7 +82,7 @@ const Empregados = () => {
   const handleUpdateEmailPreferencia = async (userId: string, emailPreferencia: string) => {
     setSaving(userId);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("profiles")
         .update({ email_preferencia: emailPreferencia })
         .eq("user_id", userId);
