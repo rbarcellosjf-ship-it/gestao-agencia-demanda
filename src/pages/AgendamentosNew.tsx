@@ -204,18 +204,32 @@ const AgendamentosNew = () => {
 
   const handleAprovar = async (id: string) => {
     try {
-      const { error } = await supabase.functions.invoke("send-interview-result-email", {
-        body: {
-          entrevistaId: id,
-          aprovado: true,
-        },
-      });
+      // Atualizar status diretamente
+      const { error: updateError } = await supabase
+        .from("agendamentos")
+        .update({ 
+          status: "Aprovado" as any,
+          observacoes: "Entrevista aprovada"
+        })
+        .eq("id", id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      // Tentar enviar email (não bloquear se falhar)
+      try {
+        await supabase.functions.invoke("send-interview-result-email", {
+          body: {
+            entrevistaId: id,
+            aprovado: true,
+          },
+        });
+      } catch (emailError) {
+        console.error("Email sending failed:", emailError);
+      }
 
       toast({
         title: "Entrevista aprovada!",
-        description: "Conformidade atualizada e e-mail enviado ao CCA.",
+        description: "Status atualizado com sucesso.",
       });
 
       loadData();
@@ -234,19 +248,33 @@ const AgendamentosNew = () => {
     if (!motivo) return;
 
     try {
-      const { error } = await supabase.functions.invoke("send-interview-result-email", {
-        body: {
-          entrevistaId: id,
-          aprovado: false,
-          motivo,
-        },
-      });
+      // Atualizar status e observações diretamente
+      const { error: updateError } = await supabase
+        .from("agendamentos")
+        .update({ 
+          status: "Reprovado" as any,
+          observacoes: motivo
+        })
+        .eq("id", id);
 
-      if (error) throw error;
+      if (updateError) throw updateError;
+
+      // Tentar enviar email (não bloquear se falhar)
+      try {
+        await supabase.functions.invoke("send-interview-result-email", {
+          body: {
+            entrevistaId: id,
+            aprovado: false,
+            motivo,
+          },
+        });
+      } catch (emailError) {
+        console.error("Email sending failed:", emailError);
+      }
 
       toast({
         title: "Entrevista reprovada",
-        description: "E-mail de reprovação enviado ao CCA.",
+        description: "Status atualizado com sucesso.",
       });
 
       loadData();
