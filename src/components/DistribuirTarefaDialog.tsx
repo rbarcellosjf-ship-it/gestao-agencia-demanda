@@ -88,7 +88,7 @@ export function DistribuirTarefaDialog({
 
       // Create distribution records
       for (const user of selectedUsers) {
-        const { error: insertError } = await supabase
+        const { error: insertError } = await (supabase as any)
           .from("distribuicao_tarefas")
           .insert({
             tipo_tarefa: tipoTarefa,

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
@@ -78,7 +78,7 @@ const Agendamentos = () => {
         .from("agendamentos")
         .select(`
           *,
-          conformidades (cpf, valor_financiamento, modalidade, codigo_cca)
+          conformidades!agendamentos_conformidade_id_fkey (cpf, valor_financiamento, modalidade, codigo_cca)
         `)
         .eq("tipo", "assinatura")
         .order("data_hora", { ascending: false });
@@ -135,6 +135,10 @@ const Agendamentos = () => {
               </p>
             </div>
           </div>
+          <Button onClick={() => navigate("/conformidades")}>
+            <Plus className="mr-2 h-4 w-4" />
+            Incluir Agendamento
+          </Button>
         </div>
       </header>
 
