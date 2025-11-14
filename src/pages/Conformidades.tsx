@@ -24,6 +24,8 @@ import { AgendarAssinaturaDialog } from "@/components/AgendarAssinaturaDialog";
 import { ObservacoesField } from "@/components/ObservacoesField";
 import { Textarea } from "@/components/ui/textarea";
 import { DistribuirTarefaDialog } from "@/components/DistribuirTarefaDialog";
+import { AgendarAssinaturaContratoDialog } from "@/components/AgendarAssinaturaContratoDialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const conformidadeSchema = z.object({
   cpf: z.string()
@@ -52,6 +54,8 @@ const Conformidades = () => {
   const [valorFinanciamento, setValorFinanciamento] = useState("");
   const [modalidade, setModalidade] = useState<string>("");
   const [modalidadeOutro, setModalidadeOutro] = useState("");
+  const [comiteCredito, setComiteCredito] = useState(false);
+  const [observacoes, setObservacoes] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conformidadeToDelete, setConformidadeToDelete] = useState<string | null>(null);
   
@@ -144,13 +148,15 @@ const Conformidades = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { error } = await supabase.from("conformidades").insert({
+      const { error } = await (supabase as any).from("conformidades").insert({
         cca_user_id: session.user.id,
         codigo_cca: profile?.codigo_cca || "",
         cpf: validatedData.cpf,
         valor_financiamento: validatedData.valor_financiamento,
         modalidade: validatedData.modalidade,
         modalidade_outro: validatedData.modalidade_outro || null,
+        comite_credito: comiteCredito,
+        observacoes: observacoes || null,
       });
 
       if (error) throw error;
@@ -184,6 +190,8 @@ const Conformidades = () => {
     setValorFinanciamento("");
     setModalidade("");
     setModalidadeOutro("");
+    setComiteCredito(false);
+    setObservacoes("");
   };
 
   const formatCurrency = (value: number) => {
@@ -338,6 +346,31 @@ const Conformidades = () => {
                       />
                     </div>
                   )}
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="comite"
+                        checked={comiteCredito}
+                        onChange={(e) => setComiteCredito(e.target.checked)}
+                        className="w-4 h-4 rounded border-input"
+                      />
+                      <Label htmlFor="comite" className="cursor-pointer">
+                        Necessita aprovação do Comitê de Crédito
+                      </Label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="observacoes">Observações</Label>
+                    <ObservacoesField
+                      value={observacoes}
+                      onChange={setObservacoes}
+                      placeholder="Adicione observações sobre o contrato..."
+                    />
+                  </div>
+
                   <Button type="submit" className="w-full">
                     Incluir Contrato
                   </Button>
@@ -400,7 +433,29 @@ const Conformidades = () => {
                             : conformidade.modalidade}
                         </p>
                       </div>
+                      {(conformidade as any).comite_credito && (
+                        <div className="md:col-span-2">
+                          <Badge variant="secondary">
+                            Requer Comitê de Crédito
+                          </Badge>
+                        </div>
+                      )}
                     </div>
+
+                    {(conformidade as any).observacoes && (
+                      <div className="space-y-2">
+                        <Label className="text-sm text-muted-foreground">Observações</Label>
+                        <ObservacoesField
+                          value={(conformidade as any).observacoes}
+                          onChange={async (newValue) => {
+                            await (supabase as any)
+                              .from("conformidades")
+                              .update({ observacoes: newValue })
+                              .eq("id", conformidade.id);
+                          }}
+                        />
+                      </div>
+                    )}
 
                     <div className="space-y-2">
                       <Label className="text-sm text-muted-foreground">Status do Contrato</Label>
@@ -438,9 +493,9 @@ const Conformidades = () => {
                         Solicitar Comitê de Crédito
                       </Button>
                       
-                      <AgendarAssinaturaDialog
+                      <AgendarAssinaturaContratoDialog
                         conformidade={conformidade}
-                        profile={profile}
+                        entrevistaAprovada={conformidade.entrevista_aprovada || false}
                       />
                     </div>
                   </CardContent>

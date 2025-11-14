@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Badge } from "@/components/ui/badge";
+import { AgendarEntrevistaDialog } from "@/components/AgendarEntrevistaDialog";
 
 const Agendamentos = () => {
   const navigate = useNavigate();
@@ -135,10 +136,7 @@ const Agendamentos = () => {
               </p>
             </div>
           </div>
-          <Button onClick={() => navigate("/conformidades")}>
-            <Plus className="mr-2 h-4 w-4" />
-            Incluir Agendamento
-          </Button>
+          <AgendarEntrevistaDialog />
         </div>
       </header>
 
