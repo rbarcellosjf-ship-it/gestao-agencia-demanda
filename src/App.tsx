@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import Demands from "./pages/Demands";
 import Conformidades from "./pages/Conformidades";
 import Agendamentos from "./pages/Agendamentos";
+import Empregados from "./pages/Empregados";
 import EmailTemplates from "./pages/EmailTemplates";
 import Settings from "./pages/Settings";
 import LeitorDocumentos from "./pages/LeitorDocumentos";
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/demands" element={<Demands />} />
           <Route path="/conformidades" element={<Conformidades />} />
           <Route path="/agendamentos" element={<Agendamentos />} />
+          <Route path="/empregados" element={<Empregados />} />
           <Route path="/email-templates" element={<EmailTemplates />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/leitor-documentos" element={<LeitorDocumentos />} />

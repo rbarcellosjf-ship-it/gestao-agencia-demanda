@@ -21,6 +21,8 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { validateCPF, formatCPF } from "@/lib/cpfValidator";
 import { StatusSelect } from "@/components/StatusSelect";
 import { AgendarAssinaturaDialog } from "@/components/AgendarAssinaturaDialog";
+import { ObservacoesField } from "@/components/ObservacoesField";
+import { Textarea } from "@/components/ui/textarea";
 
 const conformidadeSchema = z.object({
   cpf: z.string()
@@ -415,7 +417,24 @@ const Conformidades = () => {
                         Pedir Prioridade
                       </Button>
                       
-                      <AgendarAssinaturaDialog 
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          // TODO: Implementar lógica de solicitar comitê de crédito
+                          toast({
+                            title: "Em desenvolvimento",
+                            description: "Funcionalidade em desenvolvimento.",
+                          });
+                        }}
+                        title="Solicitar análise do comitê de crédito"
+                        className="w-full md:w-auto"
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Solicitar Comitê de Crédito
+                      </Button>
+                      
+                      <AgendarAssinaturaDialog
                         conformidade={conformidade}
                         profile={profile}
                       />
