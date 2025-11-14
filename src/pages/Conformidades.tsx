@@ -18,7 +18,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useEmailTemplate, generateEmail } from "@/hooks/useEmailTemplate";
 import { formatEmailData } from "@/lib/emailUtils";
 import { useUserRole } from "@/hooks/useUserRole";
-import { validateCPF, formatCPF } from "@/lib/cpfValidator";
+import { validateCPF, formatCPF, normalizeCPF } from "@/lib/cpfValidator";
 import { StatusSelect } from "@/components/StatusSelect";
 import { AgendarAssinaturaDialog } from "@/components/AgendarAssinaturaDialog";
 import { ObservacoesField } from "@/components/ObservacoesField";
@@ -152,7 +152,7 @@ const Conformidades = () => {
       const { error } = await (supabase as any).from("conformidades").insert({
         cca_user_id: session.user.id,
         codigo_cca: profile?.codigo_cca || "",
-        cpf: validatedData.cpf,
+        cpf: normalizeCPF(validatedData.cpf),
         valor_financiamento: validatedData.valor_financiamento,
         modalidade: validatedData.modalidade,
         modalidade_outro: validatedData.modalidade_outro || null,
