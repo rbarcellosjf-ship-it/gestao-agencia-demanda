@@ -449,13 +449,23 @@ const Conformidades = () => {
                       <div className="space-y-2">
                         <Label className="text-sm text-muted-foreground">Observações</Label>
                         <ObservacoesField
-                          value={(conformidade as any).observacoes}
-                          onChange={async (newValue) => {
+                          value={(conformidade as any).observacoes || ""}
+                          onChange={(newValue) => {
+                            // Apenas atualiza estado local
+                          }}
+                          onSave={async (newValue) => {
                             await (supabase as any)
                               .from("conformidades")
                               .update({ observacoes: newValue })
                               .eq("id", conformidade.id);
+                            
+                            toast({
+                              title: "Observações salvas",
+                              description: "As observações foram atualizadas com sucesso.",
+                            });
                           }}
+                          autoSave={false}
+                          placeholder="Adicione observações sobre a conformidade..."
                         />
                       </div>
                     )}

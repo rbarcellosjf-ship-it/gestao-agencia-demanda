@@ -17,40 +17,47 @@ export type Database = {
       agendamentos: {
         Row: {
           cca_user_id: string
-          conformidade_id: string
+          comite_credito: boolean | null
+          cpf: string | null
           created_at: string
           data_hora: string
+          dossie_cliente_url: string | null
           id: string
+          modalidade_financiamento: string | null
           observacoes: string | null
+          status: string | null
           tipo: string
+          tipo_contrato: string | null
         }
         Insert: {
           cca_user_id: string
-          conformidade_id: string
+          comite_credito?: boolean | null
+          cpf?: string | null
           created_at?: string
           data_hora: string
+          dossie_cliente_url?: string | null
           id?: string
+          modalidade_financiamento?: string | null
           observacoes?: string | null
+          status?: string | null
           tipo: string
+          tipo_contrato?: string | null
         }
         Update: {
           cca_user_id?: string
-          conformidade_id?: string
+          comite_credito?: boolean | null
+          cpf?: string | null
           created_at?: string
           data_hora?: string
+          dossie_cliente_url?: string | null
           id?: string
+          modalidade_financiamento?: string | null
           observacoes?: string | null
+          status?: string | null
           tipo?: string
+          tipo_contrato?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "agendamentos_conformidade_id_fkey"
-            columns: ["conformidade_id"]
-            isOneToOne: false
-            referencedRelation: "conformidades"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       configuracoes: {
         Row: {
@@ -83,40 +90,60 @@ export type Database = {
         Row: {
           cca_user_id: string
           codigo_cca: string
+          comite_credito: boolean | null
           cpf: string
           created_at: string
           data_agendamento: string | null
+          entrevista_aprovada: boolean | null
+          entrevista_id: string | null
           id: string
           modalidade: Database["public"]["Enums"]["modalidade_financiamento"]
           modalidade_outro: string | null
+          observacoes: string | null
           status: string | null
           valor_financiamento: number
         }
         Insert: {
           cca_user_id: string
           codigo_cca: string
+          comite_credito?: boolean | null
           cpf: string
           created_at?: string
           data_agendamento?: string | null
+          entrevista_aprovada?: boolean | null
+          entrevista_id?: string | null
           id?: string
           modalidade: Database["public"]["Enums"]["modalidade_financiamento"]
           modalidade_outro?: string | null
+          observacoes?: string | null
           status?: string | null
           valor_financiamento: number
         }
         Update: {
           cca_user_id?: string
           codigo_cca?: string
+          comite_credito?: boolean | null
           cpf?: string
           created_at?: string
           data_agendamento?: string | null
+          entrevista_aprovada?: boolean | null
+          entrevista_id?: string | null
           id?: string
           modalidade?: Database["public"]["Enums"]["modalidade_financiamento"]
           modalidade_outro?: string | null
+          observacoes?: string | null
           status?: string | null
           valor_financiamento?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "conformidades_entrevista_id_fkey"
+            columns: ["entrevista_id"]
+            isOneToOne: false
+            referencedRelation: "agendamentos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       demands: {
         Row: {
@@ -187,6 +214,36 @@ export type Database = {
         }
         Relationships: []
       }
+      distribuicao_tarefas: {
+        Row: {
+          created_at: string | null
+          id: string
+          referencia_id: string
+          status: string | null
+          tipo_tarefa: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          referencia_id: string
+          status?: string | null
+          tipo_tarefa: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          referencia_id?: string
+          status?: string | null
+          tipo_tarefa?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       documentos_extraidos: {
         Row: {
           arquivo_url: string | null
@@ -253,6 +310,39 @@ export type Database = {
           subject?: string
           template_key?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      empregados_agencia: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          email_preferencia: string | null
+          id: string
+          nome: string
+          updated_at: string | null
+          user_id: string
+          whatsapp: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          email_preferencia?: string | null
+          id?: string
+          nome: string
+          updated_at?: string | null
+          user_id: string
+          whatsapp: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          email_preferencia?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string | null
+          user_id?: string
+          whatsapp?: string
         }
         Relationships: []
       }
@@ -337,6 +427,7 @@ export type Database = {
         Row: {
           codigo_cca: string | null
           created_at: string
+          email_preferencia: string | null
           full_name: string
           id: string
           phone: string
@@ -346,6 +437,7 @@ export type Database = {
         Insert: {
           codigo_cca?: string | null
           created_at?: string
+          email_preferencia?: string | null
           full_name: string
           id?: string
           phone: string
@@ -355,6 +447,7 @@ export type Database = {
         Update: {
           codigo_cca?: string | null
           created_at?: string
+          email_preferencia?: string | null
           full_name?: string
           id?: string
           phone?: string
@@ -449,6 +542,7 @@ export type Database = {
         | "incluir_pis_siopi"
         | "autoriza_vendedor_restricao"
       modalidade_financiamento: "SBPE" | "MCMV" | "OUTRO"
+      tipo_contrato: "individual" | "empreendimento"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -596,6 +690,7 @@ export const Constants = {
         "autoriza_vendedor_restricao",
       ],
       modalidade_financiamento: ["SBPE", "MCMV", "OUTRO"],
+      tipo_contrato: ["individual", "empreendimento"],
     },
   },
 } as const
