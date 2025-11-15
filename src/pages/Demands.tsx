@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Check, X, Filter, Trash2, FileText, Mail, Lock } from "lucide-react";
+import { ArrowLeft, Plus, Check, X, Filter, Trash2, FileText, Mail, Lock, Send } from "lucide-react";
+import { DistribuirTarefaDialog } from "@/components/DistribuirTarefaDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { z } from "zod";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -279,6 +280,10 @@ const Demands = () => {
   const [selectedDemand, setSelectedDemand] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [demandToDelete, setDemandToDelete] = useState<string | null>(null);
+  
+  // Distribuir tarefa state
+  const [distribuirOpen, setDistribuirOpen] = useState(false);
+  const [distribuirReferenciaId, setDistribuirReferenciaId] = useState("");
 
   // PDF upload state
   const [cartaSolicitacaoFile, setCartaSolicitacaoFile] = useState<File | null>(null);
@@ -1269,12 +1274,44 @@ const Demands = () => {
                       </div>
                     </div>
                   )}
+                  
+                  {/* Botão de Distribuir Tarefa */}
+                  {role === "agencia" && (
+                    <div className="mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        onClick={() => {
+                          setDistribuirReferenciaId(demand.id);
+                          setDistribuirOpen(true);
+                        }}
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        Distribuir Tarefa
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))
           )}
         </div>
       </main>
+
+      <DistribuirTarefaDialog
+        open={distribuirOpen}
+        onOpenChange={setDistribuirOpen}
+        tipoTarefa="demanda"
+        referenciaId={distribuirReferenciaId}
+        onSuccess={() => {
+          toast({
+            title: "Tarefa distribuída!",
+            description: "A demanda foi atribuída com sucesso.",
+          });
+          loadData();
+        }}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

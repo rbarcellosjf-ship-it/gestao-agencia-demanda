@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { Resend } from "npm:resend@2.0.0";
+import { Resend } from "npm:resend";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -48,10 +48,10 @@ const handler = async (req: Request): Promise<Response> => {
         continue;
       }
 
-      // 2. Buscar dados do empregado
+      // 2. Buscar dados do empregado da tabela profiles
       const { data: empregado, error: empError } = await supabaseClient
-        .from("empregados_agencia")
-        .select("nome, email_preferencia")
+        .from("profiles")
+        .select("full_name, email_preferencia")
         .eq("user_id", empregadoId)
         .single();
 
@@ -60,16 +60,35 @@ const handler = async (req: Request): Promise<Response> => {
         continue;
       }
 
-      // 3. Buscar template de e-mail
+      // 3. Determinar a chave do template baseado no tipo de tarefa
+      let templateKey = `task_${tipoTarefa}`;
+
+      // Se for demanda, buscar detalhes para encontrar o tipo específico
+      if (tipoTarefa === "demanda") {
+        const { data: demandaData } = await supabaseClient
+          .from("demands")
+          .select("type")
+          .eq("id", referenciaId)
+          .single();
+        
+        if (demandaData?.type) {
+          templateKey = `task_demanda_${demandaData.type}`;
+        }
+      }
+
+      console.log("Looking for template with key:", templateKey);
+
+      // 4. Buscar template de e-mail
       const { data: template } = await supabaseClient
         .from("email_templates")
         .select("subject, body")
-        .eq("template_key", `task_${tipoTarefa}`)
+        .eq("template_key", templateKey)
         .single();
 
+      // Fallback para template genérico
       const subject = template?.subject || `Nova Tarefa: ${tipoTarefa}`;
       const body = template?.body || `
-        <h2>Olá ${empregado.nome},</h2>
+        <h2>Olá ${empregado.full_name},</h2>
         <p>Você recebeu uma nova tarefa do tipo <strong>${tipoTarefa}</strong>.</p>
         <p>Por favor, acesse o sistema para mais detalhes.</p>
         <p>Atenciosamente,<br>Sistema de Gestão</p>
