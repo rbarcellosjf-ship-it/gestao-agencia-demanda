@@ -25,6 +25,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCanCreateAgendamento } from "@/hooks/useCanCreateAgendamento";
 import { safeInsertAgendamento, formatAgendamentoError, type AgendamentoInput } from "@/lib/agendamentoUtils";
+import { normalizeCPF, validateCPF, formatCPF } from "@/lib/cpfValidator";
 
 const AgendamentosNew = () => {
   const navigate = useNavigate();
@@ -147,6 +148,28 @@ const AgendamentosNew = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
+      // Validar CPF
+      if (!validateCPF(formData.cpf)) {
+        toast({
+          title: "CPF inválido",
+          description: "Por favor, verifique o CPF digitado.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Normalizar CPF (remover formatação)
+      const normalizedCPF = normalizeCPF(formData.cpf);
+      
+      if (!normalizedCPF.match(/^\d{11}$/)) {
+        toast({
+          title: "CPF inválido",
+          description: "CPF deve conter exatamente 11 dígitos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Determinar o cca_user_id
       let ccaUserId = formData.cca_user_id;
       if (role === 'cca' || !ccaUserId) {
@@ -154,7 +177,7 @@ const AgendamentosNew = () => {
       }
 
       const insertData: Partial<AgendamentoInput> = {
-        cpf: formData.cpf,
+        cpf: normalizedCPF,
         tipo_contrato: formData.tipo_contrato as 'individual' | 'empreendimento',
         modalidade_financiamento: formData.modalidade_financiamento as 'mcmv' | 'sbpe',
         comite_credito: formData.comite_credito,

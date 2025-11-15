@@ -159,12 +159,11 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar }: 
             <p className="text-sm font-medium text-muted-foreground">Observações</p>
             <ObservacoesField
               value={observacoes}
-              onChange={(value) => {
-                setObservacoes(value);
-                handleSaveObservacoes(value);
-              }}
+              onChange={setObservacoes}
+              onSave={handleSaveObservacoes}
               placeholder="Adicionar observações sobre a entrevista..."
               disabled={isSaving}
+              autoSave={false}
             />
           </div>
         </div>
