@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, FileText, Calendar, Users, Plus, User, Mail, Settings, ScanText } from "lucide-react";
+import { LogOut, FileText, Calendar, Users, Plus, User, Mail, Settings, ScanText, ListTodo } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { QuickActions } from "@/components/dashboard/QuickActions";
@@ -199,6 +199,24 @@ const Dashboard = () => {
               <Button className="w-full" variant="outline">
                 <ScanText className="w-4 h-4 mr-2" />
                 Extrair Documentos
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/minhas-tarefas")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ListTodo className="w-5 h-5 text-primary" />
+                Minhas Tarefas
+              </CardTitle>
+              <CardDescription>
+                Gerenciar tarefas distribuídas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button className="w-full" variant="outline">
+                <ListTodo className="w-4 h-4 mr-2" />
+                Ver Minhas Tarefas
               </Button>
             </CardContent>
           </Card>
