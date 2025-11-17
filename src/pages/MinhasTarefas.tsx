@@ -31,7 +31,7 @@ const MinhasTarefas = () => {
   const [loading, setLoading] = useState(true);
   const [tarefas, setTarefas] = useState<TarefaDistribuida[]>([]);
   const [filtroTipo, setFiltroTipo] = useState<string>("todos");
-  const [statusTab, setStatusTab] = useState<string>("pendente");
+  const [statusTab, setStatusTab] = useState<string>("em_andamento");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -122,20 +122,96 @@ const MinhasTarefas = () => {
 
   const handleConcluirTarefa = async (tarefaId: string) => {
     try {
-      const { error } = await supabase
+      // 1. Buscar a tarefa para pegar os dados relacionados
+      const tarefa = tarefas.find(t => t.id === tarefaId);
+      if (!tarefa) throw new Error("Tarefa não encontrada");
+
+      // 2. Atualizar status da tarefa para concluída
+      const { error: tarefaError } = await supabase
         .from("distribuicao_tarefas")
-        .update({ status: "concluida", updated_at: new Date().toISOString() })
+        .update({ 
+          status: "concluida", 
+          updated_at: new Date().toISOString() 
+        })
         .eq("id", tarefaId);
 
-      if (error) throw error;
+      if (tarefaError) throw tarefaError;
+
+      // 3. Se for tarefa de demanda, encerrar a demanda
+      if (tarefa.tipo_tarefa === "demanda" && tarefa.demand) {
+        const { error: demandError } = await supabase
+          .from("demands")
+          .update({ 
+            status: "concluida",
+            concluded_at: new Date().toISOString(),
+            response_text: "Demanda concluída pela equipe da agência"
+          })
+          .eq("id", tarefa.referencia_id);
+
+        if (demandError) {
+          console.error("Erro ao encerrar demanda:", demandError);
+        }
+
+        // 4. Buscar template de WhatsApp para notificação
+        const { data: whatsappTemplate } = await supabase
+          .from("whatsapp_templates")
+          .select("*")
+          .eq("template_key", "demanda_respondida")
+          .maybeSingle();
+
+        // 5. Buscar dados do CCA
+        const { data: ccaData } = await supabase
+          .from("profiles")
+          .select("phone, full_name")
+          .eq("user_id", tarefa.demand.cca_user_id)
+          .maybeSingle();
+
+        // 6. Enviar WhatsApp para o CCA
+        if (ccaData?.phone) {
+          const typeLabels: Record<string, string> = {
+            autoriza_reavaliacao: "Autoriza Reavaliação",
+            desconsidera_avaliacoes: "Desconsidera Avaliações",
+            vincula_imovel: "Vincula Imóvel",
+            cancela_avaliacao_sicaq: "Cancela Avaliação SICAQ",
+            cancela_proposta_siopi: "Cancela Proposta SIOPI",
+            solicitar_avaliacao_sigdu: "Solicitar Avaliação SIGDU",
+            incluir_pis_siopi: "Incluir PIS no SIOPI",
+            autoriza_vendedor_restricao: "Autorização de Vendedor com Restrição",
+            outras: "Outras",
+          };
+
+          const typeLabel = typeLabels[tarefa.demand.type] || tarefa.demand.type;
+          let message = "";
+
+          if (whatsappTemplate) {
+            message = whatsappTemplate.message
+              .replace(/\{\{status\}\}/g, "✅ Concluída")
+              .replace(/\{\{tipo_demanda\}\}/g, typeLabel)
+              .replace(/\{\{resposta\}\}/g, "Demanda concluída pela equipe da agência");
+          } else {
+            message = `🔔 *Demanda Concluída*\n\n` +
+              `*Status:* ✅ Concluída\n` +
+              `*Tipo:* ${typeLabel}\n\n` +
+              `Sua demanda foi processada e concluída pela equipe da agência.`;
+          }
+
+          // Enviar WhatsApp (não aguardar)
+          supabase.functions.invoke("send-whatsapp", {
+            body: { phone: ccaData.phone, message }
+          }).catch(err => {
+            console.error("Erro ao enviar WhatsApp:", err);
+          });
+        }
+      }
 
       toast({
         title: "Tarefa concluída!",
-        description: "A tarefa foi marcada como concluída.",
+        description: "A tarefa e a demanda relacionada foram encerradas.",
       });
 
       if (user) loadTarefas(user.id);
     } catch (error: any) {
+      console.error("Erro ao concluir tarefa:", error);
       toast({
         title: "Erro ao concluir tarefa",
         description: error.message,
@@ -144,29 +220,6 @@ const MinhasTarefas = () => {
     }
   };
 
-  const handleIniciarTarefa = async (tarefaId: string) => {
-    try {
-      const { error } = await supabase
-        .from("distribuicao_tarefas")
-        .update({ status: "em_andamento", updated_at: new Date().toISOString() })
-        .eq("id", tarefaId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Tarefa iniciada!",
-        description: "A tarefa foi marcada como em andamento.",
-      });
-
-      if (user) loadTarefas(user.id);
-    } catch (error: any) {
-      toast({
-        title: "Erro ao iniciar tarefa",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -187,13 +240,12 @@ const MinhasTarefas = () => {
 
   const getStatusBadge = (status: string) => {
     const variants: { [key: string]: "default" | "secondary" | "outline" } = {
-      pendente: "outline",
       em_andamento: "secondary",
       concluida: "default",
     };
     return (
       <Badge variant={variants[status] || "outline"}>
-        {status === "pendente" ? "Pendente" : status === "em_andamento" ? "Em Andamento" : "Concluída"}
+        {status === "em_andamento" ? "Em Andamento" : "Concluída"}
       </Badge>
     );
   };
@@ -205,7 +257,6 @@ const MinhasTarefas = () => {
   });
 
   const contadorStatus = {
-    pendente: tarefas.filter((t) => t.status === "pendente").length,
     em_andamento: tarefas.filter((t) => t.status === "em_andamento").length,
     concluida: tarefas.filter((t) => t.status === "concluida").length,
   };
@@ -262,16 +313,7 @@ const MinhasTarefas = () => {
 
       <main className="container mx-auto px-4 py-6 md:py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{contadorStatus.pendente}</div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Em Andamento</CardTitle>
@@ -322,14 +364,13 @@ const MinhasTarefas = () => {
 
         {/* Tabs por Status */}
         <Tabs value={statusTab} onValueChange={setStatusTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="pendente">
-              Pendentes ({contadorStatus.pendente})
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="em_andamento">
+              <Clock className="mr-2 h-4 w-4" />
               Em Andamento ({contadorStatus.em_andamento})
             </TabsTrigger>
             <TabsTrigger value="concluida">
+              <CheckCircle2 className="mr-2 h-4 w-4" />
               Concluídas ({contadorStatus.concluida})
             </TabsTrigger>
           </TabsList>
@@ -339,7 +380,7 @@ const MinhasTarefas = () => {
               <Card>
                 <CardContent className="py-10 text-center">
                   <p className="text-muted-foreground">
-                    Nenhuma tarefa {statusTab === "pendente" ? "pendente" : statusTab === "em_andamento" ? "em andamento" : "concluída"} encontrada.
+                    Nenhuma tarefa {statusTab === "em_andamento" ? "em andamento" : "concluída"} encontrada.
                   </p>
                 </CardContent>
               </Card>
@@ -387,17 +428,8 @@ const MinhasTarefas = () => {
                       )}
 
                       {/* Ações */}
-                      <div className="flex gap-2 pt-2">
-                        {tarefa.status === "pendente" && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleIniciarTarefa(tarefa.id)}
-                          >
-                            <Clock className="w-4 h-4 mr-2" />
-                            Iniciar
-                          </Button>
-                        )}
-                        {tarefa.status === "em_andamento" && (
+                      {tarefa.status === "em_andamento" && (
+                        <div className="flex gap-2 pt-2">
                           <Button
                             size="sm"
                             onClick={() => handleConcluirTarefa(tarefa.id)}
@@ -405,8 +437,8 @@ const MinhasTarefas = () => {
                             <CheckCircle2 className="w-4 h-4 mr-2" />
                             Concluir
                           </Button>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
