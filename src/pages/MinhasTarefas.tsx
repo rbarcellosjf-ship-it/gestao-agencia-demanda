@@ -187,11 +187,13 @@ const MinhasTarefas = () => {
             message = whatsappTemplate.message
               .replace(/\{\{status\}\}/g, "✅ Concluída")
               .replace(/\{\{tipo_demanda\}\}/g, typeLabel)
+              .replace(/\{\{cpf\}\}/g, tarefa.demand.cpf || "")
               .replace(/\{\{resposta\}\}/g, "Demanda concluída pela equipe da agência");
           } else {
             message = `🔔 *Demanda Concluída*\n\n` +
               `*Status:* ✅ Concluída\n` +
-              `*Tipo:* ${typeLabel}\n\n` +
+              `*Tipo:* ${typeLabel}\n` +
+              `*CPF:* ${tarefa.demand.cpf || ""}\n\n` +
               `Sua demanda foi processada e concluída pela equipe da agência.`;
           }
 
