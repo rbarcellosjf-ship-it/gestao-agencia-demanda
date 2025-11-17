@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save, MessageSquare } from "lucide-react";
+import { Save, MessageSquare } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +20,9 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { formatCPF } from "@/lib/cpfValidator";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { LoadingState } from "@/components/layout/LoadingState";
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -169,29 +172,18 @@ const Settings = () => {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    return <LoadingState message="Carregando configurações..." />;
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-0">
-      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2 md:gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Voltar</span>
-            </Button>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">Configurações</h1>
-              <p className="text-xs md:text-sm text-muted-foreground">
-                Gerencie suas informações e notificações
-              </p>
-            </div>
-          </div>
-        </div>
-      </header>
+    <>
+      <PageContainer>
+        <PageHeader
+          title="Configurações"
+          description="Gerencie suas preferências e templates"
+          backTo="/dashboard"
+        />
 
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="profile">Meu Perfil</TabsTrigger>
@@ -417,10 +409,9 @@ const Settings = () => {
             </TabsContent>
           )}
         </Tabs>
-      </main>
-
+      </PageContainer>
       <MobileBottomNav />
-    </div>
+    </>
   );
 };
 

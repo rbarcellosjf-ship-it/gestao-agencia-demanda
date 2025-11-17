@@ -6,9 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { LoadingState } from "@/components/layout/LoadingState";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -98,27 +101,17 @@ const Profile = () => {
   };
 
   if (loading || roleLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    return <LoadingState message="Carregando perfil..." />;
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-0">
-      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-3 md:py-4 flex items-center gap-2 md:gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="w-4 h-4 md:mr-2" />
-            <span className="hidden md:inline">Voltar</span>
-          </Button>
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-foreground">Meu Perfil</h1>
-            <p className="text-xs md:text-sm text-muted-foreground">
-              Visualize e edite suas informações
-            </p>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-4 md:py-8 max-w-2xl">
+    <>
+      <PageContainer className="max-w-2xl">
+        <PageHeader
+          title="Meu Perfil"
+          description="Visualize e edite suas informações"
+          backTo="/dashboard"
+        />
         <Card>
           <CardHeader>
             <CardTitle>Informações Pessoais</CardTitle>
@@ -195,10 +188,9 @@ const Profile = () => {
             </form>
           </CardContent>
         </Card>
-      </main>
-
+      </PageContainer>
       <MobileBottomNav />
-    </div>
+    </>
   );
 };
 
