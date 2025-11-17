@@ -1,68 +1,78 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Calendar, CheckCircle2, Clock } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, Clock, Users, Calendar, LucideIcon } from "lucide-react";
+
 interface DashboardStatsProps {
   pendingDemands: number;
   completedDemands: number;
   totalConformidades: number;
   upcomingAgendamentos: number;
 }
+
+interface StatItem {
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  description: string;
+  color: string;
+}
+
 export const DashboardStats = ({
   pendingDemands,
   completedDemands,
   totalConformidades,
-  upcomingAgendamentos
+  upcomingAgendamentos,
 }: DashboardStatsProps) => {
-  return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <Card className="border-l-4 border-l-warning">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
-            <Clock className="w-4 h-4 text-warning" />
-            Pendentes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-warning">{pendingDemands}</div>
-          <CardDescription className="text-xs mt-1">Demandas aguardando</CardDescription>
-        </CardContent>
-      </Card>
+  const stats: StatItem[] = [
+    {
+      label: "Pendentes",
+      value: pendingDemands,
+      icon: Clock,
+      description: "Demandas aguardando",
+      color: "border-l-yellow-500",
+    },
+    {
+      label: "Concluídas",
+      value: completedDemands,
+      icon: CheckCircle2,
+      description: "Demandas finalizadas",
+      color: "border-l-green-500",
+    },
+    {
+      label: "Conformidades",
+      value: totalConformidades,
+      icon: Users,
+      description: "Cadastradas no sistema",
+      color: "border-l-blue-500",
+    },
+    {
+      label: "Agendamentos",
+      value: upcomingAgendamentos,
+      icon: Calendar,
+      description: "Próximos 7 dias",
+      color: "border-l-purple-500",
+    },
+  ];
 
-      <Card className="border-l-4 border-l-success">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
-            <CheckCircle2 className="w-4 h-4 text-success" />
-            Concluídas
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-success">{completedDemands}</div>
-          <CardDescription className="text-xs mt-1">Demandas finalizadas</CardDescription>
-        </CardContent>
-      </Card>
-
-      <Card className="border-l-4 border-l-secondary">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
-            <Users className="w-4 h-4 text-secondary" />
-            Gerenciar Contratos
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-secondary">{totalConformidades}</div>
-          <CardDescription className="text-xs mt-1">Processos ativos</CardDescription>
-        </CardContent>
-      </Card>
-
-      <Card className="border-l-4 border-l-accent">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
-            <Calendar className="w-4 h-4 text-accent" />
-            Agendamentos
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-accent">{upcomingAgendamentos}</div>
-          <CardDescription className="text-xs mt-1">Próximos 7 dias</CardDescription>
-        </CardContent>
-      </Card>
-    </div>;
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {stats.map((stat) => {
+        const Icon = stat.icon;
+        return (
+          <Card key={stat.label} className={`border-l-4 ${stat.color} hover:shadow-md transition-shadow`}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <Icon className="w-5 h-5 text-muted-foreground" />
+                <Badge variant="outline" className="text-xs">{stat.label}</Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold mb-1">{stat.value}</div>
+              <p className="text-xs text-muted-foreground">{stat.description}</p>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
 };

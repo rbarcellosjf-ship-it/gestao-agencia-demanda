@@ -20,7 +20,7 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
 
   return (
     <nav className={cn(
-      "fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-lg md:hidden",
+      "fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border shadow-lg md:hidden",
       className
     )}>
       <div className="flex justify-around items-center h-16 px-2">
@@ -33,12 +33,15 @@ export function MobileBottomNav({ className }: MobileBottomNavProps) {
               key={item.path}
               onClick={() => navigate(item.path)}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-lg transition-colors flex-1",
+                "flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all flex-1 relative",
                 isActive
                   ? "text-primary bg-primary/10"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
               )}
             >
+              {isActive && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-1 bg-primary rounded-full" />
+              )}
               <Icon className="w-5 h-5" />
               <span className="text-xs font-medium">{item.label}</span>
             </button>
