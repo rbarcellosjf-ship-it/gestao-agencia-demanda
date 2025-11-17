@@ -826,38 +826,34 @@ const Demands = () => {
   });
 
   if (loading || roleLoading) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    return <LoadingState message="Carregando demandas..." />;
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-0">
-      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2 md:gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Voltar</span>
-            </Button>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">Demandas</h1>
-              <p className="text-xs md:text-sm text-muted-foreground">
-                {role === "agencia" ? "Gerenciar todas as demandas" : "Suas demandas"}
-              </p>
-            </div>
-          </div>
-          {role === "cca" && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nova Demanda
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Criar Nova Demanda</DialogTitle>
-                  <DialogDescription>Preencha os dados da demanda</DialogDescription>
-                </DialogHeader>
+    <>
+      <PageContainer>
+        <PageHeader
+          title="Demandas"
+          description={role === "agencia" ? "Gerenciar todas as demandas" : "Suas demandas"}
+          backTo="/dashboard"
+          breadcrumbs={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Demandas" }
+          ]}
+          action={
+            role === "cca" && (
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nova Demanda
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Criar Nova Demanda</DialogTitle>
+                    <DialogDescription>Preencha os dados da demanda</DialogDescription>
+                  </DialogHeader>
                 <form onSubmit={handleCreateDemand} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="type">Tipo de Demanda *</Label>
@@ -1009,11 +1005,10 @@ const Demands = () => {
                 </form>
               </DialogContent>
             </Dialog>
-          )}
-        </div>
-      </header>
+          )
+          }
+        />
 
-      <main className="container mx-auto px-4 py-8">
         {role === "agencia" && (
           <Card className="mb-6">
             <CardHeader>
@@ -1300,10 +1295,9 @@ const Demands = () => {
                   )}
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
-      </main>
+          ))
+        )}
+      </div>
 
       <DistribuirTarefaDialog
         open={distribuirOpen}
@@ -1344,9 +1338,9 @@ const Demands = () => {
         open={pdfViewerOpen}
         onOpenChange={setPdfViewerOpen}
       />
-
+      </PageContainer>
       <MobileBottomNav />
-    </div>
+    </>
   );
 };
 

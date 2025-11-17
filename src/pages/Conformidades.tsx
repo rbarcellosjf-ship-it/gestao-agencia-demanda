@@ -272,37 +272,33 @@ const Conformidades = () => {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">Carregando...</div>;
+    return <LoadingState message="Carregando contratos..." />;
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-0">
-      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2 md:gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Voltar</span>
-            </Button>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">Gerenciar Contratos</h1>
-              <p className="text-xs md:text-sm text-muted-foreground">
-                Contratos e agendamentos
-              </p>
-            </div>
-          </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Incluir Contrato
-              </Button>
-            </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Incluir Contrato</DialogTitle>
-                  <DialogDescription>Preencha os dados do contrato</DialogDescription>
-                </DialogHeader>
+    <>
+      <PageContainer>
+        <PageHeader
+          title="Gerenciar Contratos"
+          description="Contratos e agendamentos"
+          backTo="/dashboard"
+          breadcrumbs={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Contratos" }
+          ]}
+          action={
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Incluir Contrato
+                </Button>
+              </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Incluir Contrato</DialogTitle>
+                    <DialogDescription>Preencha os dados do contrato</DialogDescription>
+                  </DialogHeader>
                 <form onSubmit={handleCreateConformidade} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="cpf">CPF do Cliente *</Label>
@@ -386,17 +382,22 @@ const Conformidades = () => {
                 </form>
               </DialogContent>
           </Dialog>
-        </div>
-      </header>
+          }
+        />
 
-      <main className="container mx-auto px-4 py-8">
         <div className="grid gap-4">
           {conformidades.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                Nenhum processo em conformidade
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Calendar}
+              title="Nenhum contrato cadastrado"
+              description="Os contratos e conformidades aparecerão aqui"
+              action={
+                {
+                  label: "Incluir Primeiro Contrato",
+                  onClick: () => setDialogOpen(true)
+                }
+              }
+            />
           ) : (
             conformidades.map((conformidade) => {
               const agendamento = getAgendamentoForConformidade(conformidade.id);
@@ -520,10 +521,9 @@ const Conformidades = () => {
                   </CardContent>
                 </Card>
               );
-            })
-          )}
-        </div>
-      </main>
+          })
+        )}
+      </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -558,7 +558,9 @@ const Conformidades = () => {
           });
         }}
       />
-    </div>
+      </PageContainer>
+      <MobileBottomNav />
+    </>
   );
 };
 

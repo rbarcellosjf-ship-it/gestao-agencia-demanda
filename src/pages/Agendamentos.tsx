@@ -117,36 +117,19 @@ const Agendamentos = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Carregando...
-      </div>
-    );
+    return <LoadingState message="Carregando agendamentos..." />;
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-0">
-      <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
-        <div className="container mx-auto px-4 py-3 md:py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2 md:gap-4">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}>
-              <ArrowLeft className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Voltar</span>
-            </Button>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">
-                Agendamentos
-              </h1>
-              <p className="text-xs md:text-sm text-muted-foreground">
-                Entrevistas e Assinaturas
-              </p>
-            </div>
-          </div>
-          <AgendarEntrevistaDialog />
-        </div>
-      </header>
+    <>
+      <PageContainer>
+        <PageHeader
+          title="Agendamentos"
+          description="Entrevistas e Assinaturas"
+          backTo="/dashboard"
+          action={<AgendarEntrevistaDialog />}
+        />
 
-      <div className="container mx-auto px-4 py-6">
         <Tabs defaultValue="entrevistas" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="entrevistas">
@@ -159,11 +142,11 @@ const Agendamentos = () => {
 
           <TabsContent value="entrevistas" className="space-y-4">
             {entrevistas.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  Nenhuma entrevista agendada
-                </CardContent>
-              </Card>
+              <EmptyState
+                icon={Calendar}
+                title="Nenhuma entrevista agendada"
+                description="As entrevistas agendadas aparecerão aqui"
+              />
             ) : (
               entrevistas.map((entrevista) => (
                 <Card key={entrevista.id}>
@@ -235,11 +218,11 @@ const Agendamentos = () => {
 
           <TabsContent value="assinaturas" className="space-y-4">
             {assinaturas.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-muted-foreground">
-                  Nenhuma assinatura agendada
-                </CardContent>
-              </Card>
+              <EmptyState
+                icon={Calendar}
+                title="Nenhuma assinatura agendada"
+                description="As assinaturas de contratos aparecerão aqui"
+              />
             ) : (
               assinaturas.map((assinatura) => (
                 <Card key={assinatura.id}>
@@ -310,10 +293,9 @@ const Agendamentos = () => {
             )}
           </TabsContent>
         </Tabs>
-      </div>
-
+      </PageContainer>
       <MobileBottomNav />
-    </div>
+    </>
   );
 };
 
