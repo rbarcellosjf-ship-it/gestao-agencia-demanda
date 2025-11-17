@@ -40,7 +40,7 @@ const handler = async (req: Request): Promise<Response> => {
           tipo_tarefa: tipoTarefa,
           referencia_id: referenciaId,
           user_id: empregadoId,
-          status: "pendente",
+          status: "em_andamento",
         });
 
       if (insertError) {
