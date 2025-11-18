@@ -6,9 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Save } from "lucide-react";
+import { Save, Users, Mail, Phone } from "lucide-react";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useUserRole } from "@/hooks/useUserRole";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { LoadingState } from "@/components/layout/LoadingState";
+import { EmptyState } from "@/components/layout/EmptyState";
 
 interface AgenciaUser {
   user_id: string;
@@ -116,96 +120,94 @@ const Empregados = () => {
 
   if (loading || roleLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Carregando...</p>
-      </div>
+      <PageContainer>
+        <LoadingState message="Carregando empregados..." />
+      </PageContainer>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <div className="container mx-auto p-4 md:p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/dashboard")}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold">Gerenciar Empregados</h1>
-              <p className="text-muted-foreground">Configure emails para distribuição de tarefas</p>
-            </div>
-          </div>
-        </div>
+    <PageContainer>
+      <PageHeader
+        title="Empregados da Agência"
+        description="Gerencie os emails de preferência dos empregados para distribuição de tarefas"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Empregados" }
+        ]}
+        backTo="/dashboard"
+      />
 
-        {empregados.length === 0 ? (
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-center text-muted-foreground">
-                Nenhum empregado da agência encontrado.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4">
-            {empregados.map((empregado) => (
-              <Card key={empregado.user_id}>
+      {empregados.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="Nenhum empregado encontrado"
+          description="Não há empregados cadastrados no sistema."
+        />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {empregados.map((empregado) => (
+              <Card key={empregado.user_id} className="relative border-l-4 border-l-primary hover:shadow-md transition-shadow">
                 <CardHeader>
-                  <CardTitle>{empregado.full_name}</CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    {empregado.full_name}
+                  </CardTitle>
                   <CardDescription>
-                    {empregado.phone && `Tel: ${empregado.phone}`}
-                    {empregado.codigo_cca && ` • CCA: ${empregado.codigo_cca}`}
+                    <div className="space-y-1">
+                      <p className="flex items-center gap-2">
+                        <Phone className="h-3 w-3" />
+                        {empregado.phone}
+                      </p>
+                      {empregado.codigo_cca && (
+                        <p>CCA: {empregado.codigo_cca}</p>
+                      )}
+                    </div>
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor={`email-${empregado.user_id}`}>
+                      <Label htmlFor={`email-${empregado.user_id}`} className="flex items-center gap-2">
+                        <Mail className="h-3 w-3" />
                         Email de Preferência para Tarefas
                       </Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id={`email-${empregado.user_id}`}
-                          type="email"
-                          placeholder="email@exemplo.com"
-                          defaultValue={empregado.email_preferencia || ""}
-                          onBlur={(e) => {
-                            const newEmail = e.target.value;
-                            if (newEmail !== empregado.email_preferencia) {
-                              handleUpdateEmailPreferencia(empregado.user_id, newEmail);
-                            }
-                          }}
-                          disabled={saving === empregado.user_id}
-                        />
-                        <Button
-                          size="icon"
-                          onClick={(e) => {
-                            const input = document.getElementById(`email-${empregado.user_id}`) as HTMLInputElement;
-                            if (input) {
-                              handleUpdateEmailPreferencia(empregado.user_id, input.value);
-                            }
-                          }}
-                          disabled={saving === empregado.user_id}
-                        >
-                          <Save className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Este email será usado para enviar notificações sobre tarefas distribuídas
-                      </p>
+                      <Input
+                        id={`email-${empregado.user_id}`}
+                        type="email"
+                        placeholder="email@exemplo.com"
+                        defaultValue={empregado.email_preferencia || ""}
+                        onBlur={(e) => {
+                          if (e.target.value !== empregado.email_preferencia) {
+                            handleUpdateEmailPreferencia(empregado.user_id, e.target.value);
+                          }
+                        }}
+                      />
                     </div>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        const input = document.getElementById(
+                          `email-${empregado.user_id}`
+                        ) as HTMLInputElement;
+                        if (input) {
+                          handleUpdateEmailPreferencia(empregado.user_id, input.value);
+                        }
+                      }}
+                      disabled={saving === empregado.user_id}
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {saving === empregado.user_id ? "Salvando..." : "Salvar"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
+
       <MobileBottomNav />
-    </div>
+    </PageContainer>
   );
 };
 

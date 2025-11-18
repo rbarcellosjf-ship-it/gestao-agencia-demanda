@@ -7,6 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Copy, FileText, Upload, Loader2, Mail, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 const LeitorDocumentos = () => {
   const { toast } = useToast();
@@ -132,17 +134,26 @@ const LeitorDocumentos = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold mb-2">Leitor de Documentos</h1>
-        <p className="text-muted-foreground">
-          Extraia informações de certidões de casamento e matrículas de imóvel - aceita PDFs e imagens
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Leitor de Documentos"
+        description="Extraia informações de certidões de casamento e matrículas de imóveis usando IA"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Leitor de Documentos" }
+        ]}
+      />
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <Alert className="mb-6">
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          Aceita arquivos em PDF ou imagens (JPG, PNG). A IA irá analisar o documento e extrair as informações relevantes.
+        </AlertDescription>
+      </Alert>
+
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Certidão de Casamento */}
-        <Card>
+        <Card className="border-l-4 border-l-primary">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
@@ -227,7 +238,7 @@ const LeitorDocumentos = () => {
         </Card>
 
         {/* Matrícula do Imóvel */}
-        <Card>
+        <Card className="border-l-4 border-l-blue-500">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
@@ -311,7 +322,9 @@ const LeitorDocumentos = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
+
+      <MobileBottomNav />
+    </PageContainer>
   );
 };
 
