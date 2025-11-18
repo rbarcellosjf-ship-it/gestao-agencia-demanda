@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Mail, Edit, Trash2, Filter } from "lucide-react";
+import { Plus, Mail, Edit, Trash2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,10 @@ import {
   EmailTemplate,
 } from "@/hooks/useEmailTemplate";
 import { useUserRole } from "@/hooks/useUserRole";
+import { PageContainer } from "@/components/layout/PageContainer";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { LoadingState } from "@/components/layout/LoadingState";
+import { EmptyState } from "@/components/layout/EmptyState";
 
 const EmailTemplates = () => {
   const navigate = useNavigate();
@@ -134,7 +138,7 @@ const EmailTemplates = () => {
           </div>
         </div>
 
-        <div className="container mx-auto px-4 py-6">
+        <div className="px-4 md:px-6 py-6">
           <EmailTemplateEditor
             initialData={editingTemplate || undefined}
             onSave={handleSave}
@@ -146,58 +150,69 @@ const EmailTemplates = () => {
           />
         </div>
         <MobileBottomNav />
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 md:pb-6">
-      <div className="sticky top-0 z-10 bg-background border-b">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold">Templates de E-mail</h1>
-                <p className="text-sm text-muted-foreground">
-                  Gerencie os templates de e-mails automáticos
-                </p>
-              </div>
-            </div>
-            <Button onClick={handleNewTemplate} className="hidden md:flex">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Template
-            </Button>
-          </div>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Templates de Email"
+        description="Gerencie os templates de email do sistema"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Templates de Email" }
+        ]}
+        action={
+          <Button onClick={handleNewTemplate} className="hidden md:flex">
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Template
+          </Button>
+        }
+      />
 
-      <div className="container mx-auto px-4 py-6 space-y-6">
-        <div className="flex items-center gap-4">
-          <Filter className="h-5 w-5 text-muted-foreground" />
-          <Select value={moduleFilter} onValueChange={setModuleFilter}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filtrar por módulo" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os Módulos</SelectItem>
-              <SelectItem value="conformidades">Conformidades</SelectItem>
-              <SelectItem value="demands">Demandas</SelectItem>
-              <SelectItem value="agendamentos">Agendamentos</SelectItem>
-              <SelectItem value="geral">Geral</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        {isLoading ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Carregando templates...</p>
+      {/* Filtros */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            Filtros
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2">
+            <Select value={moduleFilter} onValueChange={setModuleFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filtrar por módulo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os módulos</SelectItem>
+                <SelectItem value="demands">Demandas</SelectItem>
+                <SelectItem value="conformidades">Conformidades</SelectItem>
+                <SelectItem value="agendamentos">Agendamentos</SelectItem>
+                <SelectItem value="tarefas">Tarefas</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        ) : templates && templates.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {templates.map((template) => (
+        </CardContent>
+      </Card>
+
+      {/* Lista de Templates */}
+      {isLoading ? (
+        <LoadingState message="Carregando templates..." />
+      ) : !templates || templates.length === 0 ? (
+        <EmptyState
+          icon={Mail}
+          title="Nenhum template encontrado"
+          description="Comece criando seu primeiro template de email."
+          action={{
+            label: "Criar Primeiro Template",
+            onClick: handleNewTemplate,
+          }}
+        />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {templates.map((template) => (
               <Card key={template.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between">
