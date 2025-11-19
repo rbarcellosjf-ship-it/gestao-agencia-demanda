@@ -25,6 +25,23 @@ export const effects = {
   elevated: 'rounded-lg bg-card shadow-lg',
 };
 
+// Espaçamento de cards compactos
+export const cardSpacing = {
+  header: 'pb-3',
+  content: 'py-3 space-y-3',
+  footer: 'pt-3 border-t',
+};
+
+// Bordas de status coloridas para cards
+export const statusBorders = {
+  pendente: 'border-l-4 border-l-yellow-500',
+  em_andamento: 'border-l-4 border-l-blue-500',
+  aguardando_assinatura: 'border-l-4 border-l-orange-500',
+  assinado: 'border-l-4 border-l-purple-500',
+  concluida: 'border-l-4 border-l-green-500',
+  cancelada: 'border-l-4 border-l-red-500',
+};
+
 // Status colors
 export const statusColors = {
   pendente: 'text-yellow-600 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-950 dark:border-yellow-800',
