@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 const LeitorDocumentos = () => {
   const { toast } = useToast();
