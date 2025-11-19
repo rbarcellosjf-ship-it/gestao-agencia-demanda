@@ -30,6 +30,7 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState } from "@/components/layout/LoadingState";
 import { EmptyState } from "@/components/layout/EmptyState";
+import { ConformidadeCard } from "@/components/ConformidadeCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
@@ -403,126 +404,43 @@ const Conformidades = () => {
               const agendamento = getAgendamentoForConformidade(conformidade.id);
               
               return (
-                <Card key={conformidade.id}>
-                  <CardHeader>
-                    <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-                      <div className="flex-1">
-                        <CardTitle className="text-lg">CPF: {conformidade.cpf}</CardTitle>
-                        <CardDescription className="mt-1">
-                          CCA: {conformidade.codigo_cca} | Enviado em:{" "}
-                          {new Date(conformidade.created_at).toLocaleDateString("pt-BR")}
-                        </CardDescription>
-                      </div>
-                      <div className="flex flex-col md:flex-row items-start md:items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setConformidadeToDelete(conformidade.id);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Valor do Financiamento</p>
-                        <p className="font-semibold text-lg">
-                          {formatCurrency(parseFloat(conformidade.valor_financiamento))}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Modalidade</p>
-                        <p className="font-semibold">
-                          {conformidade.modalidade === "OUTRO"
-                            ? conformidade.modalidade_outro
-                            : conformidade.modalidade}
-                        </p>
-                      </div>
-                      {(conformidade as any).comite_credito && (
-                        <div className="md:col-span-2">
-                          <Badge variant="secondary">
-                            Requer Comitê de Crédito
-                          </Badge>
-                        </div>
-                      )}
-                    </div>
-
-                    {(conformidade as any).observacoes && (
-                      <div className="space-y-2">
-                        <Label className="text-sm text-muted-foreground">Observações</Label>
-                        <ObservacoesField
-                          value={(conformidade as any).observacoes || ""}
-                          onChange={(newValue) => {
-                            // Apenas atualiza estado local
-                          }}
-                          onSave={async (newValue) => {
-                            await (supabase as any)
-                              .from("conformidades")
-                              .update({ observacoes: newValue })
-                              .eq("id", conformidade.id);
-                            
-                            toast({
-                              title: "Observações salvas",
-                              description: "As observações foram atualizadas com sucesso.",
-                            });
-                          }}
-                          autoSave={false}
-                          placeholder="Adicione observações sobre a conformidade..."
-                        />
-                      </div>
-                    )}
-
-                    <div className="space-y-2">
-                      <Label className="text-sm text-muted-foreground">Status do Contrato</Label>
-                      <StatusSelect 
-                        conformidadeId={conformidade.id}
-                        currentStatus={conformidade.status || "Em conformidade"}
-                        dataAgendamento={conformidade.data_agendamento}
-                      />
-                    </div>
-
-                    <div className="flex flex-col md:flex-row gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handlePedirPrioridade(conformidade)}
-                        title="Solicitar prioridade via e-mail"
-                        className="w-full md:w-auto"
-                      >
-                        <Mail className="w-4 h-4 mr-2" />
-                        Pedir Prioridade
-                      </Button>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setDistribuirTipo("comite");
-                          setDistribuirReferenciaId(conformidade.id);
-                          setDistribuirOpen(true);
-                        }}
-                        title="Solicitar análise do comitê de crédito"
-                        className="w-full md:w-auto"
-                      >
-                        <Mail className="w-4 h-4 mr-2" />
-                        Solicitar Comitê de Crédito
-                      </Button>
-                      
-                      <AgendarAssinaturaContratoDialog
-                        conformidade={conformidade}
-                        entrevistaAprovada={conformidade.entrevista_aprovada || false}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                <ConformidadeCard
+                  key={conformidade.id}
+                  conformidade={conformidade}
+                  agendamento={agendamento}
+                  role={role}
+                  onDelete={(id) => {
+                    setConformidadeToDelete(id);
+                    setDeleteDialogOpen(true);
+                  }}
+                  onPedirPrioridade={handlePedirPrioridade}
+                  onAgendarAssinatura={(id) => {
+                    // Implementar lógica de agendamento se necessário
+                    toast({
+                      title: "Funcionalidade em desenvolvimento",
+                      description: "Agendamento de assinatura estará disponível em breve.",
+                    });
+                  }}
+                  onDistribute={(id) => {
+                    setDistribuirReferenciaId(id);
+                    setDistribuirOpen(true);
+                  }}
+                  onUpdateObservacoes={async (id, newValue) => {
+                    await supabase
+                      .from("conformidades")
+                      .update({ observacoes: newValue })
+                      .eq("id", id);
+                    
+                    toast({
+                      title: "Observações salvas",
+                      description: "As observações foram atualizadas com sucesso.",
+                    });
+                  }}
+                  formatCurrency={formatCurrency}
+                />
               );
-          })
-        )}
+            })
+          )}
       </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

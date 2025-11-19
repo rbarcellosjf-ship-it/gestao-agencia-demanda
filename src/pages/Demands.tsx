@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Check, X, Filter, Trash2, FileText, Mail, Lock, Send, Loader2 } from "lucide-react";
 import { DistribuirTarefaDialog } from "@/components/DistribuirTarefaDialog";
+import { DemandCard } from "@/components/DemandCard";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { z } from "zod";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -282,7 +283,7 @@ const Demands = () => {
   const [cartorio, setCartorio] = useState("");
   const [description, setDescription] = useState("");
   const [numeroPis, setNumeroPis] = useState("");
-  const [responseText, setResponseText] = useState("");
+  const [responseTexts, setResponseTexts] = useState<Record<string, string>>({});
   const [selectedDemand, setSelectedDemand] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [demandToDelete, setDemandToDelete] = useState<string | null>(null);
@@ -465,22 +466,25 @@ const Demands = () => {
     }
   };
 
-  const handleUpdateDemand = async (demandId: string, status: string) => {
+  const handleUpdateDemand = async (demandId: string, status: string, responseTextParam: string) => {
     try {
       const { error } = await supabase
         .from("demands")
         .update({
           status: status as Database["public"]["Enums"]["demand_status"],
-          response_text: responseText || null,
+          response_text: responseTextParam || null,
           concluded_at: status === "concluida" ? new Date().toISOString() : null,
         })
         .eq("id", demandId);
 
       if (error) throw error;
 
+      // Find the demand for WhatsApp notification
+      const demand = demands.find(d => d.id === demandId);
+      
       // Send WhatsApp notification to CCA about the response - RUNS INDEPENDENTLY
-      if (selectedDemand && responseText) {
-        sendWhatsAppToCCA(selectedDemand, status, responseText, demandaRespondidaTemplate).catch(err => {
+      if (demand && responseTextParam) {
+        sendWhatsAppToCCA(demand, status, responseTextParam, demandaRespondidaTemplate).catch(err => {
           console.error("WhatsApp notification to CCA failed:", err);
         });
       }
@@ -490,8 +494,12 @@ const Demands = () => {
         description: "Status alterado com sucesso.",
       });
 
-      setSelectedDemand(null);
-      setResponseText("");
+      // Clear the response text for this specific demand
+      setResponseTexts(prev => {
+        const newTexts = { ...prev };
+        delete newTexts[demandId];
+        return newTexts;
+      });
     } catch (error: any) {
       toast({
         title: "Erro",
@@ -1056,248 +1064,39 @@ const Demands = () => {
 
         <div className="grid gap-4">
           {filteredDemands.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                Nenhuma demanda encontrada
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={FileText}
+              title="Nenhuma demanda encontrada"
+              description="Não há demandas que correspondam aos filtros selecionados."
+            />
           ) : (
             filteredDemands.map((demand) => (
-              <Card key={demand.id}>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">{getTypeLabel(demand.type)}</CardTitle>
-                      <CardDescription className="mt-1">
-                        CCA: {demand.codigo_cca} | Criado em:{" "}
-                        {new Date(demand.created_at).toLocaleDateString("pt-BR")}
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(demand.status)}
-                      {demand.type === "solicitar_avaliacao_sigdu" && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSendSigduEmail(demand)}
-                          title="Enviar solicitação por e-mail"
-                        >
-                          <Mail className="w-4 h-4" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setDemandToDelete(demand.id);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm">
-                    {demand.cpf && (
-                      <p>
-                        <strong>CPF:</strong> {demand.cpf}
-                      </p>
-                    )}
-                    {demand.matricula && (
-                      <p>
-                        <strong>Matrícula:</strong> {demand.matricula}
-                      </p>
-                    )}
-                    {demand.cartorio && (
-                      <p>
-                        <strong>Cartório:</strong> {demand.cartorio}
-                      </p>
-                    )}
-                    {demand.numero_pis && (
-                      <p>
-                        <strong>Número de PIS:</strong> {demand.numero_pis}
-                      </p>
-                    )}
-                    {demand.description && (
-                      <p>
-                        <strong>Observações:</strong> {demand.description}
-                      </p>
-                    )}
-                    
-                    {/* PDF Files */}
-                    {(demand.carta_solicitacao_pdf || demand.ficha_cadastro_pdf || demand.matricula_imovel_pdf || demand.mo_autorizacao_pdf || demand.mo_autorizacao_assinado_pdf) && (
-                      <div className="mt-3 space-y-2">
-                        <p className="font-semibold">Arquivos anexados:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {demand.carta_solicitacao_pdf && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewPdf(demand.carta_solicitacao_pdf, "Carta de Solicitação")}
-                            >
-                              <FileText className="w-4 h-4 mr-2" />
-                              Carta de Solicitação
-                            </Button>
-                          )}
-                          {demand.ficha_cadastro_pdf && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewPdf(demand.ficha_cadastro_pdf, "Ficha Cadastro")}
-                            >
-                              <FileText className="w-4 h-4 mr-2" />
-                              Ficha Cadastro
-                            </Button>
-                          )}
-                          {demand.matricula_imovel_pdf && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewPdf(demand.matricula_imovel_pdf, "Matrícula Imóvel")}
-                            >
-                              <FileText className="w-4 h-4 mr-2" />
-                              Matrícula Imóvel
-                            </Button>
-                          )}
-                          {demand.mo_autorizacao_pdf && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewPdf(demand.mo_autorizacao_pdf, "MO de Autorização")}
-                            >
-                              <FileText className="w-4 h-4 mr-2" />
-                              MO de Autorização
-                            </Button>
-                          )}
-                          {demand.mo_autorizacao_assinado_pdf && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleViewPdf(demand.mo_autorizacao_assinado_pdf, "MO de Autorização Assinado")}
-                              className="bg-success/10 border-success text-success hover:bg-success/20"
-                            >
-                              <FileText className="w-4 h-4 mr-2" />
-                              MO Assinado ✓
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Special actions for vendor authorization */}
-                    {demand.type === "autoriza_vendedor_restricao" && role === "agencia" && (
-                      <div className="mt-4 space-y-3 p-4 bg-muted/50 rounded-md border border-border">
-                        <p className="font-semibold text-sm">🔐 Assinatura Digital Gov.BR</p>
-                        
-                        {demand.status === "aguardando_assinatura" && (
-                          <>
-                  <Button
-                    onClick={() => handleOpenGovBRSigning(demand)}
-                    size="sm"
-                    variant="default"
-                  >
-                    🔐 Assinar no Gov.BR
-                  </Button>
-                            
-                            <div className="space-y-2">
-                              <Label htmlFor={`signed-pdf-${demand.id}`} className="text-sm">
-                                Ou faça upload do PDF já assinado:
-                              </Label>
-                              <Input
-                                id={`signed-pdf-${demand.id}`}
-                                type="file"
-                                accept=".pdf"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) handleUploadSignedPdf(demand, file);
-                                }}
-                                disabled={uploadingPdf}
-                              />
-                            </div>
-                          </>
-                        )}
-
-                        {demand.status === "assinado" && demand.mo_autorizacao_assinado_pdf && (
-                          <Button
-                            onClick={() => handleSendSignedDocumentEmail(demand)}
-                            className="w-full"
-                            disabled={sendingEmail}
-                          >
-                            {sendingEmail ? "Enviando..." : "✉️ Enviar PDF Assinado por Email"}
-                          </Button>
-                        )}
-
-                        {demand.assinatura_data && (
-                          <p className="text-xs text-muted-foreground">
-                            Assinado em: {new Date(demand.assinatura_data).toLocaleDateString('pt-BR')}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {demand.response_text && (
-                      <div className="mt-4 p-3 bg-muted rounded-md">
-                        <p className="font-semibold text-success">Resposta:</p>
-                        <p className="mt-1">{demand.response_text}</p>
-                      </div>
-                    )}
-                  </div>
-                  {role === "agencia" && demand.status === "pendente" && demand.type !== "autoriza_vendedor_restricao" && (
-                    <div className="mt-4 space-y-3">
-                      <Textarea
-                        placeholder="Resposta da demanda..."
-                        value={selectedDemand?.id === demand.id ? responseText : ""}
-                        onChange={(e) => {
-                          setSelectedDemand(demand);
-                          setResponseText(e.target.value);
-                        }}
-                        rows={3}
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdateDemand(demand.id, "concluida")}
-                          disabled={selectedDemand?.id === demand.id && !responseText}
-                        >
-                          <Check className="w-4 h-4 mr-2" />
-                          Concluir
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleUpdateDemand(demand.id, "cancelada")}
-                        >
-                          <X className="w-4 h-4 mr-2" />
-                          Cancelar
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Botão de Distribuir Tarefa */}
-                  {role === "agencia" && (
-                    <div className="mt-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        onClick={() => {
-                          setDistribuirReferenciaId(demand.id);
-                          setDistribuirOpen(true);
-                        }}
-                      >
-                        <Send className="w-4 h-4 mr-2" />
-                        Distribuir Tarefa
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-          ))
-        )}
-      </div>
+              <DemandCard
+                key={demand.id}
+                demand={demand}
+                role={role}
+                responseText={responseTexts[demand.id] || ""}
+                onResponseChange={(text) => setResponseTexts({ ...responseTexts, [demand.id]: text })}
+                onUpdate={handleUpdateDemand}
+                onDelete={(id) => {
+                  setDemandToDelete(id);
+                  setDeleteDialogOpen(true);
+                }}
+                onViewPdf={handleViewPdf}
+                onSendSigduEmail={handleSendSigduEmail}
+                onOpenGovBRSigning={handleOpenGovBRSigning}
+                onUploadSignedPdf={handleUploadSignedPdf}
+                onSendSignedDocument={handleSendSignedDocumentEmail}
+                onDistribute={(id) => {
+                  setDistribuirReferenciaId(id);
+                  setDistribuirOpen(true);
+                }}
+                getTypeLabel={getTypeLabel}
+                getStatusBadge={getStatusBadge}
+              />
+            ))
+          )}
+        </div>
 
       <DistribuirTarefaDialog
         open={distribuirOpen}
