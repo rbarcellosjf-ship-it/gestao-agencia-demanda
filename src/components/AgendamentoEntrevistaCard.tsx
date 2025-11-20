@@ -2,14 +2,17 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { statusBorders } from "@/lib/design-tokens";
+import { Trash2 } from "lucide-react";
 
 interface AgendamentoEntrevistaCardProps {
   entrevista: any;
+  onDelete: (id: string) => void;
 }
 
-export const AgendamentoEntrevistaCard = ({ entrevista }: AgendamentoEntrevistaCardProps) => {
+export const AgendamentoEntrevistaCard = ({ entrevista, onDelete }: AgendamentoEntrevistaCardProps) => {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       pendente: "outline",
@@ -56,8 +59,15 @@ export const AgendamentoEntrevistaCard = ({ entrevista }: AgendamentoEntrevistaC
               Tel: {entrevista.telefone}
             </CardDescription>
           </div>
-          <div className="flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {getStatusBadge(entrevista.status || "pendente")}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(entrevista.id)}
+            >
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
           </div>
         </div>
       </CardHeader>

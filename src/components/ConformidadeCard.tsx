@@ -140,37 +140,58 @@ export const ConformidadeCard = ({
       </CardContent>
 
       <CardFooter className="pt-3 border-t flex-wrap gap-2">
-        {/* Botão de Pedir Prioridade */}
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => onPedirPrioridade(conformidade)}
-        >
-          <Mail className="w-4 h-4 mr-1" />
-          Pedir Prioridade
-        </Button>
+        {/* Botões de ação */}
+        {role === "agencia" && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onPedirPrioridade(conformidade)}
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              Pedir Prioridade
+            </Button>
 
-        {/* Botão de Agendar Assinatura */}
-        {(conformidade.status === "aguardando_assinatura" || !conformidade.status) && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onAgendarAssinatura(conformidade.id)}
-          >
-            <Calendar className="w-4 h-4 mr-1" />
-            Agendar Assinatura
-          </Button>
-        )}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!conformidade.comite_credito}
+              className={cn(
+                !conformidade.comite_credito && "opacity-50 cursor-not-allowed"
+              )}
+              onClick={() => onDistribute(conformidade.id)}
+              title={
+                !conformidade.comite_credito 
+                  ? "Este contrato não requer Comitê de Crédito" 
+                  : "Distribuir tarefa de Comitê de Crédito"
+              }
+            >
+              Solicitar Comitê de Crédito
+            </Button>
 
-        {/* Botão Distribuir Tarefa para Agência */}
-        {role === "agencia" && conformidade.comite_credito && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => onDistribute(conformidade.id)}
-          >
-            Distribuir Tarefa
-          </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={
+                conformidade.status !== "aguardando_assinatura" && 
+                conformidade.status !== null
+              }
+              className={cn(
+                conformidade.status !== "aguardando_assinatura" && 
+                conformidade.status !== null &&
+                "opacity-50 cursor-not-allowed"
+              )}
+              onClick={() => onAgendarAssinatura(conformidade.id)}
+              title={
+                conformidade.status === "aguardando_assinatura" || !conformidade.status
+                  ? "Agendar assinatura de contrato"
+                  : "Ainda não liberado para assinatura"
+              }
+            >
+              <Calendar className="w-4 h-4 mr-1" />
+              Agendar Assinatura
+            </Button>
+          </div>
         )}
       </CardFooter>
     </Card>

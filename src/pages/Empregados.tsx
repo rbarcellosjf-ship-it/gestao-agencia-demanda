@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Users, Mail, Phone } from "lucide-react";
+import { Save, Users, Mail, Phone, Plus } from "lucide-react";
+import { CreateEmpregadoDialog } from "@/components/CreateEmpregadoDialog";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useUserRole } from "@/hooks/useUserRole";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -29,6 +30,7 @@ const Empregados = () => {
   const [empregados, setEmpregados] = useState<AgenciaUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!roleLoading && role !== "agencia") {
@@ -136,6 +138,12 @@ const Empregados = () => {
           { label: "Empregados" }
         ]}
         backTo="/dashboard"
+        action={
+          <Button onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Adicionar Empregado
+          </Button>
+        }
       />
 
       {empregados.length === 0 ? (
@@ -205,6 +213,12 @@ const Empregados = () => {
             ))}
         </div>
       )}
+
+      <CreateEmpregadoDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={loadEmpregados}
+      />
 
       <MobileBottomNav />
     </PageContainer>
