@@ -424,7 +424,8 @@ const AgendamentosNew = () => {
         status: 'Aguardando entrevista',
         comite_credito: entrevista.comite_credito,
         observacoes: `Entrevista confirmada - ${opcaoEscolhida ? `Opção ${opcaoEscolhida}` : 'Data alternativa escolhida'}`,
-        cca_user_id: entrevista.cca_user_id
+        cca_user_id: entrevista.cca_user_id,
+        conformidade_id: entrevista.conformidade_id
       });
 
       if (insertError) throw insertError;
