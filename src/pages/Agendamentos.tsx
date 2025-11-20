@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { AgendarEntrevistaDialog } from "@/components/AgendarEntrevistaDialog";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -20,6 +21,8 @@ const Agendamentos = () => {
   const [entrevistas, setEntrevistas] = useState<any[]>([]);
   const [assinaturas, setAssinaturas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [agendamentoToDelete, setAgendamentoToDelete] = useState<{ id: string; tipo: "entrevista" | "assinatura" } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -101,6 +104,39 @@ const Agendamentos = () => {
     }
   };
 
+  const handleDeleteAgendamento = async () => {
+    if (!agendamentoToDelete) return;
+
+    try {
+      const tableName = agendamentoToDelete.tipo === "entrevista" 
+        ? "entrevistas_agendamento" 
+        : "agendamentos";
+
+      const { error } = await supabase
+        .from(tableName)
+        .delete()
+        .eq("id", agendamentoToDelete.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Agendamento excluído",
+        description: "O agendamento foi removido com sucesso.",
+      });
+
+      loadData();
+    } catch (error: any) {
+      console.error("Error deleting agendamento:", error);
+      toast({
+        title: "Erro ao excluir",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDeleteDialogOpen(false);
+      setAgendamentoToDelete(null);
+    }
+  };
 
   if (loading) {
     return <LoadingState message="Carregando agendamentos..." />;
@@ -135,7 +171,14 @@ const Agendamentos = () => {
               />
             ) : (
               entrevistas.map((entrevista) => (
-                <AgendamentoEntrevistaCard key={entrevista.id} entrevista={entrevista} />
+                <AgendamentoEntrevistaCard 
+                  key={entrevista.id} 
+                  entrevista={entrevista}
+                  onDelete={(id) => {
+                    setAgendamentoToDelete({ id, tipo: "entrevista" });
+                    setDeleteDialogOpen(true);
+                  }}
+                />
               ))
             )}
           </TabsContent>
@@ -149,12 +192,37 @@ const Agendamentos = () => {
               />
             ) : (
               assinaturas.map((assinatura) => (
-                <AgendamentoAssinaturaCard key={assinatura.id} assinatura={assinatura} />
+                <AgendamentoAssinaturaCard 
+                  key={assinatura.id} 
+                  assinatura={assinatura}
+                  onDelete={(id) => {
+                    setAgendamentoToDelete({ id, tipo: "assinatura" });
+                    setDeleteDialogOpen(true);
+                  }}
+                />
               ))
             )}
           </TabsContent>
         </Tabs>
       </PageContainer>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteAgendamento}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <MobileBottomNav />
     </>
   );

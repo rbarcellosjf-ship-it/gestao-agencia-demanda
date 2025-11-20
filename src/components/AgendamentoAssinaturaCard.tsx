@@ -2,15 +2,18 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { statusBorders } from "@/lib/design-tokens";
 import { ObservacoesCollapsible } from "@/components/ObservacoesCollapsible";
+import { Trash2 } from "lucide-react";
 
 interface AgendamentoAssinaturaCardProps {
   assinatura: any;
+  onDelete: (id: string) => void;
 }
 
-export const AgendamentoAssinaturaCard = ({ assinatura }: AgendamentoAssinaturaCardProps) => {
+export const AgendamentoAssinaturaCard = ({ assinatura, onDelete }: AgendamentoAssinaturaCardProps) => {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       "Aguardando entrevista": "outline",
@@ -50,8 +53,15 @@ export const AgendamentoAssinaturaCard = ({ assinatura }: AgendamentoAssinaturaC
               {assinatura.tipo === "assinatura" ? "Assinatura de Documento" : assinatura.tipo}
             </CardDescription>
           </div>
-          <div className="flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {getStatusBadge(assinatura.status || "Aguardando entrevista")}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(assinatura.id)}
+            >
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
           </div>
         </div>
       </CardHeader>

@@ -11,7 +11,7 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { useUserRole } from "@/hooks/useUserRole";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { useRealtimeNotifications } from "@/hooks/useRealtimeNotifications";
-import { NotificationSettings } from "@/components/NotificationSettings";
+import { NotificationSettingsCollapsible } from "@/components/NotificationSettingsCollapsible";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState } from "@/components/layout/LoadingState";
@@ -94,7 +94,7 @@ const Dashboard = () => {
 
         <div className="space-y-6">
           {/* Configurações de Notificação */}
-          <NotificationSettings />
+          <NotificationSettingsCollapsible />
 
           {/* Dashboard Statistics */}
           <DashboardStats
