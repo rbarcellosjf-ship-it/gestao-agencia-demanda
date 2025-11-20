@@ -39,6 +39,7 @@ const AgendamentosNew = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [criarContratoOpen, setCriarContratoOpen] = useState(false);
   const [entrevistaSelecionada, setEntrevistaSelecionada] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -55,6 +56,7 @@ const AgendamentosNew = () => {
   useEffect(() => {
     loadData();
     loadCCAs();
+    loadUserProfile();
 
     const entrevistasChannel = supabase
       .channel("agendamentos-entrevistas")
@@ -144,6 +146,18 @@ const AgendamentosNew = () => {
       setCcas(data || []);
     } catch (error: any) {
       console.error("Erro ao carregar CCAs:", error);
+    }
+  };
+
+  const loadUserProfile = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('codigo_cca, full_name')
+        .eq('user_id', user.id)
+        .single();
+      setUserProfile(data);
     }
   };
 
@@ -363,27 +377,16 @@ const AgendamentosNew = () => {
                 <DialogTitle>Agendar Entrevista</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmitEntrevista} className="space-y-4">
-                {role === 'agencia' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="cca">CCA Responsável *</Label>
-                    <Select
-                      value={formData.cca_user_id}
-                      onValueChange={(value) => setFormData({ ...formData, cca_user_id: value })}
-                      required
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione o CCA" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ccas.map((cca) => (
-                          <SelectItem key={cca.user_id} value={cca.user_id}>
-                            {cca.full_name} {cca.codigo_cca && `(${cca.codigo_cca})`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="cca">CCA Responsável</Label>
+                  <Input
+                    id="cca"
+                    value={userProfile?.codigo_cca || '0126'}
+                    readOnly
+                    disabled
+                    className="bg-muted"
+                  />
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="cpf">CPF</Label>
