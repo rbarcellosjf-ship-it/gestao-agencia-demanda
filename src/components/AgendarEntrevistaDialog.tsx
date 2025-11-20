@@ -20,6 +20,10 @@ interface AgendarEntrevistaDialogProps {
   // Callbacks
   onSuccess?: () => void;
   
+  // Controle de estado externo
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  
   // Trigger (quando usado como dialog independente)
   trigger?: React.ReactNode;
 }
@@ -32,10 +36,16 @@ export const AgendarEntrevistaDialog = ({
   valorFinanciamento,
   codigoCca,
   onSuccess,
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
   trigger
 }: AgendarEntrevistaDialogProps) => {
   const { toast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Usa controle externo se fornecido, senão usa interno
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = externalOnOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   
