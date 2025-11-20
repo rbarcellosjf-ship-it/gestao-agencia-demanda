@@ -1,12 +1,14 @@
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Calendar, Mail, Trash2 } from "lucide-react";
+import { Calendar, Mail, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { StatusSelect } from "@/components/StatusSelect";
 import { ObservacoesField } from "@/components/ObservacoesField";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface ConformidadeCardProps {
   conformidade: any;
@@ -40,6 +42,8 @@ export const ConformidadeCard = ({
   onUpdateObservacoes,
   formatCurrency,
 }: ConformidadeCardProps) => {
+  const [isObservacoesOpen, setIsObservacoesOpen] = useState(false);
+
   return (
     <Card 
       className={cn(
@@ -97,10 +101,23 @@ export const ConformidadeCard = ({
           </div>
         )}
 
-        {/* Observações */}
-        {conformidade.observacoes && (
-          <div className="space-y-2 pt-2 border-t">
-            <Label className="text-xs text-muted-foreground uppercase tracking-wide">Observações</Label>
+        {/* Observações - Colapsável */}
+        <Collapsible 
+          open={isObservacoesOpen} 
+          onOpenChange={setIsObservacoesOpen}
+          className="pt-2 border-t"
+        >
+          <CollapsibleTrigger className="flex items-center justify-between w-full text-left hover:bg-muted/50 rounded px-2 py-1.5 transition-colors">
+            <Label className="text-xs text-muted-foreground uppercase tracking-tighter font-medium cursor-pointer">
+              Observações
+            </Label>
+            {isObservacoesOpen ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2 px-2 animate-accordion-down">
             <ObservacoesField
               value={conformidade.observacoes || ""}
               onChange={() => {}}
@@ -108,8 +125,8 @@ export const ConformidadeCard = ({
               autoSave={false}
               placeholder="Adicione observações sobre o contrato..."
             />
-          </div>
-        )}
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Status do Contrato */}
         <div className="space-y-2 pt-2 border-t">
