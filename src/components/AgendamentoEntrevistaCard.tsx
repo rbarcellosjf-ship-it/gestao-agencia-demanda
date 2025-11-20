@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { statusBorders } from "@/lib/design-tokens";
+import { ObservacoesCollapsible } from "@/components/ObservacoesCollapsible";
 import { Trash2 } from "lucide-react";
 
 interface AgendamentoEntrevistaCardProps {
@@ -110,6 +111,8 @@ export const AgendamentoEntrevistaCard = ({ entrevista, onDelete }: AgendamentoE
             </div>
           )}
         </div>
+
+        <ObservacoesCollapsible observacoes={entrevista.observacoes} />
       </CardContent>
     </Card>
   );
