@@ -14,6 +14,7 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { EntrevistaCard } from "@/components/EntrevistaCard";
 import { DossieUpload } from "@/components/DossieUpload";
 import { ObservacoesField } from "@/components/ObservacoesField";
+import { CriarContratoVinculadoDialog } from "@/components/CriarContratoVinculadoDialog";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,8 @@ const AgendamentosNew = () => {
   const [ccas, setCcas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [criarContratoOpen, setCriarContratoOpen] = useState(false);
+  const [entrevistaSelecionada, setEntrevistaSelecionada] = useState<any>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -95,10 +98,13 @@ const AgendamentosNew = () => {
         return;
       }
 
-      // Buscar entrevistas
+      // Buscar entrevistas com conformidade_id
       const { data: entrevistasData, error: entrevistasError } = await supabase
         .from("agendamentos")
-        .select("*")
+        .select(`
+          *,
+          conformidades!inner(id)
+        `)
         .eq("tipo", "entrevista")
         .order("data_hora", { ascending: false });
 
