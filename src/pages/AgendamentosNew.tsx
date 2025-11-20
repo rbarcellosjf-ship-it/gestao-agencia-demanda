@@ -415,20 +415,20 @@ const AgendamentosNew = () => {
       // 3. Buscar CPF do contrato vinculado ou usar o do próprio agendamento
       const cpf = entrevista.conformidades?.cpf;
 
-      // 4. Criar entrada em agendamentos (migração)
-      const { error: insertError } = await supabase
-        .from('agendamentos')
-        .insert({
-          tipo: 'entrevista',
-          cpf: cpf,
-          tipo_contrato: entrevista.tipo_contrato,
-          modalidade_financiamento: entrevista.modalidade_financiamento,
-          data_hora: `${dataConfirmada}T${entrevista.horario_inicio}:00`,
-          status: 'Aguardando entrevista',
-          comite_credito: entrevista.comite_credito,
-          observacoes: `Entrevista confirmada - ${opcaoEscolhida ? `Opção ${opcaoEscolhida}` : 'Data alternativa escolhida'}`,
-          cca_user_id: entrevista.cca_user_id
-        });
+    // 4. Criar entrada em agendamentos (migração)
+    const { error: insertError } = await supabase
+      .from('agendamentos')
+      .insert({
+        tipo: 'entrevista',
+        cpf: cpf,
+        tipo_contrato: entrevista.tipo_contrato,
+        modalidade_financiamento: entrevista.modalidade_financiamento?.toLowerCase() || 'sbpe',
+        data_hora: `${dataConfirmada}T${entrevista.horario_inicio}:00`,
+        status: 'Aguardando entrevista',
+        comite_credito: entrevista.comite_credito,
+        observacoes: `Entrevista confirmada - ${opcaoEscolhida ? `Opção ${opcaoEscolhida}` : 'Data alternativa escolhida'}`,
+        cca_user_id: entrevista.cca_user_id
+      });
 
       if (insertError) throw insertError;
 
