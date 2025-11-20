@@ -352,8 +352,11 @@ export type Database = {
       entrevistas_agendamento: {
         Row: {
           agencia: string | null
+          cca_user_id: string | null
           chat_id: string | null
           cliente_nome: string
+          codigo_cca: string | null
+          comite_credito: boolean | null
           conformidade_id: string | null
           contrato_id: string | null
           created_at: string | null
@@ -366,16 +369,21 @@ export type Database = {
           id: string
           lembrete_enviado_em: string | null
           mensagem_id: string | null
+          modalidade_financiamento: string | null
           nome_empresa: string | null
           opcao_escolhida: number | null
           status: string | null
           telefone: string
+          tipo_contrato: string | null
           updated_at: string | null
         }
         Insert: {
           agencia?: string | null
+          cca_user_id?: string | null
           chat_id?: string | null
           cliente_nome: string
+          codigo_cca?: string | null
+          comite_credito?: boolean | null
           conformidade_id?: string | null
           contrato_id?: string | null
           created_at?: string | null
@@ -388,16 +396,21 @@ export type Database = {
           id?: string
           lembrete_enviado_em?: string | null
           mensagem_id?: string | null
+          modalidade_financiamento?: string | null
           nome_empresa?: string | null
           opcao_escolhida?: number | null
           status?: string | null
           telefone: string
+          tipo_contrato?: string | null
           updated_at?: string | null
         }
         Update: {
           agencia?: string | null
+          cca_user_id?: string | null
           chat_id?: string | null
           cliente_nome?: string
+          codigo_cca?: string | null
+          comite_credito?: boolean | null
           conformidade_id?: string | null
           contrato_id?: string | null
           created_at?: string | null
@@ -410,10 +423,12 @@ export type Database = {
           id?: string
           lembrete_enviado_em?: string | null
           mensagem_id?: string | null
+          modalidade_financiamento?: string | null
           nome_empresa?: string | null
           opcao_escolhida?: number | null
           status?: string | null
           telefone?: string
+          tipo_contrato?: string | null
           updated_at?: string | null
         }
         Relationships: [
