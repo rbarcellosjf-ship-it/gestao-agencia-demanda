@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           cca_user_id: string
           comite_credito: boolean | null
+          conformidade_id: string | null
           cpf: string | null
           created_at: string
           data_hora: string
@@ -32,6 +33,7 @@ export type Database = {
         Insert: {
           cca_user_id: string
           comite_credito?: boolean | null
+          conformidade_id?: string | null
           cpf?: string | null
           created_at?: string
           data_hora: string
@@ -46,6 +48,7 @@ export type Database = {
         Update: {
           cca_user_id?: string
           comite_credito?: boolean | null
+          conformidade_id?: string | null
           cpf?: string | null
           created_at?: string
           data_hora?: string
@@ -57,7 +60,15 @@ export type Database = {
           tipo?: string
           tipo_contrato?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_agendamentos_conformidade"
+            columns: ["conformidade_id"]
+            isOneToOne: false
+            referencedRelation: "conformidades"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       configuracoes: {
         Row: {
