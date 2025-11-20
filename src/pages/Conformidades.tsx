@@ -516,8 +516,6 @@ const Conformidades = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <MobileBottomNav />
       
       <DistribuirTarefaDialog
         open={distribuirOpen}
@@ -532,8 +530,10 @@ const Conformidades = () => {
         }}
       />
 
-      {agendarEntrevistaOpen && conformidadeSelecionada && (
+      {conformidadeSelecionada && (
         <AgendarEntrevistaDialog
+          open={agendarEntrevistaOpen}
+          onOpenChange={setAgendarEntrevistaOpen}
           conformidadeId={conformidadeSelecionada.id}
           cpfCliente={conformidadeSelecionada.cpf}
           modalidade={conformidadeSelecionada.modalidade}
@@ -545,7 +545,6 @@ const Conformidades = () => {
             setConformidadeSelecionada(null);
             loadData();
           }}
-          trigger={null}
         />
       )}
       </PageContainer>
