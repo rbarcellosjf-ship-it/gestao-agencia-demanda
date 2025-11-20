@@ -1,11 +1,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, X, Edit } from "lucide-react";
+import { Check, X, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useUserRole } from "@/hooks/useUserRole";
-import { ObservacoesField } from "@/components/ObservacoesField";
+import { ObservacoesCollapsible } from "@/components/ObservacoesCollapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -33,32 +33,27 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar }: 
   const { role } = useUserRole();
   const isAgencia = role === "agencia";
   const { toast } = useToast();
-  const [observacoes, setObservacoes] = useState(entrevista.observacoes || "");
-  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSaveObservacoes = async (newObservacoes: string) => {
-    setIsSaving(true);
+  const handleDelete = async () => {
     try {
       const { error } = await supabase
         .from("agendamentos")
-        .update({ observacoes: newObservacoes })
+        .delete()
         .eq("id", entrevista.id);
 
       if (error) throw error;
 
       toast({
-        title: "Observações salvas",
-        description: "As observações foram atualizadas com sucesso.",
+        title: "Entrevista excluída",
+        description: "A entrevista foi removida com sucesso.",
       });
     } catch (error: any) {
-      console.error("Error updating observacoes:", error);
+      console.error("Error deleting entrevista:", error);
       toast({
-        title: "Erro ao salvar",
+        title: "Erro ao excluir",
         description: error.message,
         variant: "destructive",
       });
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -89,7 +84,7 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar }: 
       )}
     >
       <CardHeader className="pb-3">
-        <div className="flex justify-between items-start">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <CardTitle className="text-base font-semibold mb-1">
               Entrevista - CPF: {entrevista.cpf}
@@ -100,85 +95,74 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar }: 
               })}
             </CardDescription>
           </div>
-          {getStatusBadge(entrevista.status)}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {getStatusBadge(entrevista.status)}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDelete}
+            >
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="py-3 space-y-3">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          {/* Coluna da esquerda - Informações */}
-          <div className="lg:col-span-2 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Contrato</p>
-                <p className="font-medium text-sm capitalize">{entrevista.tipo_contrato}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Modalidade</p>
-                <p className="font-medium text-sm uppercase">{entrevista.modalidade_financiamento}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Comitê de Crédito</p>
-                <p className="font-medium text-sm">{entrevista.comite_credito ? "Sim" : "Não"}</p>
-              </div>
-              {entrevista.dossie_cliente_url && (
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Dossiê</p>
-                  <a
-                    href={entrevista.dossie_cliente_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline font-medium"
-                  >
-                    Ver Dossiê (PDF)
-                  </a>
-                </div>
-              )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Contrato</p>
+            <p className="font-medium text-sm capitalize">{entrevista.tipo_contrato}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Modalidade</p>
+            <p className="font-medium text-sm uppercase">{entrevista.modalidade_financiamento}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Comitê de Crédito</p>
+            <p className="font-medium text-sm">{entrevista.comite_credito ? "Sim" : "Não"}</p>
+          </div>
+          {entrevista.dossie_cliente_url && (
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Dossiê</p>
+              <a
+                href={entrevista.dossie_cliente_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-primary hover:underline font-medium"
+              >
+                Ver Dossiê (PDF)
+              </a>
             </div>
-
-            {isAgencia && entrevista.status === "Aguardando entrevista" && (
-              <div className="flex flex-wrap gap-2 pt-3 border-t">
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={() => onAprovar(entrevista.id)}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <Check className="w-4 h-4 mr-2" />
-                  Aprovar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={() => onReprovar(entrevista.id)}
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Reprovar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => onEditar(entrevista.id)}
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Editar
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Coluna da direita - Observações editáveis */}
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Observações</p>
-            <ObservacoesField
-              value={observacoes}
-              onChange={setObservacoes}
-              onSave={handleSaveObservacoes}
-              placeholder="Adicionar observações sobre a entrevista..."
-              disabled={isSaving}
-              autoSave={false}
-            />
-          </div>
+          )}
         </div>
+
+        {isAgencia && entrevista.status === "Aguardando entrevista" && (
+          <div className="flex flex-wrap gap-2 pt-3 border-t">
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => onAprovar(entrevista.id)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Check className="w-4 h-4 mr-2" />
+              Aprovar
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => onReprovar(entrevista.id)}
+            >
+              <X className="w-4 h-4 mr-2" />
+              Reprovar
+            </Button>
+          </div>
+        )}
+
+        {entrevista.observacoes && (
+          <div className="pt-2 border-t">
+            <ObservacoesCollapsible observacoes={entrevista.observacoes} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
