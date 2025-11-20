@@ -1,30 +1,32 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, X, Trash2, FileText } from "lucide-react";
+import { Check, X, Trash2, Calendar, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useUserRole } from "@/hooks/useUserRole";
-import { ObservacoesField } from "@/components/ObservacoesField";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { statusBorders } from "@/lib/design-tokens";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface EntrevistaCardProps {
   entrevista: {
     id: string;
-    data_hora: string;
-    cpf: string;
-    tipo_contrato: string;
-    modalidade_financiamento: string;
-    comite_credito: boolean;
+    cliente_nome: string;
+    telefone: string;
+    data_opcao_1: string;
+    data_opcao_2: string;
+    data_confirmada?: string | null;
+    opcao_escolhida?: number | null;
+    horario_inicio: string;
+    horario_fim: string;
+    nome_empresa?: string | null;
     status: string;
-    observacoes?: string;
-    dossie_cliente_url?: string;
+    agencia?: string;
+    endereco_agencia?: string;
+    conformidade_id?: string | null;
   };
   onAprovar: (id: string) => void;
   onReprovar: (id: string) => void;
@@ -36,10 +38,7 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
   const { role } = useUserRole();
   const isAgencia = role === "agencia";
   const { toast } = useToast();
-  const [observacoes, setObservacoes] = useState(entrevista.observacoes || "");
-  const [isSaving, setIsSaving] = useState(false);
-  const [isObservacoesOpen, setIsObservacoesOpen] = useState(false);
-  const [hasConformidade, setHasConformidade] = useState(false);
+  const [hasConformidade, setHasConformidade] = useState(!!entrevista.conformidade_id);
 
   // Verificar se já existe conformidade vinculada
   useEffect(() => {
@@ -55,36 +54,10 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
     checkConformidade();
   }, [entrevista.id]);
 
-  const handleSaveObservacoes = async (newObservacoes: string) => {
-    setIsSaving(true);
-    try {
-      const { error } = await supabase
-        .from("agendamentos")
-        .update({ observacoes: newObservacoes })
-        .eq("id", entrevista.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Observações salvas",
-        description: "As observações foram atualizadas com sucesso.",
-      });
-    } catch (error: any) {
-      console.error("Error updating observacoes:", error);
-      toast({
-        title: "Erro ao salvar",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleDelete = async () => {
     try {
       const { error } = await supabase
-        .from("agendamentos")
+        .from("entrevistas_agendamento")
         .delete()
         .eq("id", entrevista.id);
 
@@ -94,6 +67,8 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
         title: "Entrevista excluída",
         description: "A entrevista foi removida com sucesso.",
       });
+      
+      window.location.reload();
     } catch (error: any) {
       console.error("Error deleting entrevista:", error);
       toast({
@@ -105,22 +80,35 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-      "Aguardando entrevista": "outline",
-      "Aprovado": "default",
-      "Reprovado": "destructive",
+    const statusMap: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+      "pendente": { label: "Pendente", variant: "outline" },
+      "confirmado": { label: "Confirmado", variant: "secondary" },
+      "Aprovado": { label: "Aprovado", variant: "default" },
+      "Reprovado": { label: "Reprovado", variant: "destructive" },
     };
+    
+    const statusInfo = statusMap[status] || { label: status, variant: "outline" };
+    
     return (
-      <Badge variant={variants[status] || "outline"}>
-        {status}
+      <Badge variant={statusInfo.variant}>
+        {statusInfo.label}
       </Badge>
     );
   };
 
   const statusBorderMap: Record<string, string> = {
-    "Aguardando entrevista": statusBorders.pendente,
+    "pendente": statusBorders.pendente,
+    "confirmado": statusBorders.em_andamento,
     "Aprovado": statusBorders.concluida,
     "Reprovado": statusBorders.cancelada,
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+    } catch {
+      return dateStr;
+    }
   };
 
   return (
@@ -134,125 +122,140 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <CardTitle className="text-base font-semibold mb-1">
-              Entrevista - CPF: {entrevista.cpf}
+              {entrevista.cliente_nome}
             </CardTitle>
-            <CardDescription className="text-xs">
-              {format(new Date(entrevista.data_hora), "dd/MM/yyyy 'às' HH:mm", {
-                locale: ptBR,
-              })}
+            <CardDescription className="text-xs space-y-1">
+              <div className="flex items-center gap-1">
+                <span>📞 {entrevista.telefone}</span>
+              </div>
+              {entrevista.nome_empresa && (
+                <div className="flex items-center gap-1">
+                  <span>🏢 {entrevista.nome_empresa}</span>
+                </div>
+              )}
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {getStatusBadge(entrevista.status)}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDelete}
-            >
-              <Trash2 className="w-4 h-4 text-destructive" />
-            </Button>
+            {isAgencia && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDelete}
+              >
+                <Trash2 className="w-4 h-4 text-destructive" />
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
       <CardContent className="py-3 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Contrato</p>
-            <p className="font-medium text-sm capitalize">{entrevista.tipo_contrato}</p>
+        <div className="space-y-2 text-sm bg-muted/30 p-3 rounded-md">
+          <div className="flex items-start gap-2">
+            <Calendar className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+            <div className="flex-1 space-y-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Opções de Data</p>
+              <div className="space-y-1">
+                <p className={cn(
+                  "font-medium text-sm",
+                  entrevista.opcao_escolhida === 1 && "text-primary font-bold"
+                )}>
+                  1️⃣ {formatDate(entrevista.data_opcao_1)}
+                  {entrevista.opcao_escolhida === 1 && " ✓ Escolhida"}
+                </p>
+                <p className={cn(
+                  "font-medium text-sm",
+                  entrevista.opcao_escolhida === 2 && "text-primary font-bold"
+                )}>
+                  2️⃣ {formatDate(entrevista.data_opcao_2)}
+                  {entrevista.opcao_escolhida === 2 && " ✓ Escolhida"}
+                </p>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Modalidade</p>
-            <p className="font-medium text-sm uppercase">{entrevista.modalidade_financiamento}</p>
+          
+          <div className="flex items-start gap-2">
+            <Clock className="w-4 h-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Horário</p>
+              <p className="font-medium text-sm">{entrevista.horario_inicio} às {entrevista.horario_fim}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Comitê de Crédito</p>
-            <p className="font-medium text-sm">{entrevista.comite_credito ? "Sim" : "Não"}</p>
-          </div>
-          {entrevista.dossie_cliente_url && (
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Dossiê</p>
-              <a
-                href={entrevista.dossie_cliente_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-primary hover:underline font-medium"
-              >
-                Ver Dossiê (PDF)
-              </a>
+
+          {entrevista.data_confirmada && (
+            <div className="pt-2 border-t border-border">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Data Confirmada</p>
+              <p className="font-bold text-sm text-primary">
+                {formatDate(entrevista.data_confirmada)}
+              </p>
             </div>
           )}
         </div>
 
-        {isAgencia && entrevista.status === "Aguardando entrevista" && (
-          <div className="flex flex-wrap gap-2 pt-3 border-t">
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => onAprovar(entrevista.id)}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Check className="w-4 h-4 mr-2" />
-              Aprovar
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => onReprovar(entrevista.id)}
-            >
-              <X className="w-4 h-4 mr-2" />
-              Reprovar
-            </Button>
-          </div>
-        )}
-
-        {isAgencia && entrevista.status === "Aprovado" && !hasConformidade && onCriarContrato && (
-          <div className="flex flex-wrap gap-2 pt-3 border-t">
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => onCriarContrato(entrevista)}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              Criar Contrato Vinculado
-            </Button>
-          </div>
-        )}
-
-        {hasConformidade && (
-          <div className="pt-3 border-t">
-            <Badge variant="secondary" className="text-xs">
-              ✓ Contrato já vinculado
-            </Badge>
-          </div>
-        )}
-
-        <Collapsible 
-          open={isObservacoesOpen} 
-          onOpenChange={setIsObservacoesOpen}
-          className="pt-2 border-t"
-        >
-          <CollapsibleTrigger className="flex items-center justify-between w-full text-left hover:bg-muted/50 rounded px-2 py-1.5 transition-colors">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
-              Observações
-            </p>
-            {isObservacoesOpen ? (
-              <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        {entrevista.agencia && (
+          <div className="text-sm">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">Local</p>
+            <p className="font-medium text-sm">{entrevista.agencia}</p>
+            {entrevista.endereco_agencia && (
+              <p className="text-xs text-muted-foreground">{entrevista.endereco_agencia}</p>
             )}
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-2 animate-accordion-down">
-            <ObservacoesField
-              value={observacoes}
-              onChange={setObservacoes}
-              onSave={handleSaveObservacoes}
-              placeholder="Adicionar observações sobre a entrevista..."
-              disabled={isSaving}
-              autoSave={false}
-            />
-          </CollapsibleContent>
-        </Collapsible>
+          </div>
+        )}
+
+        {isAgencia && (
+          <div className="flex flex-wrap gap-2 pt-2">
+            {entrevista.status === "pendente" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEditar(entrevista.id)}
+                className="text-xs"
+              >
+                Editar
+              </Button>
+            )}
+            
+            {(entrevista.status === "confirmado" || entrevista.status === "pendente") && (
+              <>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => onAprovar(entrevista.id)}
+                  className="text-xs"
+                >
+                  <Check className="w-3 h-3 mr-1" />
+                  Aprovar
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => onReprovar(entrevista.id)}
+                  className="text-xs"
+                >
+                  <X className="w-3 h-3 mr-1" />
+                  Reprovar
+                </Button>
+              </>
+            )}
+
+            {entrevista.status === "Aprovado" && !hasConformidade && onCriarContrato && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => onCriarContrato(entrevista)}
+                className="text-xs"
+              >
+                Criar Contrato Vinculado
+              </Button>
+            )}
+
+            {hasConformidade && (
+              <Badge variant="secondary" className="text-xs">
+                ✓ Contrato já vinculado
+              </Badge>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
