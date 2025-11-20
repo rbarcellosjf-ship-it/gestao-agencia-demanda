@@ -1,0 +1,96 @@
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { statusBorders } from "@/lib/design-tokens";
+
+interface AssinaturaCardProps {
+  assinatura: any;
+}
+
+export const AssinaturaCard = ({ assinatura }: AssinaturaCardProps) => {
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      "Aguardando entrevista": "outline",
+      "Entrevista confirmada": "default",
+      "Cancelado": "destructive",
+      "Concluído": "secondary",
+    };
+
+    return (
+      <Badge variant={variants[status] || "outline"}>
+        {status}
+      </Badge>
+    );
+  };
+
+  const statusBorderMap: Record<string, string> = {
+    "Aguardando entrevista": statusBorders.pendente,
+    "Entrevista confirmada": statusBorders.aguardando_assinatura,
+    "Cancelado": statusBorders.cancelada,
+    "Concluído": statusBorders.concluida,
+  };
+
+  return (
+    <Card
+      className={cn(
+        "hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200",
+        statusBorderMap[assinatura.status || "Aguardando entrevista"] || statusBorders.pendente
+      )}
+    >
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base font-semibold mb-1">
+              {format(new Date(assinatura.data_hora), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+            </CardTitle>
+            <CardDescription className="text-xs">
+              {assinatura.tipo === "assinatura" ? "Assinatura de Documento" : assinatura.tipo}
+            </CardDescription>
+          </div>
+          <div className="flex-shrink-0">
+            {getStatusBadge(assinatura.status || "Aguardando entrevista")}
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="py-3 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          {assinatura.conformidades && (
+            <>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">CPF</p>
+                <p className="font-medium">{assinatura.conformidades.cpf}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Modalidade</p>
+                <p className="font-medium">{assinatura.conformidades.modalidade}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Valor do Financiamento</p>
+                <p className="font-medium">
+                  {new Intl.NumberFormat("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  }).format(parseFloat(assinatura.conformidades.valor_financiamento))}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Código CCA</p>
+                <p className="font-medium">{assinatura.conformidades.codigo_cca}</p>
+              </div>
+            </>
+          )}
+          
+          {assinatura.observacoes && (
+            <div className="md:col-span-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Observações</p>
+              <p className="font-medium">{assinatura.observacoes}</p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
