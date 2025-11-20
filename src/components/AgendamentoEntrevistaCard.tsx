@@ -46,10 +46,10 @@ export const AgendamentoEntrevistaCard = ({ entrevista }: AgendamentoEntrevistaC
         statusBorderMap[entrevista.status || "pendente"] || statusBorders.pendente
       )}
     >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-base font-semibold mb-1">
+            <CardTitle className="text-sm font-semibold mb-0.5">
               {entrevista.cliente_nome}
             </CardTitle>
             <CardDescription className="text-xs">
@@ -62,41 +62,41 @@ export const AgendamentoEntrevistaCard = ({ entrevista }: AgendamentoEntrevistaC
         </div>
       </CardHeader>
 
-      <CardContent className="py-3 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+      <CardContent className="py-2 space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Opção 1</p>
-            <p className="font-medium">
+            <p className="text-xs text-muted-foreground uppercase tracking-tighter">Opção 1</p>
+            <p className="font-medium text-xs">
               {format(new Date(entrevista.data_opcao_1), "dd/MM/yyyy", { locale: ptBR })} - {entrevista.horario_inicio} às {entrevista.horario_fim}
             </p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Opção 2</p>
-            <p className="font-medium">
+            <p className="text-xs text-muted-foreground uppercase tracking-tighter">Opção 2</p>
+            <p className="font-medium text-xs">
               {format(new Date(entrevista.data_opcao_2), "dd/MM/yyyy", { locale: ptBR })} - {entrevista.horario_inicio} às {entrevista.horario_fim}
             </p>
           </div>
           
           {entrevista.data_confirmada && (
             <div className="md:col-span-2">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Data Confirmada</p>
-              <p className="font-semibold text-primary">
+              <p className="text-xs text-muted-foreground uppercase tracking-tighter">Data Confirmada</p>
+              <p className="font-semibold text-sm text-primary">
                 {format(new Date(entrevista.data_confirmada), "dd/MM/yyyy", { locale: ptBR })}
               </p>
             </div>
           )}
 
           <div className={entrevista.data_confirmada ? "" : "md:col-span-2"}>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">Local</p>
-            <p className="font-medium">
+            <p className="text-xs text-muted-foreground uppercase tracking-tighter">Local</p>
+            <p className="font-medium text-xs">
               {entrevista.agencia} - {entrevista.endereco_agencia}
             </p>
           </div>
 
           {entrevista.conformidades && (
             <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">CPF</p>
-              <p className="font-medium">{entrevista.conformidades.cpf}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-tighter">CPF</p>
+              <p className="font-medium text-xs">{entrevista.conformidades.cpf}</p>
             </div>
           )}
         </div>
