@@ -84,33 +84,92 @@ export const AgendarEntrevistaDialog = ({
         throw new Error("Preencha todos os campos obrigatórios");
       }
 
-      // Chamar edge function para agendar entrevista
-      const { data, error } = await supabase.functions.invoke('agendar-entrevista', {
-        body: {
-          conformidade_id: conformidadeId || null,
-          nome_cliente: nomeCliente,
-          telefone_cliente: telefoneCliente,
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuário não autenticado");
+
+      // 1. Inserir entrevista pendente em entrevistas_agendamento
+      const { data: novaEntrevista, error: insertError } = await supabase
+        .from('entrevistas_agendamento')
+        .insert({
+          cliente_nome: nomeCliente,
+          telefone: telefoneCliente,
           data_opcao_1: dataOpcao1,
           data_opcao_2: dataOpcao2,
           horario_inicio: horarioInicio,
           horario_fim: horarioFim,
+          conformidade_id: conformidadeId || null,
+          status: 'pendente',
           nome_empresa: nomeEmpresa || "Manchester",
+          agencia: 'Manchester',
+          endereco_agencia: 'Avenida Barao Do Rio Branco, 2340',
+          codigo_cca: userProfile?.codigo_cca || codigoCca || '0126',
+          cca_user_id: user.id,
+          tipo_contrato: tipoContrato || 'individual',
+          modalidade_financiamento: modalidade || null,
+          comite_credito: false
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // 2. Buscar template WhatsApp
+      const { data: template } = await supabase
+        .from('whatsapp_templates')
+        .select('*')
+        .eq('template_key', 'agendamento_entrevista')
+        .maybeSingle();
+
+      // 3. Enviar WhatsApp ao cliente
+      if (template) {
+        const formatDate = (dateStr: string) => {
+          try {
+            const date = new Date(dateStr + 'T00:00:00');
+            return date.toLocaleDateString('pt-BR', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            });
+          } catch {
+            return dateStr;
+          }
+        };
+
+        const message = template.message
+          .replace('{{nome_cliente}}', nomeCliente)
+          .replace('{{nome_empresa}}', nomeEmpresa || "Manchester")
+          .replace('{{agencia}}', 'Manchester')
+          .replace('{{data_opcao_1}}', formatDate(dataOpcao1))
+          .replace('{{data_opcao_2}}', formatDate(dataOpcao2))
+          .replace('{{horario_inicio}}', horarioInicio)
+          .replace('{{horario_fim}}', horarioFim)
+          .replace('{{endereco_agencia}}', 'Avenida Barao Do Rio Branco, 2340');
+
+        try {
+          await supabase.functions.invoke('send-whatsapp', {
+            body: {
+              phone: telefoneCliente,
+              message: message
+            }
+          });
+        } catch (whatsappError) {
+          console.error('Erro ao enviar WhatsApp:', whatsappError);
+          // Não bloquear se WhatsApp falhar
         }
-      });
+      }
 
-      if (error) throw error;
-
-      // Se tiver conformidadeId, atualizar a conformidade com o entrevista_id
-      if (conformidadeId && data?.data?.id) {
+      // 4. Se tiver conformidadeId, atualizar a conformidade com o entrevista_id
+      if (conformidadeId && novaEntrevista?.id) {
         await supabase
           .from('conformidades')
-          .update({ entrevista_id: data.data.id })
+          .update({ entrevista_id: novaEntrevista.id })
           .eq('id', conformidadeId);
       }
 
       toast({
         title: "Entrevista agendada!",
-        description: "Mensagem de WhatsApp enviada ao cliente com as opções de data.",
+        description: "WhatsApp enviado ao cliente com as opções de data.",
       });
 
       setOpen(false);

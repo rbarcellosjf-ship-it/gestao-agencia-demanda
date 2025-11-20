@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Calendar } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Clock } from "lucide-react";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { EntrevistaCard } from "@/components/EntrevistaCard";
+import { EntrevistaPendenteCard } from "@/components/EntrevistaPendenteCard";
 import { DossieUpload } from "@/components/DossieUpload";
 import { ObservacoesField } from "@/components/ObservacoesField";
 import { CriarContratoVinculadoDialog } from "@/components/CriarContratoVinculadoDialog";
@@ -34,6 +35,7 @@ const AgendamentosNew = () => {
   const { canCreate, role } = useCanCreateAgendamento();
   const [entrevistas, setEntrevistas] = useState<any[]>([]);
   const [assinaturas, setAssinaturas] = useState<any[]>([]);
+  const [entrevistasPendentes, setEntrevistasPendentes] = useState<any[]>([]);
   const [ccas, setCcas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -55,6 +57,7 @@ const AgendamentosNew = () => {
 
   useEffect(() => {
     loadData();
+    loadEntrevistasPendentes();
     loadCCAs();
     loadUserProfile();
 
@@ -86,11 +89,59 @@ const AgendamentosNew = () => {
       )
       .subscribe();
 
+    const entrevistasPendentesChannel = supabase
+      .channel("entrevistas-pendentes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "entrevistas_agendamento",
+          filter: "status=eq.pendente"
+        },
+        () => loadEntrevistasPendentes()
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(entrevistasChannel);
       supabase.removeChannel(assinaturasChannel);
+      supabase.removeChannel(entrevistasPendentesChannel);
     };
   }, []);
+
+  const loadEntrevistasPendentes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('entrevistas_agendamento')
+        .select(`
+          *,
+          conformidades:conformidade_id (
+            cpf,
+            tipo_contrato,
+            modalidade,
+            valor_financiamento,
+            comite_credito
+          )
+        `)
+        .eq('status', 'pendente')
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) {
+        const formatted = data.map((item: any) => ({
+          ...item,
+          cpf: item.conformidades?.cpf,
+          tipo_contrato: item.conformidades?.tipo_contrato,
+          modalidade: item.conformidades?.modalidade,
+          valor_financiamento: item.conformidades?.valor_financiamento,
+          comite_credito: item.conformidades?.comite_credito
+        }));
+        setEntrevistasPendentes(formatted);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar entrevistas pendentes:", error);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -331,6 +382,74 @@ const AgendamentosNew = () => {
     }
   };
 
+  const handleConfirmarEntrevista = async (
+    entrevistaId: string, 
+    dataConfirmada: string, 
+    opcaoEscolhida: number | null
+  ) => {
+    try {
+      // 1. Buscar dados completos da entrevista pendente
+      const { data: entrevista, error: fetchError } = await supabase
+        .from('entrevistas_agendamento')
+        .select(`
+          *,
+          conformidades:conformidade_id (*)
+        `)
+        .eq('id', entrevistaId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // 2. Atualizar entrevistas_agendamento
+      const { error: updateError } = await supabase
+        .from('entrevistas_agendamento')
+        .update({
+          data_confirmada: dataConfirmada,
+          opcao_escolhida: opcaoEscolhida,
+          status: 'confirmado'
+        })
+        .eq('id', entrevistaId);
+
+      if (updateError) throw updateError;
+
+      // 3. Buscar CPF do contrato vinculado ou usar o do próprio agendamento
+      const cpf = entrevista.conformidades?.cpf;
+
+      // 4. Criar entrada em agendamentos (migração)
+      const { error: insertError } = await supabase
+        .from('agendamentos')
+        .insert({
+          tipo: 'entrevista',
+          cpf: cpf,
+          tipo_contrato: entrevista.tipo_contrato,
+          modalidade_financiamento: entrevista.modalidade_financiamento,
+          data_hora: `${dataConfirmada}T${entrevista.horario_inicio}:00`,
+          status: 'Aguardando entrevista',
+          comite_credito: entrevista.comite_credito,
+          observacoes: `Entrevista confirmada - ${opcaoEscolhida ? `Opção ${opcaoEscolhida}` : 'Data alternativa escolhida'}`,
+          cca_user_id: entrevista.cca_user_id
+        });
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Data confirmada!",
+        description: "A entrevista foi confirmada e adicionada ao cronograma."
+      });
+
+      // 5. Recarregar dados
+      loadEntrevistasPendentes();
+      loadData();
+    } catch (error: any) {
+      console.error("Erro ao confirmar entrevista:", error);
+      toast({
+        title: "Erro ao confirmar",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleEditar = (id: string) => {
     toast({
       title: "Em desenvolvimento",
@@ -495,6 +614,26 @@ const AgendamentosNew = () => {
       </header>
 
       <div className="container mx-auto px-4 py-6">
+        {/* SEÇÃO 1: ENTREVISTAS PENDENTES DE CONFIRMAÇÃO */}
+        {entrevistasPendentes.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="h-5 w-5 text-yellow-600" />
+              <h2 className="text-xl font-semibold">Entrevistas Pendentes de Confirmação</h2>
+            </div>
+            <div className="grid gap-4">
+              {entrevistasPendentes.map((entrevista) => (
+                <EntrevistaPendenteCard
+                  key={entrevista.id}
+                  entrevista={entrevista}
+                  onConfirmar={handleConfirmarEntrevista}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SEÇÃO 2: ENTREVISTAS E ASSINATURAS CONFIRMADAS */}
         <Tabs defaultValue="entrevistas" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="entrevistas">
