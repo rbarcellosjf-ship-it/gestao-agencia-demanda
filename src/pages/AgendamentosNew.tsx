@@ -51,6 +51,13 @@ const AgendamentosNew = () => {
     observacoes: "",
     dossie_cliente_url: "",
     cca_user_id: "", // Será preenchido automaticamente
+    nomeCliente: "",
+    telefone: "",
+    dataOpcao1: "",
+    dataOpcao2: "",
+    horarioInicio: "",
+    horarioFim: "",
+    nomeEmpresa: "",
   });
 
   useEffect(() => {
@@ -65,8 +72,7 @@ const AgendamentosNew = () => {
         {
           event: "*",
           schema: "public",
-          table: "agendamentos",
-          filter: "tipo=eq.entrevista",
+          table: "entrevistas_agendamento",
         },
         () => loadData()
       )
@@ -100,19 +106,15 @@ const AgendamentosNew = () => {
         return;
       }
 
-      // Buscar entrevistas com conformidade_id
+      // Buscar entrevistas da tabela entrevistas_agendamento
       const { data: entrevistasData, error: entrevistasError } = await supabase
-        .from("agendamentos")
-        .select(`
-          *,
-          conformidades!inner(id)
-        `)
-        .eq("tipo", "entrevista")
-        .order("data_hora", { ascending: false });
+        .from("entrevistas_agendamento")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (entrevistasError) throw entrevistasError;
 
-      // Buscar assinaturas
+      // Buscar assinaturas da tabela agendamentos
       const { data: assinaturasData, error: assinaturasError } = await supabase
         .from("agendamentos")
         .select("*")
@@ -168,55 +170,65 @@ const AgendamentosNew = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Validar CPF
-      if (!validateCPF(formData.cpf)) {
+      // Validar campos obrigatórios
+      if (!formData.nomeCliente || !formData.telefone || !formData.dataOpcao1 || !formData.dataOpcao2 || !formData.horarioInicio || !formData.horarioFim) {
         toast({
-          title: "CPF inválido",
-          description: "Por favor, verifique o CPF digitado.",
+          title: "Campos obrigatórios",
+          description: "Por favor, preencha todos os campos obrigatórios.",
           variant: "destructive",
         });
         return;
       }
 
-      // Normalizar CPF (remover formatação)
-      const normalizedCPF = normalizeCPF(formData.cpf);
-      
-      if (!normalizedCPF.match(/^\d{11}$/)) {
-        toast({
-          title: "CPF inválido",
-          description: "CPF deve conter exatamente 11 dígitos.",
-          variant: "destructive",
-        });
-        return;
+      // Criar registro em entrevistas_agendamento com status pendente
+      const { data: entrevista, error: entrevistaError } = await supabase
+        .from("entrevistas_agendamento")
+        .insert([{
+          cliente_nome: formData.nomeCliente,
+          telefone: formData.telefone.replace(/\D/g, ''),
+          data_opcao_1: formData.dataOpcao1,
+          data_opcao_2: formData.dataOpcao2,
+          horario_inicio: formData.horarioInicio,
+          horario_fim: formData.horarioFim,
+          nome_empresa: formData.nomeEmpresa || null,
+          status: 'pendente',
+          agencia: 'Manchester',
+          endereco_agencia: 'Avenida Barao Do Rio Branco, 2340',
+        }])
+        .select()
+        .single();
+
+      if (entrevistaError) {
+        throw entrevistaError;
       }
 
-      // Determinar o cca_user_id
-      let ccaUserId = formData.cca_user_id;
-      if (role === 'cca' || !ccaUserId) {
-        ccaUserId = user.id;
-      }
+      // Enviar mensagem via WhatsApp
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('codigo_cca, full_name')
+        .eq('user_id', user.id)
+        .single();
 
-      const insertData: Partial<AgendamentoInput> = {
-        cpf: normalizedCPF,
-        tipo_contrato: formData.tipo_contrato as 'individual' | 'empreendimento',
-        modalidade_financiamento: formData.modalidade_financiamento as 'mcmv' | 'sbpe',
-        comite_credito: formData.comite_credito,
-        data_hora: formData.data_hora,
-        observacoes: formData.observacoes || undefined,
-        dossie_cliente_url: formData.dossie_cliente_url || undefined,
-        tipo: "entrevista" as const,
-        cca_user_id: ccaUserId,
+      const whatsappPayload = {
+        phoneNumber: formData.telefone.replace(/\D/g, ''),
+        message: `Olá ${formData.nomeCliente}! 👋\n\n` +
+          `Aqui é ${profileData?.full_name || 'a equipe'} da Manchester Crédito Habitacional.\n\n` +
+          `Precisamos agendar uma entrevista${formData.nomeEmpresa ? ` para ${formData.nomeEmpresa}` : ''}.\n\n` +
+          `📅 Temos duas opções de data:\n` +
+          `1️⃣ ${format(new Date(formData.dataOpcao1), "dd/MM/yyyy", { locale: ptBR })}\n` +
+          `2️⃣ ${format(new Date(formData.dataOpcao2), "dd/MM/yyyy", { locale: ptBR })}\n\n` +
+          `⏰ Horário: ${formData.horarioInicio} às ${formData.horarioFim}\n\n` +
+          `📍 Local: Manchester - Avenida Barao Do Rio Branco, 2340\n\n` +
+          `Por favor, responda com o número da opção que melhor se adequa à sua agenda (1 ou 2), ou nos avise se nenhuma das datas funciona para você.`
       };
 
-      const { data, error } = await safeInsertAgendamento(insertData);
-
-      if (error) {
-        throw new Error(formatAgendamentoError(error));
-      }
+      await supabase.functions.invoke('send-whatsapp', {
+        body: whatsappPayload
+      });
 
       toast({
-        title: "Entrevista agendada!",
-        description: "A entrevista foi registrada com sucesso.",
+        title: "Entrevista criada!",
+        description: "Agendamento criado com sucesso. Aguardando confirmação do cliente via WhatsApp.",
       });
 
       setDialogOpen(false);
@@ -225,7 +237,7 @@ const AgendamentosNew = () => {
     } catch (error: any) {
       console.error("Error creating entrevista:", error);
       toast({
-        title: "Erro ao agendar entrevista",
+        title: "Erro ao criar entrevista",
         description: error.message,
         variant: "destructive",
       });
@@ -242,6 +254,13 @@ const AgendamentosNew = () => {
       observacoes: "",
       dossie_cliente_url: "",
       cca_user_id: "",
+      nomeCliente: "",
+      telefone: "",
+      dataOpcao1: "",
+      dataOpcao2: "",
+      horarioInicio: "",
+      horarioFim: "",
+      nomeEmpresa: "",
     });
   };
 
@@ -387,93 +406,85 @@ const AgendamentosNew = () => {
                     className="bg-muted"
                   />
                 </div>
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="cpf">CPF</Label>
+                    <Label htmlFor="nomeCliente">Nome do Cliente *</Label>
                     <Input
-                      id="cpf"
-                      value={formData.cpf}
-                      onChange={(e) =>
-                        setFormData({ ...formData, cpf: e.target.value })
-                      }
-                      placeholder="000.000.000-00"
+                      id="nomeCliente"
+                      value={formData.nomeCliente}
+                      onChange={(e) => setFormData({ ...formData, nomeCliente: e.target.value })}
+                      placeholder="Nome completo"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="tipo_contrato">Tipo de Contrato</Label>
-                    <Select
-                      value={formData.tipo_contrato}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, tipo_contrato: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="individual">Individual</SelectItem>
-                        <SelectItem value="empreendimento">Empreendimento</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="modalidade">Modalidade de Financiamento</Label>
-                    <Select
-                      value={formData.modalidade_financiamento}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, modalidade_financiamento: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="mcmv">MCMV</SelectItem>
-                        <SelectItem value="sbpe">SBPE</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="data_hora">Data e Hora</Label>
+                    <Label htmlFor="telefone">Telefone/WhatsApp *</Label>
                     <Input
-                      id="data_hora"
-                      type="datetime-local"
-                      value={formData.data_hora}
-                      onChange={(e) =>
-                        setFormData({ ...formData, data_hora: e.target.value })
-                      }
+                      id="telefone"
+                      value={formData.telefone}
+                      onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                      placeholder="(00) 00000-0000"
                       required
                     />
                   </div>
                 </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="comite"
-                    checked={formData.comite_credito}
-                    onCheckedChange={(checked) =>
-                      setFormData({ ...formData, comite_credito: checked as boolean })
-                    }
+                
+                <div>
+                  <Label htmlFor="nomeEmpresa">Nome da Empresa (opcional)</Label>
+                  <Input
+                    id="nomeEmpresa"
+                    value={formData.nomeEmpresa}
+                    onChange={(e) => setFormData({ ...formData, nomeEmpresa: e.target.value })}
+                    placeholder="Nome da empresa do cliente"
                   />
-                  <label htmlFor="comite" className="text-sm font-medium">
-                    Requer Comitê de Crédito
-                  </label>
                 </div>
-
-                <DossieUpload
-                  onUploadComplete={(url) =>
-                    setFormData({ ...formData, dossie_cliente_url: url })
-                  }
-                />
-
-                <ObservacoesField
-                  value={formData.observacoes}
-                  onChange={(value) =>
-                    setFormData({ ...formData, observacoes: value })
-                  }
-                  placeholder="Observações sobre a entrevista..."
-                />
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="dataOpcao1">Data Opção 1 *</Label>
+                    <Input
+                      id="dataOpcao1"
+                      type="date"
+                      value={formData.dataOpcao1}
+                      onChange={(e) => setFormData({ ...formData, dataOpcao1: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="dataOpcao2">Data Opção 2 *</Label>
+                    <Input
+                      id="dataOpcao2"
+                      type="date"
+                      value={formData.dataOpcao2}
+                      onChange={(e) => setFormData({ ...formData, dataOpcao2: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="horarioInicio">Horário Início *</Label>
+                    <Input
+                      id="horarioInicio"
+                      type="time"
+                      value={formData.horarioInicio}
+                      onChange={(e) => setFormData({ ...formData, horarioInicio: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="horarioFim">Horário Fim *</Label>
+                    <Input
+                      id="horarioFim"
+                      type="time"
+                      value={formData.horarioFim}
+                      onChange={(e) => setFormData({ ...formData, horarioFim: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
 
                 <div className="flex justify-end gap-2 pt-4">
                   <Button
