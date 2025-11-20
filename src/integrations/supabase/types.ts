@@ -101,6 +101,7 @@ export type Database = {
           modalidade_outro: string | null
           observacoes: string | null
           status: string | null
+          tipo_contrato: string
           valor_financiamento: number
         }
         Insert: {
@@ -117,6 +118,7 @@ export type Database = {
           modalidade_outro?: string | null
           observacoes?: string | null
           status?: string | null
+          tipo_contrato?: string
           valor_financiamento: number
         }
         Update: {
@@ -133,6 +135,7 @@ export type Database = {
           modalidade_outro?: string | null
           observacoes?: string | null
           status?: string | null
+          tipo_contrato?: string
           valor_financiamento?: number
         }
         Relationships: [
@@ -425,7 +428,7 @@ export type Database = {
       }
       profiles: {
         Row: {
-          codigo_cca: string | null
+          codigo_cca: string
           created_at: string
           email_preferencia: string | null
           full_name: string
@@ -435,7 +438,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          codigo_cca?: string | null
+          codigo_cca: string
           created_at?: string
           email_preferencia?: string | null
           full_name: string
@@ -445,7 +448,7 @@ export type Database = {
           user_id: string
         }
         Update: {
-          codigo_cca?: string | null
+          codigo_cca?: string
           created_at?: string
           email_preferencia?: string | null
           full_name?: string

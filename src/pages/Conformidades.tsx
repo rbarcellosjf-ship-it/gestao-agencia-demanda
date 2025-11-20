@@ -33,6 +33,7 @@ import { EmptyState } from "@/components/layout/EmptyState";
 import { ConformidadeCard } from "@/components/ConformidadeCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AgendarEntrevistaDialog } from "@/components/AgendarEntrevistaDialog";
 
 const conformidadeSchema = z.object({
   cpf: z.string()
@@ -41,6 +42,7 @@ const conformidadeSchema = z.object({
   valor_financiamento: z.number().positive("Valor deve ser positivo"),
   modalidade: z.enum(["SBPE", "MCMV", "OUTRO"]),
   modalidade_outro: z.string().optional(),
+  tipo_contrato: z.enum(["individual", "empreendimento"]),
 });
 
 const Conformidades = () => {
@@ -61,11 +63,16 @@ const Conformidades = () => {
   const [valorFinanciamento, setValorFinanciamento] = useState("");
   const [modalidade, setModalidade] = useState<string>("");
   const [modalidadeOutro, setModalidadeOutro] = useState("");
+  const [tipoContrato, setTipoContrato] = useState<string>("individual");
   const [comiteCredito, setComiteCredito] = useState(false);
   const [observacoes, setObservacoes] = useState("");
   const [entrevistaAprovada, setEntrevistaAprovada] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conformidadeToDelete, setConformidadeToDelete] = useState<string | null>(null);
+  
+  // Agendar entrevista state
+  const [agendarEntrevistaOpen, setAgendarEntrevistaOpen] = useState(false);
+  const [conformidadeSelecionada, setConformidadeSelecionada] = useState<any>(null);
   
   // Distribuir tarefa state
   const [distribuirOpen, setDistribuirOpen] = useState(false);
@@ -151,6 +158,7 @@ const Conformidades = () => {
         valor_financiamento: parseFloat(valorFinanciamento),
         modalidade,
         modalidade_outro: modalidade === "OUTRO" ? modalidadeOutro : undefined,
+        tipo_contrato: tipoContrato,
       });
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -163,6 +171,7 @@ const Conformidades = () => {
         valor_financiamento: validatedData.valor_financiamento,
         modalidade: validatedData.modalidade,
         modalidade_outro: validatedData.modalidade_outro || null,
+        tipo_contrato: validatedData.tipo_contrato,
         comite_credito: comiteCredito,
         observacoes: observacoes || null,
       });
@@ -198,9 +207,9 @@ const Conformidades = () => {
     setValorFinanciamento("");
     setModalidade("");
     setModalidadeOutro("");
+    setTipoContrato("individual");
     setComiteCredito(false);
     setObservacoes("");
-    setComiteCredito(false);
     setEntrevistaAprovada(false);
   };
 
@@ -266,6 +275,37 @@ const Conformidades = () => {
     } catch (error: any) {
       toast({
         title: "Erro ao gerar e-mail",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAgendarEntrevista = (conformidade: any) => {
+    setConformidadeSelecionada(conformidade);
+    setAgendarEntrevistaOpen(true);
+  };
+
+  const handleUpdateEntrevistaAprovada = async (conformidadeId: string, aprovada: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('conformidades')
+        .update({ entrevista_aprovada: aprovada })
+        .eq('id', conformidadeId);
+
+      if (error) throw error;
+
+      toast({
+        title: aprovada ? "Entrevista marcada como aprovada" : "Aprovação removida",
+        description: aprovada 
+          ? "O botão de agendar assinatura foi habilitado" 
+          : "O agendamento de assinatura foi bloqueado",
+      });
+
+      loadData();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao atualizar",
         description: error.message,
         variant: "destructive",
       });
@@ -353,6 +393,19 @@ const Conformidades = () => {
                     </div>
                   )}
                   
+                  <div className="space-y-2">
+                    <Label htmlFor="tipo_contrato">Tipo de Contrato *</Label>
+                    <Select value={tipoContrato} onValueChange={setTipoContrato} required>
+                      <SelectTrigger id="tipo_contrato">
+                        <SelectValue placeholder="Selecione o tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="individual">Individual</SelectItem>
+                        <SelectItem value="empreendimento">Empreendimento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2">
                       <input
@@ -436,6 +489,8 @@ const Conformidades = () => {
                       description: "As observações foram atualizadas com sucesso.",
                     });
                   }}
+                  onAgendarEntrevista={handleAgendarEntrevista}
+                  onUpdateEntrevistaAprovada={handleUpdateEntrevistaAprovada}
                   formatCurrency={formatCurrency}
                 />
               );
@@ -476,6 +531,23 @@ const Conformidades = () => {
           });
         }}
       />
+
+      {agendarEntrevistaOpen && conformidadeSelecionada && (
+        <AgendarEntrevistaDialog
+          conformidadeId={conformidadeSelecionada.id}
+          cpfCliente={conformidadeSelecionada.cpf}
+          modalidade={conformidadeSelecionada.modalidade}
+          tipoContrato={conformidadeSelecionada.tipo_contrato}
+          valorFinanciamento={parseFloat(conformidadeSelecionada.valor_financiamento)}
+          codigoCca={conformidadeSelecionada.codigo_cca}
+          onSuccess={() => {
+            setAgendarEntrevistaOpen(false);
+            setConformidadeSelecionada(null);
+            loadData();
+          }}
+          trigger={null}
+        />
+      )}
       </PageContainer>
       <MobileBottomNav />
     </>

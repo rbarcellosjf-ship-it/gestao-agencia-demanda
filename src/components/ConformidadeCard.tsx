@@ -19,6 +19,8 @@ interface ConformidadeCardProps {
   onAgendarAssinatura: (id: string) => void;
   onDistribute: (id: string) => void;
   onUpdateObservacoes: (id: string, value: string) => Promise<void>;
+  onAgendarEntrevista: (conformidade: any) => void;
+  onUpdateEntrevistaAprovada: (id: string, aprovada: boolean) => void;
   formatCurrency: (value: number) => string;
 }
 
@@ -40,6 +42,8 @@ export const ConformidadeCard = ({
   onAgendarAssinatura,
   onDistribute,
   onUpdateObservacoes,
+  onAgendarEntrevista,
+  onUpdateEntrevistaAprovada,
   formatCurrency,
 }: ConformidadeCardProps) => {
   const [isObservacoesOpen, setIsObservacoesOpen] = useState(false);
@@ -100,6 +104,37 @@ export const ConformidadeCard = ({
             </Badge>
           </div>
         )}
+
+        {/* Status da Entrevista */}
+        <div className="space-y-2 pt-2 border-t">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wide">Status da Entrevista</Label>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id={`entrevista-${conformidade.id}`}
+                checked={conformidade.entrevista_aprovada || false}
+                onChange={(e) => {
+                  if (role === 'agencia') {
+                    onUpdateEntrevistaAprovada(conformidade.id, e.target.checked);
+                  }
+                }}
+                disabled={role !== 'agencia'}
+                className="w-4 h-4 rounded border-input"
+              />
+              <Label htmlFor={`entrevista-${conformidade.id}`} className="text-sm font-medium cursor-pointer">
+                Entrevista Aprovada
+              </Label>
+            </div>
+            {conformidade.entrevista_aprovada ? (
+              <Badge variant="default" className="bg-green-500">✓ Aprovada</Badge>
+            ) : conformidade.entrevista_id ? (
+              <Badge variant="secondary">Pendente</Badge>
+            ) : (
+              <Badge variant="outline">Não Agendada</Badge>
+            )}
+          </div>
+        </div>
 
         {/* Observações - Colapsável */}
         <Collapsible 
@@ -162,6 +197,18 @@ export const ConformidadeCard = ({
           <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
+              variant="default"
+              onClick={() => onAgendarEntrevista(conformidade)}
+              disabled={!!conformidade.entrevista_id}
+              className={cn(!!conformidade.entrevista_id && "opacity-50 cursor-not-allowed")}
+              title={conformidade.entrevista_id ? "Entrevista já agendada" : "Agendar entrevista"}
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Agendar Entrevista
+            </Button>
+
+            <Button
+              size="sm"
               variant="outline"
               onClick={() => onPedirPrioridade(conformidade)}
             >
@@ -189,20 +236,13 @@ export const ConformidadeCard = ({
             <Button
               size="sm"
               variant="outline"
-              disabled={
-                conformidade.status !== "aguardando_assinatura" && 
-                conformidade.status !== null
-              }
-              className={cn(
-                conformidade.status !== "aguardando_assinatura" && 
-                conformidade.status !== null &&
-                "opacity-50 cursor-not-allowed"
-              )}
+              disabled={!conformidade.entrevista_aprovada}
+              className={cn(!conformidade.entrevista_aprovada && "opacity-50 cursor-not-allowed")}
               onClick={() => onAgendarAssinatura(conformidade.id)}
               title={
-                conformidade.status === "aguardando_assinatura" || !conformidade.status
+                conformidade.entrevista_aprovada
                   ? "Agendar assinatura de contrato"
-                  : "Ainda não liberado para assinatura"
+                  : "Aprovação da entrevista necessária"
               }
             >
               <Calendar className="w-4 h-4 mr-1" />
