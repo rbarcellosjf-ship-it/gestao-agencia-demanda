@@ -3,12 +3,14 @@ import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { statusBorders } from "@/lib/design-tokens";
-import { ObservacoesCollapsible } from "@/components/ObservacoesCollapsible";
+import { ObservacoesField } from "@/components/ObservacoesField";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface AssinaturaCardProps {
   assinatura: any;
@@ -16,6 +18,35 @@ interface AssinaturaCardProps {
 
 export const AssinaturaCard = ({ assinatura }: AssinaturaCardProps) => {
   const { toast } = useToast();
+  const [observacoes, setObservacoes] = useState(assinatura.observacoes || "");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isObservacoesOpen, setIsObservacoesOpen] = useState(false);
+
+  const handleSaveObservacoes = async (newObservacoes: string) => {
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("agendamentos")
+        .update({ observacoes: newObservacoes })
+        .eq("id", assinatura.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Observações salvas",
+        description: "As observações foram atualizadas com sucesso.",
+      });
+    } catch (error: any) {
+      console.error("Error updating observacoes:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleDelete = async () => {
     try {
@@ -121,11 +152,32 @@ export const AssinaturaCard = ({ assinatura }: AssinaturaCardProps) => {
           )}
         </div>
         
-        {assinatura.observacoes && (
-          <div className="pt-2 border-t">
-            <ObservacoesCollapsible observacoes={assinatura.observacoes} />
-          </div>
-        )}
+        <Collapsible 
+          open={isObservacoesOpen} 
+          onOpenChange={setIsObservacoesOpen}
+          className="pt-2 border-t"
+        >
+          <CollapsibleTrigger className="flex items-center justify-between w-full text-left hover:bg-muted/50 rounded px-2 py-1.5 transition-colors">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
+              Observações
+            </p>
+            {isObservacoesOpen ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2 animate-accordion-down">
+            <ObservacoesField
+              value={observacoes}
+              onChange={setObservacoes}
+              onSave={handleSaveObservacoes}
+              placeholder="Adicionar observações sobre a assinatura..."
+              disabled={isSaving}
+              autoSave={false}
+            />
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
     </Card>
   );
