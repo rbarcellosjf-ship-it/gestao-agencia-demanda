@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Check, X, Edit } from "lucide-react";
@@ -9,6 +9,8 @@ import { ObservacoesField } from "@/components/ObservacoesField";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { statusBorders } from "@/lib/design-tokens";
 
 interface EntrevistaCardProps {
   entrevista: {
@@ -61,61 +63,71 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar }: 
   };
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; color: string }> = {
-      "Aguardando entrevista": { variant: "outline", color: "text-yellow-600" },
-      "Aprovado": { variant: "default", color: "text-green-600" },
-      "Reprovado": { variant: "destructive", color: "text-red-600" },
+    const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+      "Aguardando entrevista": "outline",
+      "Aprovado": "default",
+      "Reprovado": "destructive",
     };
-    const config = variants[status] || { variant: "outline", color: "" };
     return (
-      <Badge variant={config.variant} className={config.color}>
+      <Badge variant={variants[status] || "outline"}>
         {status}
       </Badge>
     );
   };
 
+  const statusBorderMap: Record<string, string> = {
+    "Aguardando entrevista": statusBorders.pendente,
+    "Aprovado": statusBorders.concluida,
+    "Reprovado": statusBorders.cancelada,
+  };
+
   return (
-    <Card>
-      <CardHeader>
+    <Card
+      className={cn(
+        "hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200",
+        statusBorderMap[entrevista.status] || statusBorders.pendente
+      )}
+    >
+      <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg">
+          <div className="flex-1 min-w-0">
+            <CardTitle className="text-base font-semibold mb-1">
               Entrevista - CPF: {entrevista.cpf}
             </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
+            <CardDescription className="text-xs">
               {format(new Date(entrevista.data_hora), "dd/MM/yyyy 'às' HH:mm", {
                 locale: ptBR,
               })}
-            </p>
+            </CardDescription>
           </div>
           {getStatusBadge(entrevista.status)}
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <CardContent className="py-3 space-y-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           {/* Coluna da esquerda - Informações */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="lg:col-span-2 space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="text-muted-foreground">Tipo de Contrato</p>
-                <p className="font-medium capitalize">{entrevista.tipo_contrato}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Contrato</p>
+                <p className="font-medium text-sm capitalize">{entrevista.tipo_contrato}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Modalidade</p>
-                <p className="font-medium uppercase">{entrevista.modalidade_financiamento}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Modalidade</p>
+                <p className="font-medium text-sm uppercase">{entrevista.modalidade_financiamento}</p>
               </div>
               <div>
-                <p className="text-muted-foreground">Comitê de Crédito</p>
-                <p className="font-medium">{entrevista.comite_credito ? "Sim" : "Não"}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Comitê de Crédito</p>
+                <p className="font-medium text-sm">{entrevista.comite_credito ? "Sim" : "Não"}</p>
               </div>
               {entrevista.dossie_cliente_url && (
                 <div>
-                  <p className="text-muted-foreground">Dossiê</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Dossiê</p>
                   <a
                     href={entrevista.dossie_cliente_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:underline"
+                    className="text-sm text-primary hover:underline font-medium"
                   >
                     Ver Dossiê (PDF)
                   </a>
@@ -124,7 +136,7 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar }: 
             </div>
 
             {isAgencia && entrevista.status === "Aguardando entrevista" && (
-              <div className="flex flex-wrap gap-2 pt-2">
+              <div className="flex flex-wrap gap-2 pt-3 border-t">
                 <Button
                   size="sm"
                   variant="default"
@@ -156,7 +168,7 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar }: 
 
           {/* Coluna da direita - Observações editáveis */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">Observações</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Observações</p>
             <ObservacoesField
               value={observacoes}
               onChange={setObservacoes}
