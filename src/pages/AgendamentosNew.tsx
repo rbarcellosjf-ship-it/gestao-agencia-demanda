@@ -266,28 +266,15 @@ const AgendamentosNew = () => {
 
   const handleAprovar = async (id: string) => {
     try {
-      // Atualizar status diretamente
+      // Atualizar status na tabela entrevistas_agendamento
       const { error: updateError } = await supabase
-        .from("agendamentos")
+        .from("entrevistas_agendamento")
         .update({ 
-          status: "Aprovado" as any,
-          observacoes: "Entrevista aprovada"
+          status: "Aprovado"
         })
         .eq("id", id);
 
       if (updateError) throw updateError;
-
-      // Tentar enviar email (não bloquear se falhar)
-      try {
-        await supabase.functions.invoke("send-interview-result-email", {
-          body: {
-            entrevistaId: id,
-            aprovado: true,
-          },
-        });
-      } catch (emailError) {
-        console.error("Email sending failed:", emailError);
-      }
 
       toast({
         title: "Entrevista aprovada!",
@@ -310,29 +297,15 @@ const AgendamentosNew = () => {
     if (!motivo) return;
 
     try {
-      // Atualizar status e observações diretamente
+      // Atualizar status na tabela entrevistas_agendamento
       const { error: updateError } = await supabase
-        .from("agendamentos")
+        .from("entrevistas_agendamento")
         .update({ 
-          status: "Reprovado" as any,
-          observacoes: motivo
+          status: "Reprovado"
         })
         .eq("id", id);
 
       if (updateError) throw updateError;
-
-      // Tentar enviar email (não bloquear se falhar)
-      try {
-        await supabase.functions.invoke("send-interview-result-email", {
-          body: {
-            entrevistaId: id,
-            aprovado: false,
-            motivo,
-          },
-        });
-      } catch (emailError) {
-        console.error("Email sending failed:", emailError);
-      }
 
       toast({
         title: "Entrevista reprovada",
