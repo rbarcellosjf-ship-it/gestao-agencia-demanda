@@ -43,10 +43,10 @@ export const AgendamentoAssinaturaCard = ({ assinatura, onDelete }: AgendamentoA
         statusBorderMap[assinatura.status || "Aguardando entrevista"] || statusBorders.pendente
       )}
     >
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-sm font-semibold mb-0.5">
+            <CardTitle className="text-base font-semibold mb-1">
               {format(new Date(assinatura.data_hora), "dd/MM/yyyy HH:mm", { locale: ptBR })}
             </CardTitle>
             <CardDescription className="text-xs">
@@ -66,20 +66,20 @@ export const AgendamentoAssinaturaCard = ({ assinatura, onDelete }: AgendamentoA
         </div>
       </CardHeader>
 
-      <CardContent className="py-2 space-y-2">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+      <CardContent className="py-3 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
           {assinatura.conformidades && (
             <>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-tighter">CPF</p>
-                <p className="font-medium text-xs">{assinatura.conformidades.cpf}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">CPF</p>
+                <p className="font-medium text-sm">{assinatura.conformidades.cpf}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-tighter">Modalidade</p>
-                <p className="font-medium text-xs">{assinatura.conformidades.modalidade}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Modalidade</p>
+                <p className="font-medium text-sm">{assinatura.conformidades.modalidade}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-tighter">Valor do Financiamento</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Valor do Financiamento</p>
                 <p className="font-semibold text-sm">
                   {new Intl.NumberFormat("pt-BR", {
                     style: "currency",
@@ -88,14 +88,18 @@ export const AgendamentoAssinaturaCard = ({ assinatura, onDelete }: AgendamentoA
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-tighter">Código CCA</p>
-                <p className="font-medium text-xs">{assinatura.conformidades.codigo_cca}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Código CCA</p>
+                <p className="font-medium text-sm">{assinatura.conformidades.codigo_cca}</p>
               </div>
             </>
           )}
-          
-          <ObservacoesCollapsible observacoes={assinatura.observacoes} />
         </div>
+          
+        {assinatura.observacoes && (
+          <div className="pt-2 border-t">
+            <ObservacoesCollapsible observacoes={assinatura.observacoes} />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
