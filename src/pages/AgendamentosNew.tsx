@@ -13,7 +13,6 @@ import { ArrowLeft, Plus, Calendar } from "lucide-react";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { EntrevistaCard } from "@/components/EntrevistaCard";
 import { DossieUpload } from "@/components/DossieUpload";
-import { EntrevistaPendenteCard } from "@/components/EntrevistaPendenteCard";
 import { ObservacoesField } from "@/components/ObservacoesField";
 import { CriarContratoVinculadoDialog } from "@/components/CriarContratoVinculadoDialog";
 import {
@@ -35,7 +34,6 @@ const AgendamentosNew = () => {
   const { canCreate, role } = useCanCreateAgendamento();
   const [entrevistas, setEntrevistas] = useState<any[]>([]);
   const [assinaturas, setAssinaturas] = useState<any[]>([]);
-  const [agendamentosEntrevistas, setAgendamentosEntrevistas] = useState<any[]>([]);
   const [ccas, setCcas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -53,13 +51,6 @@ const AgendamentosNew = () => {
     observacoes: "",
     dossie_cliente_url: "",
     cca_user_id: "", // Será preenchido automaticamente
-    nomeCliente: "",
-    telefone: "",
-    dataOpcao1: "",
-    dataOpcao2: "",
-    horarioInicio: "",
-    horarioFim: "",
-    nomeEmpresa: "",
   });
 
   useEffect(() => {
@@ -74,7 +65,8 @@ const AgendamentosNew = () => {
         {
           event: "*",
           schema: "public",
-          table: "entrevistas_agendamento",
+          table: "agendamentos",
+          filter: "tipo=eq.entrevista",
         },
         () => loadData()
       )
@@ -108,24 +100,19 @@ const AgendamentosNew = () => {
         return;
       }
 
-      // Buscar entrevistas da tabela entrevistas_agendamento
+      // Buscar entrevistas com conformidade_id
       const { data: entrevistasData, error: entrevistasError } = await supabase
-        .from("entrevistas_agendamento")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .from("agendamentos")
+        .select(`
+          *,
+          conformidades!inner(id)
+        `)
+        .eq("tipo", "entrevista")
+        .order("data_hora", { ascending: false });
 
       if (entrevistasError) throw entrevistasError;
 
-      // Buscar entrevistas confirmadas migradas para agendamentos
-      const { data: agendamentosEntrevistasData, error: agendamentosError } = await supabase
-        .from("agendamentos")
-        .select("*")
-        .eq("tipo", "entrevista")
-        .order("created_at", { ascending: false });
-
-      if (agendamentosError) throw agendamentosError;
-
-      // Buscar assinaturas da tabela agendamentos
+      // Buscar assinaturas
       const { data: assinaturasData, error: assinaturasError } = await supabase
         .from("agendamentos")
         .select("*")
@@ -135,7 +122,6 @@ const AgendamentosNew = () => {
       if (assinaturasError) throw assinaturasError;
 
       setEntrevistas(entrevistasData || []);
-      setAgendamentosEntrevistas(agendamentosEntrevistasData || []);
       setAssinaturas(assinaturasData || []);
     } catch (error: any) {
       console.error("Error loading data:", error);
@@ -182,65 +168,55 @@ const AgendamentosNew = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // Validar campos obrigatórios
-      if (!formData.nomeCliente || !formData.telefone || !formData.dataOpcao1 || !formData.dataOpcao2 || !formData.horarioInicio || !formData.horarioFim) {
+      // Validar CPF
+      if (!validateCPF(formData.cpf)) {
         toast({
-          title: "Campos obrigatórios",
-          description: "Por favor, preencha todos os campos obrigatórios.",
+          title: "CPF inválido",
+          description: "Por favor, verifique o CPF digitado.",
           variant: "destructive",
         });
         return;
       }
 
-      // Criar registro em entrevistas_agendamento com status pendente
-      const { data: entrevista, error: entrevistaError } = await supabase
-        .from("entrevistas_agendamento")
-        .insert([{
-          cliente_nome: formData.nomeCliente,
-          telefone: formData.telefone.replace(/\D/g, ''),
-          data_opcao_1: formData.dataOpcao1,
-          data_opcao_2: formData.dataOpcao2,
-          horario_inicio: formData.horarioInicio,
-          horario_fim: formData.horarioFim,
-          nome_empresa: formData.nomeEmpresa || null,
-          status: 'pendente',
-          agencia: 'Manchester',
-          endereco_agencia: 'Avenida Barao Do Rio Branco, 2340',
-        }])
-        .select()
-        .single();
-
-      if (entrevistaError) {
-        throw entrevistaError;
+      // Normalizar CPF (remover formatação)
+      const normalizedCPF = normalizeCPF(formData.cpf);
+      
+      if (!normalizedCPF.match(/^\d{11}$/)) {
+        toast({
+          title: "CPF inválido",
+          description: "CPF deve conter exatamente 11 dígitos.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      // Enviar mensagem via WhatsApp
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('codigo_cca, full_name')
-        .eq('user_id', user.id)
-        .single();
+      // Determinar o cca_user_id
+      let ccaUserId = formData.cca_user_id;
+      if (role === 'cca' || !ccaUserId) {
+        ccaUserId = user.id;
+      }
 
-      const whatsappPayload = {
-        phoneNumber: formData.telefone.replace(/\D/g, ''),
-        message: `Olá ${formData.nomeCliente}! 👋\n\n` +
-          `Aqui é ${profileData?.full_name || 'a equipe'} da Manchester Crédito Habitacional.\n\n` +
-          `Precisamos agendar uma entrevista${formData.nomeEmpresa ? ` para ${formData.nomeEmpresa}` : ''}.\n\n` +
-          `📅 Temos duas opções de data:\n` +
-          `1️⃣ ${format(new Date(formData.dataOpcao1), "dd/MM/yyyy", { locale: ptBR })}\n` +
-          `2️⃣ ${format(new Date(formData.dataOpcao2), "dd/MM/yyyy", { locale: ptBR })}\n\n` +
-          `⏰ Horário: ${formData.horarioInicio} às ${formData.horarioFim}\n\n` +
-          `📍 Local: Manchester - Avenida Barao Do Rio Branco, 2340\n\n` +
-          `Por favor, responda com o número da opção que melhor se adequa à sua agenda (1 ou 2), ou nos avise se nenhuma das datas funciona para você.`
+      const insertData: Partial<AgendamentoInput> = {
+        cpf: normalizedCPF,
+        tipo_contrato: formData.tipo_contrato as 'individual' | 'empreendimento',
+        modalidade_financiamento: formData.modalidade_financiamento as 'mcmv' | 'sbpe',
+        comite_credito: formData.comite_credito,
+        data_hora: formData.data_hora,
+        observacoes: formData.observacoes || undefined,
+        dossie_cliente_url: formData.dossie_cliente_url || undefined,
+        tipo: "entrevista" as const,
+        cca_user_id: ccaUserId,
       };
 
-      await supabase.functions.invoke('send-whatsapp', {
-        body: whatsappPayload
-      });
+      const { data, error } = await safeInsertAgendamento(insertData);
+
+      if (error) {
+        throw new Error(formatAgendamentoError(error));
+      }
 
       toast({
-        title: "Entrevista criada!",
-        description: "Agendamento criado com sucesso. Aguardando confirmação do cliente via WhatsApp.",
+        title: "Entrevista agendada!",
+        description: "A entrevista foi registrada com sucesso.",
       });
 
       setDialogOpen(false);
@@ -249,7 +225,7 @@ const AgendamentosNew = () => {
     } catch (error: any) {
       console.error("Error creating entrevista:", error);
       toast({
-        title: "Erro ao criar entrevista",
+        title: "Erro ao agendar entrevista",
         description: error.message,
         variant: "destructive",
       });
@@ -266,27 +242,33 @@ const AgendamentosNew = () => {
       observacoes: "",
       dossie_cliente_url: "",
       cca_user_id: "",
-      nomeCliente: "",
-      telefone: "",
-      dataOpcao1: "",
-      dataOpcao2: "",
-      horarioInicio: "",
-      horarioFim: "",
-      nomeEmpresa: "",
     });
   };
 
   const handleAprovar = async (id: string) => {
     try {
-      // Atualizar status na tabela entrevistas_agendamento
+      // Atualizar status diretamente
       const { error: updateError } = await supabase
-        .from("entrevistas_agendamento")
+        .from("agendamentos")
         .update({ 
-          status: "Aprovado"
+          status: "Aprovado" as any,
+          observacoes: "Entrevista aprovada"
         })
         .eq("id", id);
 
       if (updateError) throw updateError;
+
+      // Tentar enviar email (não bloquear se falhar)
+      try {
+        await supabase.functions.invoke("send-interview-result-email", {
+          body: {
+            entrevistaId: id,
+            aprovado: true,
+          },
+        });
+      } catch (emailError) {
+        console.error("Email sending failed:", emailError);
+      }
 
       toast({
         title: "Entrevista aprovada!",
@@ -309,15 +291,29 @@ const AgendamentosNew = () => {
     if (!motivo) return;
 
     try {
-      // Atualizar status na tabela entrevistas_agendamento
+      // Atualizar status e observações diretamente
       const { error: updateError } = await supabase
-        .from("entrevistas_agendamento")
+        .from("agendamentos")
         .update({ 
-          status: "Reprovado"
+          status: "Reprovado" as any,
+          observacoes: motivo
         })
         .eq("id", id);
 
       if (updateError) throw updateError;
+
+      // Tentar enviar email (não bloquear se falhar)
+      try {
+        await supabase.functions.invoke("send-interview-result-email", {
+          body: {
+            entrevistaId: id,
+            aprovado: false,
+            motivo,
+          },
+        });
+      } catch (emailError) {
+        console.error("Email sending failed:", emailError);
+      }
 
       toast({
         title: "Entrevista reprovada",
@@ -340,112 +336,6 @@ const AgendamentosNew = () => {
       title: "Em desenvolvimento",
       description: "Função de edição será implementada em breve.",
     });
-  };
-
-  const handleConfirmarData = async (entrevistaId: string, dataEscolhida: Date, opcao?: 1 | 2) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Erro",
-          description: "Você precisa estar autenticado",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // 1. Atualizar entrevistas_agendamento
-      const { error: updateError } = await supabase
-        .from('entrevistas_agendamento')
-        .update({
-          data_confirmada: dataEscolhida.toISOString().split('T')[0],
-          opcao_escolhida: opcao || null,
-          status: 'confirmado'
-        })
-        .eq('id', entrevistaId);
-
-      if (updateError) {
-        console.error("Error updating interview:", updateError);
-        toast({
-          title: "Erro ao confirmar data",
-          description: updateError.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // 2. Buscar dados da entrevista
-      const { data: entrevista, error: fetchError } = await supabase
-        .from('entrevistas_agendamento')
-        .select('*, conformidades(*)')
-        .eq('id', entrevistaId)
-        .single();
-
-      if (fetchError || !entrevista) {
-        console.error("Error fetching interview:", fetchError);
-        toast({
-          title: "Erro",
-          description: "Erro ao buscar dados da entrevista",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // 3. Combinar data e horário para criar data_hora
-      const dataHora = new Date(dataEscolhida);
-      const [hora, minuto] = entrevista.horario_inicio.split(':');
-      dataHora.setHours(parseInt(hora), parseInt(minuto), 0, 0);
-
-      // 4. Criar em agendamentos
-      const { error: insertError } = await supabase
-        .from('agendamentos')
-        .insert({
-          tipo: 'entrevista',
-          data_hora: dataHora.toISOString(),
-          cpf: entrevista.conformidades?.cpf || null,
-          status: 'Aguardando entrevista',
-          cca_user_id: session.user.id,
-          tipo_contrato: entrevista.conformidades?.tipo_contrato || 'individual',
-          modalidade_financiamento: entrevista.conformidades?.modalidade || null,
-          comite_credito: entrevista.conformidades?.comite_credito || false,
-          observacoes: null,
-        });
-
-      if (insertError) {
-        console.error("Error creating agendamento:", insertError);
-        toast({
-          title: "Erro ao migrar agendamento",
-          description: insertError.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // 5. Enviar WhatsApp de confirmação
-      const message = `Olá ${entrevista.cliente_nome}! ✅\n\nSua entrevista foi confirmada para ${format(dataHora, "dd/MM/yyyy (EEEE) 'às' HH:mm", { locale: ptBR })}.\n\n📍 Local: ${entrevista.agencia} - ${entrevista.endereco_agencia}\n\nAguardamos você!`;
-
-      await supabase.functions.invoke('send-whatsapp', {
-        body: {
-          phone: entrevista.telefone,
-          message: message,
-        },
-      });
-
-      toast({
-        title: "Data confirmada com sucesso",
-        description: "Agendamento criado e WhatsApp de confirmação enviado",
-      });
-
-      // 6. Recarregar dados
-      loadData();
-    } catch (error) {
-      console.error("Error:", error);
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao confirmar a data",
-        variant: "destructive",
-      });
-    }
   };
 
   if (loading) {
@@ -497,85 +387,93 @@ const AgendamentosNew = () => {
                     className="bg-muted"
                   />
                 </div>
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="nomeCliente">Nome do Cliente *</Label>
+                    <Label htmlFor="cpf">CPF</Label>
                     <Input
-                      id="nomeCliente"
-                      value={formData.nomeCliente}
-                      onChange={(e) => setFormData({ ...formData, nomeCliente: e.target.value })}
-                      placeholder="Nome completo"
+                      id="cpf"
+                      value={formData.cpf}
+                      onChange={(e) =>
+                        setFormData({ ...formData, cpf: e.target.value })
+                      }
+                      placeholder="000.000.000-00"
                       required
                     />
                   </div>
                   <div>
-                    <Label htmlFor="telefone">Telefone/WhatsApp *</Label>
+                    <Label htmlFor="tipo_contrato">Tipo de Contrato</Label>
+                    <Select
+                      value={formData.tipo_contrato}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, tipo_contrato: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="individual">Individual</SelectItem>
+                        <SelectItem value="empreendimento">Empreendimento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="modalidade">Modalidade de Financiamento</Label>
+                    <Select
+                      value={formData.modalidade_financiamento}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, modalidade_financiamento: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="mcmv">MCMV</SelectItem>
+                        <SelectItem value="sbpe">SBPE</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="data_hora">Data e Hora</Label>
                     <Input
-                      id="telefone"
-                      value={formData.telefone}
-                      onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-                      placeholder="(00) 00000-0000"
+                      id="data_hora"
+                      type="datetime-local"
+                      value={formData.data_hora}
+                      onChange={(e) =>
+                        setFormData({ ...formData, data_hora: e.target.value })
+                      }
                       required
                     />
                   </div>
                 </div>
-                
-                <div>
-                  <Label htmlFor="nomeEmpresa">Nome da Empresa (opcional)</Label>
-                  <Input
-                    id="nomeEmpresa"
-                    value={formData.nomeEmpresa}
-                    onChange={(e) => setFormData({ ...formData, nomeEmpresa: e.target.value })}
-                    placeholder="Nome da empresa do cliente"
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="comite"
+                    checked={formData.comite_credito}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, comite_credito: checked as boolean })
+                    }
                   />
+                  <label htmlFor="comite" className="text-sm font-medium">
+                    Requer Comitê de Crédito
+                  </label>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="dataOpcao1">Data Opção 1 *</Label>
-                    <Input
-                      id="dataOpcao1"
-                      type="date"
-                      value={formData.dataOpcao1}
-                      onChange={(e) => setFormData({ ...formData, dataOpcao1: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="dataOpcao2">Data Opção 2 *</Label>
-                    <Input
-                      id="dataOpcao2"
-                      type="date"
-                      value={formData.dataOpcao2}
-                      onChange={(e) => setFormData({ ...formData, dataOpcao2: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="horarioInicio">Horário Início *</Label>
-                    <Input
-                      id="horarioInicio"
-                      type="time"
-                      value={formData.horarioInicio}
-                      onChange={(e) => setFormData({ ...formData, horarioInicio: e.target.value })}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="horarioFim">Horário Fim *</Label>
-                    <Input
-                      id="horarioFim"
-                      type="time"
-                      value={formData.horarioFim}
-                      onChange={(e) => setFormData({ ...formData, horarioFim: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
+
+                <DossieUpload
+                  onUploadComplete={(url) =>
+                    setFormData({ ...formData, dossie_cliente_url: url })
+                  }
+                />
+
+                <ObservacoesField
+                  value={formData.observacoes}
+                  onChange={(value) =>
+                    setFormData({ ...formData, observacoes: value })
+                  }
+                  placeholder="Observações sobre a entrevista..."
+                />
 
                 <div className="flex justify-end gap-2 pt-4">
                   <Button
@@ -608,55 +506,26 @@ const AgendamentosNew = () => {
           </TabsList>
 
           <TabsContent value="entrevistas" className="space-y-4">
-            {entrevistas.length === 0 && agendamentosEntrevistas.length === 0 ? (
+            {entrevistas.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   Nenhuma entrevista agendada
                 </CardContent>
               </Card>
             ) : (
-              <>
-                {/* Entrevistas pendentes de confirmação */}
-                {entrevistas.filter(e => e.status === 'pendente').map((entrevista) => (
-                  <EntrevistaPendenteCard
-                    key={entrevista.id}
-                    entrevista={entrevista}
-                    onConfirmarData={handleConfirmarData}
-                  />
-                ))}
-
-                {/* Entrevistas confirmadas com outros status */}
-                {entrevistas.filter(e => e.status !== 'pendente').map((entrevista) => (
-                  <EntrevistaCard
-                    key={entrevista.id}
-                    entrevista={entrevista}
-                    onAprovar={handleAprovar}
-                    onReprovar={handleReprovar}
-                    onEditar={handleEditar}
-                    onCriarContrato={(entrevista) => {
-                      setEntrevistaSelecionada(entrevista);
-                      setCriarContratoOpen(true);
-                    }}
-                  />
-                ))}
-
-                {/* Entrevistas confirmadas migradas para agendamentos */}
-                {agendamentosEntrevistas.map((agendamento) => (
-                  <Card key={agendamento.id} className="p-6">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold">Entrevista Confirmada</h3>
-                        <span className="text-sm text-muted-foreground">
-                          {format(new Date(agendamento.data_hora), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                        </span>
-                      </div>
-                      {agendamento.cpf && (
-                        <p className="text-sm text-muted-foreground">CPF: {agendamento.cpf}</p>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-              </>
+              entrevistas.map((entrevista) => (
+                <EntrevistaCard
+                  key={entrevista.id}
+                  entrevista={entrevista}
+                  onAprovar={handleAprovar}
+                  onReprovar={handleReprovar}
+                  onEditar={handleEditar}
+                  onCriarContrato={(entrevista) => {
+                    setEntrevistaSelecionada(entrevista);
+                    setCriarContratoOpen(true);
+                  }}
+                />
+              ))
             )}
           </TabsContent>
 
