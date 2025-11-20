@@ -517,6 +517,10 @@ const AgendamentosNew = () => {
                   onAprovar={handleAprovar}
                   onReprovar={handleReprovar}
                   onEditar={handleEditar}
+                  onCriarContrato={(entrevista) => {
+                    setEntrevistaSelecionada(entrevista);
+                    setCriarContratoOpen(true);
+                  }}
                 />
               ))
             )}
@@ -564,6 +568,25 @@ const AgendamentosNew = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {criarContratoOpen && entrevistaSelecionada && (
+        <CriarContratoVinculadoDialog
+          open={criarContratoOpen}
+          onOpenChange={setCriarContratoOpen}
+          entrevistaId={entrevistaSelecionada.id}
+          cpfCliente={entrevistaSelecionada.cpf}
+          nomeCliente={entrevistaSelecionada.tipo_contrato || "Cliente"}
+          onSuccess={() => {
+            setCriarContratoOpen(false);
+            setEntrevistaSelecionada(null);
+            loadData();
+            toast({
+              title: "Contrato criado!",
+              description: "O contrato foi vinculado à entrevista com sucesso.",
+            });
+          }}
+        />
+      )}
 
       <MobileBottomNav />
     </div>

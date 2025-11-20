@@ -1,14 +1,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, X, Trash2 } from "lucide-react";
+import { Check, X, Trash2, FileText } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useUserRole } from "@/hooks/useUserRole";
 import { ObservacoesField } from "@/components/ObservacoesField";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { statusBorders } from "@/lib/design-tokens";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -29,15 +29,31 @@ interface EntrevistaCardProps {
   onAprovar: (id: string) => void;
   onReprovar: (id: string) => void;
   onEditar: (id: string) => void;
+  onCriarContrato?: (entrevista: any) => void;
 }
 
-export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar }: EntrevistaCardProps) {
+export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, onCriarContrato }: EntrevistaCardProps) {
   const { role } = useUserRole();
   const isAgencia = role === "agencia";
   const { toast } = useToast();
   const [observacoes, setObservacoes] = useState(entrevista.observacoes || "");
   const [isSaving, setIsSaving] = useState(false);
   const [isObservacoesOpen, setIsObservacoesOpen] = useState(false);
+  const [hasConformidade, setHasConformidade] = useState(false);
+
+  // Verificar se já existe conformidade vinculada
+  useEffect(() => {
+    const checkConformidade = async () => {
+      const { data } = await supabase
+        .from('entrevistas_agendamento')
+        .select('conformidade_id')
+        .eq('id', entrevista.id)
+        .single();
+      
+      setHasConformidade(!!data?.conformidade_id);
+    };
+    checkConformidade();
+  }, [entrevista.id]);
 
   const handleSaveObservacoes = async (newObservacoes: string) => {
     setIsSaving(true);
@@ -186,6 +202,28 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar }: 
               <X className="w-4 h-4 mr-2" />
               Reprovar
             </Button>
+          </div>
+        )}
+
+        {isAgencia && entrevista.status === "Aprovado" && !hasConformidade && onCriarContrato && (
+          <div className="flex flex-wrap gap-2 pt-3 border-t">
+            <Button
+              size="sm"
+              variant="default"
+              onClick={() => onCriarContrato(entrevista)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Criar Contrato Vinculado
+            </Button>
+          </div>
+        )}
+
+        {hasConformidade && (
+          <div className="pt-3 border-t">
+            <Badge variant="secondary" className="text-xs">
+              ✓ Contrato já vinculado
+            </Badge>
           </div>
         )}
 
