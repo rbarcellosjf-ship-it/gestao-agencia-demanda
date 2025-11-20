@@ -13,6 +13,7 @@ import { ArrowLeft, Plus, Calendar } from "lucide-react";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { EntrevistaCard } from "@/components/EntrevistaCard";
 import { DossieUpload } from "@/components/DossieUpload";
+import { EntrevistaPendenteCard } from "@/components/EntrevistaPendenteCard";
 import { ObservacoesField } from "@/components/ObservacoesField";
 import { CriarContratoVinculadoDialog } from "@/components/CriarContratoVinculadoDialog";
 import {
@@ -34,6 +35,7 @@ const AgendamentosNew = () => {
   const { canCreate, role } = useCanCreateAgendamento();
   const [entrevistas, setEntrevistas] = useState<any[]>([]);
   const [assinaturas, setAssinaturas] = useState<any[]>([]);
+  const [agendamentosEntrevistas, setAgendamentosEntrevistas] = useState<any[]>([]);
   const [ccas, setCcas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -114,6 +116,15 @@ const AgendamentosNew = () => {
 
       if (entrevistasError) throw entrevistasError;
 
+      // Buscar entrevistas confirmadas migradas para agendamentos
+      const { data: agendamentosEntrevistasData, error: agendamentosError } = await supabase
+        .from("agendamentos")
+        .select("*")
+        .eq("tipo", "entrevista")
+        .order("created_at", { ascending: false });
+
+      if (agendamentosError) throw agendamentosError;
+
       // Buscar assinaturas da tabela agendamentos
       const { data: assinaturasData, error: assinaturasError } = await supabase
         .from("agendamentos")
@@ -124,6 +135,7 @@ const AgendamentosNew = () => {
       if (assinaturasError) throw assinaturasError;
 
       setEntrevistas(entrevistasData || []);
+      setAgendamentosEntrevistas(agendamentosEntrevistasData || []);
       setAssinaturas(assinaturasData || []);
     } catch (error: any) {
       console.error("Error loading data:", error);
@@ -330,6 +342,112 @@ const AgendamentosNew = () => {
     });
   };
 
+  const handleConfirmarData = async (entrevistaId: string, dataEscolhida: Date, opcao?: 1 | 2) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Erro",
+          description: "Você precisa estar autenticado",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 1. Atualizar entrevistas_agendamento
+      const { error: updateError } = await supabase
+        .from('entrevistas_agendamento')
+        .update({
+          data_confirmada: dataEscolhida.toISOString().split('T')[0],
+          opcao_escolhida: opcao || null,
+          status: 'confirmado'
+        })
+        .eq('id', entrevistaId);
+
+      if (updateError) {
+        console.error("Error updating interview:", updateError);
+        toast({
+          title: "Erro ao confirmar data",
+          description: updateError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 2. Buscar dados da entrevista
+      const { data: entrevista, error: fetchError } = await supabase
+        .from('entrevistas_agendamento')
+        .select('*, conformidades(*)')
+        .eq('id', entrevistaId)
+        .single();
+
+      if (fetchError || !entrevista) {
+        console.error("Error fetching interview:", fetchError);
+        toast({
+          title: "Erro",
+          description: "Erro ao buscar dados da entrevista",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 3. Combinar data e horário para criar data_hora
+      const dataHora = new Date(dataEscolhida);
+      const [hora, minuto] = entrevista.horario_inicio.split(':');
+      dataHora.setHours(parseInt(hora), parseInt(minuto), 0, 0);
+
+      // 4. Criar em agendamentos
+      const { error: insertError } = await supabase
+        .from('agendamentos')
+        .insert({
+          tipo: 'entrevista',
+          data_hora: dataHora.toISOString(),
+          cpf: entrevista.conformidades?.cpf || null,
+          status: 'Aguardando entrevista',
+          cca_user_id: session.user.id,
+          tipo_contrato: entrevista.conformidades?.tipo_contrato || 'individual',
+          modalidade_financiamento: entrevista.conformidades?.modalidade || null,
+          comite_credito: entrevista.conformidades?.comite_credito || false,
+          observacoes: null,
+        });
+
+      if (insertError) {
+        console.error("Error creating agendamento:", insertError);
+        toast({
+          title: "Erro ao migrar agendamento",
+          description: insertError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 5. Enviar WhatsApp de confirmação
+      const message = `Olá ${entrevista.cliente_nome}! ✅\n\nSua entrevista foi confirmada para ${format(dataHora, "dd/MM/yyyy (EEEE) 'às' HH:mm", { locale: ptBR })}.\n\n📍 Local: ${entrevista.agencia} - ${entrevista.endereco_agencia}\n\nAguardamos você!`;
+
+      await supabase.functions.invoke('send-whatsapp', {
+        body: {
+          phone: entrevista.telefone,
+          message: message,
+        },
+      });
+
+      toast({
+        title: "Data confirmada com sucesso",
+        description: "Agendamento criado e WhatsApp de confirmação enviado",
+      });
+
+      // 6. Recarregar dados
+      loadData();
+    } catch (error) {
+      console.error("Error:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao confirmar a data",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -490,26 +608,55 @@ const AgendamentosNew = () => {
           </TabsList>
 
           <TabsContent value="entrevistas" className="space-y-4">
-            {entrevistas.length === 0 ? (
+            {entrevistas.length === 0 && agendamentosEntrevistas.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   Nenhuma entrevista agendada
                 </CardContent>
               </Card>
             ) : (
-              entrevistas.map((entrevista) => (
-                <EntrevistaCard
-                  key={entrevista.id}
-                  entrevista={entrevista}
-                  onAprovar={handleAprovar}
-                  onReprovar={handleReprovar}
-                  onEditar={handleEditar}
-                  onCriarContrato={(entrevista) => {
-                    setEntrevistaSelecionada(entrevista);
-                    setCriarContratoOpen(true);
-                  }}
-                />
-              ))
+              <>
+                {/* Entrevistas pendentes de confirmação */}
+                {entrevistas.filter(e => e.status === 'pendente').map((entrevista) => (
+                  <EntrevistaPendenteCard
+                    key={entrevista.id}
+                    entrevista={entrevista}
+                    onConfirmarData={handleConfirmarData}
+                  />
+                ))}
+
+                {/* Entrevistas confirmadas com outros status */}
+                {entrevistas.filter(e => e.status !== 'pendente').map((entrevista) => (
+                  <EntrevistaCard
+                    key={entrevista.id}
+                    entrevista={entrevista}
+                    onAprovar={handleAprovar}
+                    onReprovar={handleReprovar}
+                    onEditar={handleEditar}
+                    onCriarContrato={(entrevista) => {
+                      setEntrevistaSelecionada(entrevista);
+                      setCriarContratoOpen(true);
+                    }}
+                  />
+                ))}
+
+                {/* Entrevistas confirmadas migradas para agendamentos */}
+                {agendamentosEntrevistas.map((agendamento) => (
+                  <Card key={agendamento.id} className="p-6">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-semibold">Entrevista Confirmada</h3>
+                        <span className="text-sm text-muted-foreground">
+                          {format(new Date(agendamento.data_hora), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </span>
+                      </div>
+                      {agendamento.cpf && (
+                        <p className="text-sm text-muted-foreground">CPF: {agendamento.cpf}</p>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </>
             )}
           </TabsContent>
 
