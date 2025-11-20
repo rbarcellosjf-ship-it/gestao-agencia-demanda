@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { statusBorders } from "@/lib/design-tokens";
+import { ObservacoesCollapsible } from "@/components/ObservacoesCollapsible";
 
 interface AgendamentoAssinaturaCardProps {
   assinatura: any;
@@ -39,10 +40,10 @@ export const AgendamentoAssinaturaCard = ({ assinatura }: AgendamentoAssinaturaC
         statusBorderMap[assinatura.status || "Aguardando entrevista"] || statusBorders.pendente
       )}
     >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-3">
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-base font-semibold mb-1">
+            <CardTitle className="text-sm font-semibold mb-0.5">
               {format(new Date(assinatura.data_hora), "dd/MM/yyyy HH:mm", { locale: ptBR })}
             </CardTitle>
             <CardDescription className="text-xs">
@@ -55,21 +56,21 @@ export const AgendamentoAssinaturaCard = ({ assinatura }: AgendamentoAssinaturaC
         </div>
       </CardHeader>
 
-      <CardContent className="py-3 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+      <CardContent className="py-2 space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
           {assinatura.conformidades && (
             <>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">CPF</p>
-                <p className="font-medium">{assinatura.conformidades.cpf}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-tighter">CPF</p>
+                <p className="font-medium text-xs">{assinatura.conformidades.cpf}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Modalidade</p>
-                <p className="font-medium">{assinatura.conformidades.modalidade}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-tighter">Modalidade</p>
+                <p className="font-medium text-xs">{assinatura.conformidades.modalidade}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Valor do Financiamento</p>
-                <p className="font-medium">
+                <p className="text-xs text-muted-foreground uppercase tracking-tighter">Valor do Financiamento</p>
+                <p className="font-semibold text-sm">
                   {new Intl.NumberFormat("pt-BR", {
                     style: "currency",
                     currency: "BRL",
@@ -77,18 +78,13 @@ export const AgendamentoAssinaturaCard = ({ assinatura }: AgendamentoAssinaturaC
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Código CCA</p>
-                <p className="font-medium">{assinatura.conformidades.codigo_cca}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-tighter">Código CCA</p>
+                <p className="font-medium text-xs">{assinatura.conformidades.codigo_cca}</p>
               </div>
             </>
           )}
           
-          {assinatura.observacoes && (
-            <div className="md:col-span-2">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Observações</p>
-              <p className="font-medium">{assinatura.observacoes}</p>
-            </div>
-          )}
+          <ObservacoesCollapsible observacoes={assinatura.observacoes} />
         </div>
       </CardContent>
     </Card>
