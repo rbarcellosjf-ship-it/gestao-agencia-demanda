@@ -152,14 +152,11 @@ const AgendamentosNew = () => {
       }
 
       // Buscar entrevistas com conformidade_id
-      const { data: entrevistasData, error: entrevistasError } = await supabase
-        .from("agendamentos")
-        .select(`
-          *,
-          conformidades!inner(id)
-        `)
-        .eq("tipo", "entrevista")
-        .order("data_hora", { ascending: false });
+    const { data: entrevistasData, error: entrevistasError } = await supabase
+      .from("agendamentos")
+      .select("*")
+      .eq("tipo", "entrevista")
+      .order("data_hora", { ascending: false });
 
       if (entrevistasError) throw entrevistasError;
 
