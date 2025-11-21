@@ -128,6 +128,8 @@ export const ConformidadeCard = ({
             </div>
             {conformidade.entrevista_aprovada ? (
               <Badge variant="default" className="bg-green-500">✓ Aprovada</Badge>
+            ) : agendamento ? (
+              <Badge variant="default" className="bg-yellow-500">📅 Agendada</Badge>
             ) : conformidade.entrevista_id ? (
               <Badge variant="secondary">Pendente</Badge>
             ) : (

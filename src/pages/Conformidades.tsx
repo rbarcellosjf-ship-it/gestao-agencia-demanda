@@ -178,6 +178,8 @@ const Conformidades = () => {
 
       if (error) throw error;
 
+      await loadData();
+
       toast({
         title: "Processo enviado!",
         description: "Processo enviado para conformidade com sucesso.",
