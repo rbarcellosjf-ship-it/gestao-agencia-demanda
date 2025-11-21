@@ -382,7 +382,8 @@ const AgendamentosNew = () => {
   const handleConfirmarEntrevista = async (
     entrevistaId: string, 
     dataConfirmada: string, 
-    opcaoEscolhida: number | null
+    opcaoEscolhida: number | null,
+    horarioEscolhido: string
   ) => {
     try {
       // 1. Buscar dados completos da entrevista pendente
@@ -420,10 +421,10 @@ const AgendamentosNew = () => {
         cpf: cpf,
         tipo_contrato: entrevista.tipo_contrato,
         modalidade_financiamento: entrevista.modalidade_financiamento?.toLowerCase() || 'sbpe',
-        data_hora: `${dataConfirmada}T${entrevista.horario_inicio}:00`,
+        data_hora: `${dataConfirmada}T${horarioEscolhido}:00`,
         status: 'Aguardando entrevista',
         comite_credito: entrevista.comite_credito,
-        observacoes: `Entrevista confirmada - ${opcaoEscolhida ? `Opção ${opcaoEscolhida}` : 'Data alternativa escolhida'}`,
+        observacoes: `Entrevista confirmada - ${opcaoEscolhida ? `Opção ${opcaoEscolhida}` : 'Data alternativa escolhida'} às ${horarioEscolhido}`,
         cca_user_id: entrevista.cca_user_id,
         conformidade_id: entrevista.conformidade_id
       });
@@ -431,8 +432,8 @@ const AgendamentosNew = () => {
       if (insertError) throw insertError;
 
       toast({
-        title: "Data confirmada!",
-        description: "A entrevista foi confirmada e adicionada ao cronograma."
+        title: "Data e horário confirmados!",
+        description: `Entrevista agendada para ${format(new Date(dataConfirmada), "dd/MM/yyyy")} às ${horarioEscolhido}`
       });
 
       // 5. Recarregar dados

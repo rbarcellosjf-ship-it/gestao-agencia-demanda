@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Clock, Calendar, User, FileText, DollarSign, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "@/hooks/use-toast";
 
 interface EntrevistaPendenteCardProps {
   entrevista: {
@@ -25,12 +27,13 @@ interface EntrevistaPendenteCardProps {
     comite_credito?: boolean;
     codigo_cca?: string;
   };
-  onConfirmar: (entrevistaId: string, dataConfirmada: string, opcaoEscolhida: number | null) => void;
+  onConfirmar: (entrevistaId: string, dataConfirmada: string, opcaoEscolhida: number | null, horarioEscolhido: string) => void;
 }
 
 export const EntrevistaPendenteCard = ({ entrevista, onConfirmar }: EntrevistaPendenteCardProps) => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [horarioEscolhido, setHorarioEscolhido] = useState<string>("");
 
   const formatCurrency = (value?: number) => {
     if (!value) return "N/A";
@@ -54,21 +57,65 @@ export const EntrevistaPendenteCard = ({ entrevista, onConfirmar }: EntrevistaPe
     return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
   };
 
+  const isHorarioValid = () => {
+    if (!horarioEscolhido) return false;
+    
+    // Verificar se está no formato correto
+    const timeRegex = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(horarioEscolhido)) return false;
+    
+    // Verificar se está dentro da janela disponível
+    const [horaEscolhida, minutoEscolhido] = horarioEscolhido.split(':').map(Number);
+    const [horaInicio, minutoInicio] = entrevista.horario_inicio.split(':').map(Number);
+    const [horaFim, minutoFim] = entrevista.horario_fim.split(':').map(Number);
+    
+    const escolhidoEmMinutos = horaEscolhida * 60 + minutoEscolhido;
+    const inicioEmMinutos = horaInicio * 60 + minutoInicio;
+    const fimEmMinutos = horaFim * 60 + minutoFim;
+    
+    return escolhidoEmMinutos >= inicioEmMinutos && escolhidoEmMinutos <= fimEmMinutos;
+  };
+
   const handleConfirmarOpcao1 = () => {
-    onConfirmar(entrevista.id, entrevista.data_opcao_1, 1);
+    if (!isHorarioValid()) {
+      toast({
+        title: "Horário inválido",
+        description: "Escolha um horário válido dentro da janela disponível.",
+        variant: "destructive"
+      });
+      return;
+    }
+    onConfirmar(entrevista.id, entrevista.data_opcao_1, 1, horarioEscolhido);
   };
 
   const handleConfirmarOpcao2 = () => {
-    onConfirmar(entrevista.id, entrevista.data_opcao_2, 2);
+    if (!isHorarioValid()) {
+      toast({
+        title: "Horário inválido",
+        description: "Escolha um horário válido dentro da janela disponível.",
+        variant: "destructive"
+      });
+      return;
+    }
+    onConfirmar(entrevista.id, entrevista.data_opcao_2, 2, horarioEscolhido);
   };
 
   const handleConfirmarOutraData = () => {
-    if (selectedDate) {
-      const dateStr = format(selectedDate, "yyyy-MM-dd");
-      onConfirmar(entrevista.id, dateStr, null);
-      setShowCalendar(false);
-      setSelectedDate(undefined);
+    if (!selectedDate) return;
+    
+    if (!isHorarioValid()) {
+      toast({
+        title: "Horário inválido",
+        description: "Escolha um horário válido dentro da janela disponível.",
+        variant: "destructive"
+      });
+      return;
     }
+    
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    onConfirmar(entrevista.id, dateStr, null, horarioEscolhido);
+    setShowCalendar(false);
+    setSelectedDate(undefined);
   };
 
   return (
@@ -166,17 +213,57 @@ export const EntrevistaPendenteCard = ({ entrevista, onConfirmar }: EntrevistaPe
             </div>
           </div>
         </div>
+
+        {/* Campo de Horário da Entrevista */}
+        <div className="rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 p-4 space-y-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+              Escolha o Horário da Entrevista
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Janela disponível: {entrevista.horario_inicio} às {entrevista.horario_fim}
+            </p>
+            
+            <div className="flex items-center gap-3">
+              <Input
+                type="time"
+                value={horarioEscolhido}
+                onChange={(e) => setHorarioEscolhido(e.target.value)}
+                className="max-w-[150px] font-mono text-base"
+                placeholder="00:00"
+              />
+              
+              {horarioEscolhido && !isHorarioValid() && (
+                <Badge variant="destructive" className="text-xs">
+                  Fora da janela disponível
+                </Badge>
+              )}
+              
+              {horarioEscolhido && isHorarioValid() && (
+                <Badge className="bg-green-500 hover:bg-green-600 text-xs">
+                  ✓ Horário válido
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
       </CardContent>
 
       <CardFooter className="flex flex-wrap gap-2 pt-4 border-t">
         <Button
           onClick={handleConfirmarOpcao1}
+          disabled={!isHorarioValid()}
           className="flex-1"
         >
           Confirmar 1ª Data
         </Button>
         <Button
           onClick={handleConfirmarOpcao2}
+          disabled={!isHorarioValid()}
           className="flex-1"
         >
           Confirmar 2ª Data
@@ -184,7 +271,7 @@ export const EntrevistaPendenteCard = ({ entrevista, onConfirmar }: EntrevistaPe
         
         <Popover open={showCalendar} onOpenChange={setShowCalendar}>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" className="w-full" disabled={!isHorarioValid()}>
               <Calendar className="h-4 w-4 mr-2" />
               Escolher Outra Data 📅
             </Button>
