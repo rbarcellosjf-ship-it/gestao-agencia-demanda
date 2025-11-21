@@ -658,6 +658,7 @@ const AgendamentosNew = () => {
                   onAprovar={handleAprovar}
                   onReprovar={handleReprovar}
                   onEditar={handleEditar}
+                  onDelete={loadData}
                   onCriarContrato={(entrevista) => {
                     setEntrevistaSelecionada(entrevista);
                     setCriarContratoOpen(true);

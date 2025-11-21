@@ -30,9 +30,10 @@ interface EntrevistaCardProps {
   onReprovar: (id: string) => void;
   onEditar: (id: string) => void;
   onCriarContrato?: (entrevista: any) => void;
+  onDelete?: () => void;
 }
 
-export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, onCriarContrato }: EntrevistaCardProps) {
+export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, onCriarContrato, onDelete }: EntrevistaCardProps) {
   const { role } = useUserRole();
   const isAgencia = role === "agencia";
   const { toast } = useToast();
@@ -94,6 +95,11 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
         title: "Entrevista excluída",
         description: "A entrevista foi removida com sucesso.",
       });
+
+      // Recarregar lista após exclusão
+      if (onDelete) {
+        onDelete();
+      }
     } catch (error: any) {
       console.error("Error deleting entrevista:", error);
       toast({
