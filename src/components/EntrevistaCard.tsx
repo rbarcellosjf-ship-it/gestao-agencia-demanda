@@ -1,7 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, X, Trash2, FileText } from "lucide-react";
+import { Check, X, Trash2, FileText, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { statusBorders } from "@/lib/design-tokens";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { ReagendarEntrevistaDialog } from "./ReagendarEntrevistaDialog";
 
 interface EntrevistaCardProps {
   entrevista: {
@@ -41,17 +42,25 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
   const [isSaving, setIsSaving] = useState(false);
   const [isObservacoesOpen, setIsObservacoesOpen] = useState(false);
   const [hasConformidade, setHasConformidade] = useState(false);
+  const [reagendarOpen, setReagendarOpen] = useState(false);
+  const [clienteInfo, setClienteInfo] = useState<{ telefone?: string; nome?: string }>({});
 
-  // Verificar se já existe conformidade vinculada
+  // Verificar se já existe conformidade vinculada e buscar info do cliente
   useEffect(() => {
     const checkConformidade = async () => {
       const { data } = await supabase
         .from('entrevistas_agendamento')
-        .select('conformidade_id')
+        .select('conformidade_id, cliente_nome, telefone')
         .eq('id', entrevista.id)
         .single();
       
       setHasConformidade(!!data?.conformidade_id);
+      if (data) {
+        setClienteInfo({
+          telefone: data.telefone || undefined,
+          nome: data.cliente_nome || undefined
+        });
+      }
     };
     checkConformidade();
   }, [entrevista.id]);
@@ -208,6 +217,14 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
               <X className="w-4 h-4 mr-2" />
               Reprovar
             </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setReagendarOpen(true)}
+            >
+              <Calendar className="w-4 h-4 mr-2" />
+              Reagendar
+            </Button>
           </div>
         )}
 
@@ -260,6 +277,17 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
           </CollapsibleContent>
         </Collapsible>
       </CardContent>
+
+      <ReagendarEntrevistaDialog
+        entrevistaId={entrevista.id}
+        dataAtual={entrevista.data_hora}
+        cpfCliente={entrevista.cpf}
+        telefoneCliente={clienteInfo.telefone}
+        nomeCliente={clienteInfo.nome}
+        open={reagendarOpen}
+        onOpenChange={setReagendarOpen}
+        onSuccess={onDelete}
+      />
     </Card>
   );
 }
