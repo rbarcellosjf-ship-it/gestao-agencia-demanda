@@ -26,6 +26,7 @@ interface EntrevistaCardProps {
     status: string;
     observacoes?: string;
     dossie_cliente_url?: string;
+    conformidade_id?: string;
   };
   onAprovar: (id: string) => void;
   onReprovar: (id: string) => void;
@@ -47,23 +48,47 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
 
   // Verificar se já existe conformidade vinculada e buscar info do cliente
   useEffect(() => {
-    const checkConformidade = async () => {
-      const { data } = await supabase
-        .from('entrevistas_agendamento')
-        .select('conformidade_id, cliente_nome, telefone')
-        .eq('id', entrevista.id)
-        .single();
-      
-      setHasConformidade(!!data?.conformidade_id);
-      if (data) {
-        setClienteInfo({
-          telefone: data.telefone || undefined,
-          nome: data.cliente_nome || undefined
-        });
+    const checkConformidadeAndLoadClientInfo = async () => {
+      let telefone: string | undefined;
+      let nome: string | undefined;
+      let hasConf = false;
+
+      // Se há conformidade_id vinculada, buscar info da entrevista_agendamento via conformidade
+      if (entrevista.conformidade_id) {
+        const { data: entrevistaViaConformidade } = await supabase
+          .from('entrevistas_agendamento')
+          .select('cliente_nome, telefone, conformidade_id')
+          .eq('conformidade_id', entrevista.conformidade_id)
+          .maybeSingle();
+        
+        if (entrevistaViaConformidade) {
+          telefone = entrevistaViaConformidade.telefone;
+          nome = entrevistaViaConformidade.cliente_nome;
+          hasConf = !!entrevistaViaConformidade.conformidade_id;
+        }
       }
+      
+      // Se não encontrou ainda, tentar buscar pela própria ID (se vier de entrevistas_agendamento)
+      if (!telefone) {
+        const { data: entrevistaOriginal } = await supabase
+          .from('entrevistas_agendamento')
+          .select('cliente_nome, telefone, conformidade_id')
+          .eq('id', entrevista.id)
+          .maybeSingle();
+        
+        if (entrevistaOriginal) {
+          telefone = entrevistaOriginal.telefone;
+          nome = entrevistaOriginal.cliente_nome;
+          hasConf = hasConf || !!entrevistaOriginal.conformidade_id;
+        }
+      }
+
+      setHasConformidade(hasConf);
+      setClienteInfo({ telefone, nome });
     };
-    checkConformidade();
-  }, [entrevista.id]);
+    
+    checkConformidadeAndLoadClientInfo();
+  }, [entrevista.id, entrevista.conformidade_id]);
 
   const handleSaveObservacoes = async (newObservacoes: string) => {
     setIsSaving(true);
