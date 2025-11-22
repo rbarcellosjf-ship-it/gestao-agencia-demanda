@@ -180,21 +180,32 @@ export function ReagendarEntrevistaDialog({
             />
           </div>
 
-          {telefoneCliente && (
-            <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50/50">
+          <div className="space-y-2">
+            <Label className="text-base font-semibold">📱 Notificação ao Cliente</Label>
+            <div className="flex items-start space-x-3 p-4 border-2 rounded-lg bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
               <Checkbox
                 id="notificar"
                 checked={notificarCliente}
                 onCheckedChange={(checked) => setNotificarCliente(checked as boolean)}
+                disabled={!telefoneCliente}
+                className="mt-1"
               />
-              <label
-                htmlFor="notificar"
-                className="text-sm font-medium leading-none cursor-pointer"
-              >
-                Notificar cliente via WhatsApp
-              </label>
+              <div className="flex-1">
+                <label
+                  htmlFor="notificar"
+                  className="text-sm font-semibold leading-none cursor-pointer block mb-1"
+                >
+                  Enviar notificação via WhatsApp
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  {telefoneCliente 
+                    ? `O cliente será notificado no número ${telefoneCliente} sobre o novo horário`
+                    : "Telefone do cliente não disponível para notificação"
+                  }
+                </p>
+              </div>
             </div>
-          )}
+          </div>
 
           <div className="flex gap-2 pt-4">
             <Button
