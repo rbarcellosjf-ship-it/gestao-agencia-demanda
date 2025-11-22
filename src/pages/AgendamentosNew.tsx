@@ -421,7 +421,7 @@ const AgendamentosNew = () => {
         cpf: cpf,
         tipo_contrato: entrevista.tipo_contrato,
         modalidade_financiamento: entrevista.modalidade_financiamento?.toLowerCase() || 'sbpe',
-        data_hora: `${dataConfirmada}T${horarioEscolhido}:00`,
+        data_hora: `${dataConfirmada}T${horarioEscolhido}:00-03:00`,
         status: 'Aguardando entrevista',
         comite_credito: entrevista.comite_credito,
         observacoes: `Entrevista confirmada - ${opcaoEscolhida ? `Opção ${opcaoEscolhida}` : 'Data alternativa escolhida'} às ${horarioEscolhido}`,
