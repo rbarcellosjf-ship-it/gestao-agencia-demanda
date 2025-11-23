@@ -27,6 +27,7 @@ export type Database = {
           modalidade_financiamento: string | null
           observacoes: string | null
           status: string | null
+          telefone_cliente: string | null
           tipo: string
           tipo_contrato: string | null
         }
@@ -42,6 +43,7 @@ export type Database = {
           modalidade_financiamento?: string | null
           observacoes?: string | null
           status?: string | null
+          telefone_cliente?: string | null
           tipo: string
           tipo_contrato?: string | null
         }
@@ -57,6 +59,7 @@ export type Database = {
           modalidade_financiamento?: string | null
           observacoes?: string | null
           status?: string | null
+          telefone_cliente?: string | null
           tipo?: string
           tipo_contrato?: string | null
         }
