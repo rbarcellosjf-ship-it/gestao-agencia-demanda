@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Calendar, Clock } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Clock, Filter, ChevronDown, ChevronUp } from "lucide-react";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { EntrevistaCard } from "@/components/EntrevistaCard";
 import { EntrevistaPendenteCard } from "@/components/EntrevistaPendenteCard";
@@ -42,6 +42,16 @@ const AgendamentosNew = () => {
   const [criarContratoOpen, setCriarContratoOpen] = useState(false);
   const [entrevistaSelecionada, setEntrevistaSelecionada] = useState<any>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  
+  // Filtros state
+  const [filtros, setFiltros] = useState({
+    ocultarPassadas: true,
+    ccaCodigo: "Todos",
+    tipoContrato: "Todos",
+    modalidade: "Todos",
+    comiteCredito: "Todos"
+  });
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -151,21 +161,21 @@ const AgendamentosNew = () => {
         return;
       }
 
-      // Buscar entrevistas com conformidade_id
+      // Buscar entrevistas com conformidade_id - ordenar por data mais próxima primeiro
     const { data: entrevistasData, error: entrevistasError } = await supabase
       .from("agendamentos")
       .select("*")
       .eq("tipo", "entrevista")
-      .order("data_hora", { ascending: false });
+      .order("data_hora", { ascending: true });
 
       if (entrevistasError) throw entrevistasError;
 
-      // Buscar assinaturas
+      // Buscar assinaturas - ordenar por data mais próxima primeiro
       const { data: assinaturasData, error: assinaturasError } = await supabase
         .from("agendamentos")
         .select("*")
         .eq("tipo", "assinatura")
-        .order("data_hora", { ascending: false });
+        .order("data_hora", { ascending: true });
 
       if (assinaturasError) throw assinaturasError;
 
@@ -414,6 +424,7 @@ const AgendamentosNew = () => {
       const cpf = entrevista.conformidades?.cpf;
 
     // 4. Criar entrada em agendamentos (migração)
+    const formattedData = format(new Date(dataConfirmada), "dd/MM/yyyy", { locale: ptBR });
     const { error: insertError } = await supabase
       .from('agendamentos')
       .insert({
@@ -424,9 +435,10 @@ const AgendamentosNew = () => {
         data_hora: `${dataConfirmada}T${horarioEscolhido}:00-03:00`,
         status: 'Aguardando entrevista',
         comite_credito: entrevista.comite_credito,
-        observacoes: `Entrevista confirmada - ${opcaoEscolhida ? `Opção ${opcaoEscolhida}` : 'Data alternativa escolhida'} às ${horarioEscolhido}`,
+        observacoes: `Entrevista confirmada - ${formattedData} às ${horarioEscolhido}`,
         cca_user_id: entrevista.cca_user_id,
-        conformidade_id: entrevista.conformidade_id
+        conformidade_id: entrevista.conformidade_id,
+        telefone_cliente: entrevista.telefone
       });
 
       if (insertError) throw insertError;
@@ -455,6 +467,42 @@ const AgendamentosNew = () => {
       description: "Função de edição será implementada em breve.",
     });
   };
+
+  const aplicarFiltros = (items: any[]) => {
+    return items.filter(item => {
+      const dataAgendamento = new Date(item.data_hora);
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+
+      // Filtrar datas passadas
+      if (filtros.ocultarPassadas && dataAgendamento < hoje) return false;
+      
+      // Filtrar por CCA
+      if (filtros.ccaCodigo !== "Todos") {
+        const ccaProfile = ccas.find(c => c.user_id === item.cca_user_id);
+        if (ccaProfile?.codigo_cca !== filtros.ccaCodigo) return false;
+      }
+      
+      // Filtrar por tipo contrato
+      if (filtros.tipoContrato !== "Todos" && item.tipo_contrato !== filtros.tipoContrato) return false;
+      
+      // Filtrar por modalidade
+      if (filtros.modalidade !== "Todos" && item.modalidade_financiamento !== filtros.modalidade) return false;
+      
+      // Filtrar por comitê
+      if (filtros.comiteCredito !== "Todos") {
+        const requerComite = filtros.comiteCredito === "Sim";
+        if (item.comite_credito !== requerComite) return false;
+      }
+      
+      return true;
+    });
+  };
+
+  const entrevistasFiltradas = aplicarFiltros(entrevistas);
+  const assinaturasFiltradas = aplicarFiltros(assinaturas);
+
+  const ccasUnicos = Array.from(new Set(ccas.map(c => c.codigo_cca)));
 
   if (loading) {
     return (
@@ -613,6 +661,132 @@ const AgendamentosNew = () => {
       </header>
 
       <div className="container mx-auto px-4 py-6">
+        {/* FILTROS */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMostrarFiltros(!mostrarFiltros)}
+              className="w-full justify-between"
+            >
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4" />
+                <span className="font-semibold">Filtros</span>
+              </div>
+              {mostrarFiltros ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </Button>
+          </CardHeader>
+          {mostrarFiltros && (
+            <CardContent className="pt-0 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="space-y-2">
+                  <Label>CCA</Label>
+                  <Select
+                    value={filtros.ccaCodigo}
+                    onValueChange={(value) => setFiltros({ ...filtros, ccaCodigo: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Todos">Todos</SelectItem>
+                      {ccasUnicos.map((codigo) => (
+                        <SelectItem key={codigo} value={codigo}>
+                          {codigo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tipo de Contrato</Label>
+                  <Select
+                    value={filtros.tipoContrato}
+                    onValueChange={(value) => setFiltros({ ...filtros, tipoContrato: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Todos">Todos</SelectItem>
+                      <SelectItem value="individual">Individual</SelectItem>
+                      <SelectItem value="empreendimento">Empreendimento</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Modalidade</Label>
+                  <Select
+                    value={filtros.modalidade}
+                    onValueChange={(value) => setFiltros({ ...filtros, modalidade: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Todos">Todos</SelectItem>
+                      <SelectItem value="mcmv">MCMV</SelectItem>
+                      <SelectItem value="sbpe">SBPE</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Comitê de Crédito</Label>
+                  <Select
+                    value={filtros.comiteCredito}
+                    onValueChange={(value) => setFiltros({ ...filtros, comiteCredito: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Todos">Todos</SelectItem>
+                      <SelectItem value="Sim">Sim</SelectItem>
+                      <SelectItem value="Não">Não</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => setFiltros({
+                      ocultarPassadas: true,
+                      ccaCodigo: "Todos",
+                      tipoContrato: "Todos",
+                      modalidade: "Todos",
+                      comiteCredito: "Todos"
+                    })}
+                    className="w-full"
+                  >
+                    Limpar Filtros
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 pt-2 border-t">
+                <Checkbox
+                  id="ocultar-passadas"
+                  checked={filtros.ocultarPassadas}
+                  onCheckedChange={(checked) => 
+                    setFiltros({ ...filtros, ocultarPassadas: checked as boolean })
+                  }
+                />
+                <Label
+                  htmlFor="ocultar-passadas"
+                  className="text-sm font-normal cursor-pointer"
+                >
+                  Ocultar agendamentos de datas passadas
+                </Label>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+
         {/* SEÇÃO 1: ENTREVISTAS PENDENTES DE CONFIRMAÇÃO */}
         {entrevistasPendentes.length > 0 && (
           <div className="mb-8">
@@ -636,22 +810,22 @@ const AgendamentosNew = () => {
         <Tabs defaultValue="entrevistas" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="entrevistas">
-              Entrevistas ({entrevistas.length})
+              Entrevistas ({entrevistasFiltradas.length})
             </TabsTrigger>
             <TabsTrigger value="assinaturas">
-              Assinaturas ({assinaturas.length})
+              Assinaturas ({assinaturasFiltradas.length})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="entrevistas" className="space-y-4">
-            {entrevistas.length === 0 ? (
+            {entrevistasFiltradas.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   Nenhuma entrevista agendada
                 </CardContent>
               </Card>
             ) : (
-              entrevistas.map((entrevista) => (
+              entrevistasFiltradas.map((entrevista) => (
                 <EntrevistaCard
                   key={entrevista.id}
                   entrevista={entrevista}
@@ -669,14 +843,14 @@ const AgendamentosNew = () => {
           </TabsContent>
 
           <TabsContent value="assinaturas" className="space-y-4">
-            {assinaturas.length === 0 ? (
+            {assinaturasFiltradas.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   Nenhuma assinatura agendada
                 </CardContent>
               </Card>
             ) : (
-              assinaturas.map((assinatura) => (
+              assinaturasFiltradas.map((assinatura) => (
                 <Card key={assinatura.id}>
                   <CardHeader>
                     <div className="flex justify-between items-start">

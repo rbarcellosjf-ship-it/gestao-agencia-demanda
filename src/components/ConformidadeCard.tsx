@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Calendar, Mail, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Calendar, Mail, Trash2, ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { StatusSelect } from "@/components/StatusSelect";
@@ -21,6 +21,7 @@ interface ConformidadeCardProps {
   onUpdateObservacoes: (id: string, value: string) => Promise<void>;
   onAgendarEntrevista: (conformidade: any) => void;
   onUpdateEntrevistaAprovada: (id: string, aprovada: boolean) => void;
+  onEdit?: (conformidade: any) => void;
   formatCurrency: (value: number) => string;
 }
 
@@ -44,6 +45,7 @@ export const ConformidadeCard = ({
   onUpdateObservacoes,
   onAgendarEntrevista,
   onUpdateEntrevistaAprovada,
+  onEdit,
   formatCurrency,
 }: ConformidadeCardProps) => {
   const [isObservacoesOpen, setIsObservacoesOpen] = useState(false);
@@ -232,8 +234,20 @@ export const ConformidadeCard = ({
                   : "Distribuir tarefa de Comitê de Crédito"
               }
             >
+              <Mail className="w-4 h-4 mr-2" />
               Solicitar Comitê de Crédito
             </Button>
+
+            {role === "agencia" && onEdit && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onEdit(conformidade)}
+              >
+                <Pencil className="w-4 h-4 mr-2" />
+                Editar
+              </Button>
+            )}
 
             <Button
               size="sm"

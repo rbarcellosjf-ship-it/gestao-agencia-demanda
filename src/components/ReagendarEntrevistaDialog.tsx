@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ export function ReagendarEntrevistaDialog({
   const [novaData, setNovaData] = useState("");
   const [novoHorario, setNovoHorario] = useState("");
   const [notificarCliente, setNotificarCliente] = useState(true);
+  const [telefoneEditavel, setTelefoneEditavel] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,21 +47,30 @@ export function ReagendarEntrevistaDialog({
         throw new Error("Preencha a nova data e horário");
       }
 
-      // Atualizar agendamento com nova data/hora
+      // Atualizar agendamento com nova data/hora e telefone se editado
       const novaDataHora = `${novaData}T${novoHorario}:00-03:00`;
+      const observacoesAtualizadas = `Reagendado de ${format(new Date(dataAtual), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} para ${format(new Date(novaDataHora), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`;
       
+      const updateData: any = {
+        data_hora: novaDataHora,
+        observacoes: observacoesAtualizadas
+      };
+
+      // Se o telefone foi editado, salvar
+      if (telefoneEditavel && telefoneEditavel !== telefoneCliente) {
+        updateData.telefone_cliente = telefoneEditavel;
+      }
+
       const { error: updateError } = await supabase
         .from("agendamentos")
-        .update({ 
-          data_hora: novaDataHora,
-          observacoes: `Reagendado de ${format(new Date(dataAtual), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} para ${format(new Date(novaDataHora), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`
-        })
+        .update(updateData)
         .eq("id", entrevistaId);
 
       if (updateError) throw updateError;
 
-      // Enviar notificação WhatsApp se solicitado
-      if (notificarCliente && telefoneCliente) {
+      // Enviar notificação WhatsApp se solicitado e houver telefone
+      const telefoneParaNotificar = telefoneEditavel || telefoneCliente;
+      if (notificarCliente && telefoneParaNotificar) {
         try {
           // Buscar template de reagendamento
           const { data: template } = await supabase
@@ -81,7 +91,7 @@ export function ReagendarEntrevistaDialog({
 
             await supabase.functions.invoke('send-whatsapp', {
               body: {
-                phone: telefoneCliente,
+                phone: telefoneParaNotificar,
                 message: message
               }
             });
@@ -92,7 +102,7 @@ export function ReagendarEntrevistaDialog({
             
             await supabase.functions.invoke('send-whatsapp', {
               body: {
-                phone: telefoneCliente,
+                phone: telefoneParaNotificar,
                 message: message
               }
             });
@@ -105,7 +115,7 @@ export function ReagendarEntrevistaDialog({
 
       toast({
         title: "Entrevista reagendada",
-        description: notificarCliente && telefoneCliente 
+        description: notificarCliente && telefoneParaNotificar
           ? "A entrevista foi reagendada e o cliente foi notificado."
           : "A entrevista foi reagendada com sucesso.",
       });
@@ -129,6 +139,7 @@ export function ReagendarEntrevistaDialog({
     setNovaData("");
     setNovoHorario("");
     setNotificarCliente(true);
+    setTelefoneEditavel("");
   };
 
   return (
@@ -182,12 +193,28 @@ export function ReagendarEntrevistaDialog({
 
           <div className="space-y-2">
             <Label className="text-base font-semibold">📱 Notificação ao Cliente</Label>
+            
+            {!telefoneCliente && (
+              <div className="space-y-2 mb-3">
+                <Label htmlFor="telefone-editavel">Telefone do Cliente (WhatsApp)</Label>
+                <Input
+                  id="telefone-editavel"
+                  placeholder="(11) 99999-9999"
+                  value={telefoneEditavel}
+                  onChange={(e) => setTelefoneEditavel(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Digite o telefone para habilitar notificação via WhatsApp
+                </p>
+              </div>
+            )}
+            
             <div className="flex items-start space-x-3 p-4 border-2 rounded-lg bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
               <Checkbox
                 id="notificar"
                 checked={notificarCliente}
                 onCheckedChange={(checked) => setNotificarCliente(checked as boolean)}
-                disabled={!telefoneCliente}
+                disabled={!telefoneCliente && !telefoneEditavel}
                 className="mt-1"
               />
               <div className="flex-1">
@@ -198,9 +225,9 @@ export function ReagendarEntrevistaDialog({
                   Enviar notificação via WhatsApp
                 </label>
                 <p className="text-xs text-muted-foreground">
-                  {telefoneCliente 
-                    ? `O cliente será notificado no número ${telefoneCliente} sobre o novo horário`
-                    : "Telefone do cliente não disponível para notificação"
+                  {telefoneCliente || telefoneEditavel
+                    ? `O cliente será notificado no número ${telefoneEditavel || telefoneCliente} sobre o novo horário`
+                    : "Digite o telefone do cliente acima para habilitar notificação"
                   }
                 </p>
               </div>

@@ -34,6 +34,7 @@ import { ConformidadeCard } from "@/components/ConformidadeCard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AgendarEntrevistaDialog } from "@/components/AgendarEntrevistaDialog";
+import { EditarContratoDialog } from "@/components/EditarContratoDialog";
 
 const conformidadeSchema = z.object({
   cpf: z.string()
@@ -78,6 +79,10 @@ const Conformidades = () => {
   const [distribuirOpen, setDistribuirOpen] = useState(false);
   const [distribuirTipo, setDistribuirTipo] = useState<"demanda" | "assinatura" | "comite">("comite");
   const [distribuirReferenciaId, setDistribuirReferenciaId] = useState<string>("");
+  
+  // Editar contrato state
+  const [editarContratoOpen, setEditarContratoOpen] = useState(false);
+  const [conformidadeParaEditar, setConformidadeParaEditar] = useState<any>(null);
 
   useEffect(() => {
     loadData();
@@ -314,6 +319,11 @@ const Conformidades = () => {
     }
   };
 
+  const handleEditarContrato = (conformidade: any) => {
+    setConformidadeParaEditar(conformidade);
+    setEditarContratoOpen(true);
+  };
+
   if (loading) {
     return <LoadingState message="Carregando contratos..." />;
   }
@@ -493,6 +503,7 @@ const Conformidades = () => {
                   }}
                   onAgendarEntrevista={handleAgendarEntrevista}
                   onUpdateEntrevistaAprovada={handleUpdateEntrevistaAprovada}
+                  onEdit={handleEditarContrato}
                   formatCurrency={formatCurrency}
                 />
               );
@@ -545,6 +556,19 @@ const Conformidades = () => {
           onSuccess={() => {
             setAgendarEntrevistaOpen(false);
             setConformidadeSelecionada(null);
+            loadData();
+          }}
+        />
+      )}
+
+      {conformidadeParaEditar && (
+        <EditarContratoDialog
+          open={editarContratoOpen}
+          onOpenChange={setEditarContratoOpen}
+          conformidade={conformidadeParaEditar}
+          onSuccess={() => {
+            setEditarContratoOpen(false);
+            setConformidadeParaEditar(null);
             loadData();
           }}
         />
