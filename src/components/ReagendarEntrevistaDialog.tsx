@@ -38,6 +38,15 @@ export function ReagendarEntrevistaDialog({
   const [notificarCliente, setNotificarCliente] = useState(true);
   const [telefoneEditavel, setTelefoneEditavel] = useState("");
 
+  useEffect(() => {
+    if (open) {
+      setTelefoneEditavel(telefoneCliente || "");
+      setNovaData("");
+      setNovoHorario("");
+      setNotificarCliente(true);
+    }
+  }, [open, telefoneCliente]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -56,8 +65,8 @@ export function ReagendarEntrevistaDialog({
         observacoes: observacoesAtualizadas
       };
 
-      // Se o telefone foi editado, salvar
-      if (telefoneEditavel && telefoneEditavel !== telefoneCliente) {
+      // Sempre salvar o telefone editável, mesmo se não mudou
+      if (telefoneEditavel) {
         updateData.telefone_cliente = telefoneEditavel;
       }
 
@@ -194,27 +203,28 @@ export function ReagendarEntrevistaDialog({
           <div className="space-y-2">
             <Label className="text-base font-semibold">📱 Notificação ao Cliente</Label>
             
-            {!telefoneCliente && (
-              <div className="space-y-2 mb-3">
-                <Label htmlFor="telefone-editavel">Telefone do Cliente (WhatsApp)</Label>
-                <Input
-                  id="telefone-editavel"
-                  placeholder="(11) 99999-9999"
-                  value={telefoneEditavel}
-                  onChange={(e) => setTelefoneEditavel(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Digite o telefone para habilitar notificação via WhatsApp
-                </p>
-              </div>
-            )}
+            <div className="space-y-2 mb-3">
+              <Label htmlFor="telefone-editavel">Telefone do Cliente (WhatsApp)</Label>
+              <Input
+                id="telefone-editavel"
+                placeholder="(11) 99999-9999"
+                value={telefoneEditavel}
+                onChange={(e) => setTelefoneEditavel(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                {telefoneCliente 
+                  ? "Edite o telefone se necessário" 
+                  : "Digite o telefone para habilitar notificação via WhatsApp"
+                }
+              </p>
+            </div>
             
             <div className="flex items-start space-x-3 p-4 border-2 rounded-lg bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
               <Checkbox
                 id="notificar"
                 checked={notificarCliente}
                 onCheckedChange={(checked) => setNotificarCliente(checked as boolean)}
-                disabled={!telefoneCliente && !telefoneEditavel}
+                disabled={!telefoneEditavel}
                 className="mt-1"
               />
               <div className="flex-1">
@@ -225,8 +235,8 @@ export function ReagendarEntrevistaDialog({
                   Enviar notificação via WhatsApp
                 </label>
                 <p className="text-xs text-muted-foreground">
-                  {telefoneCliente || telefoneEditavel
-                    ? `O cliente será notificado no número ${telefoneEditavel || telefoneCliente} sobre o novo horário`
+                  {telefoneEditavel
+                    ? `O cliente será notificado no número ${telefoneEditavel} sobre o novo horário`
                     : "Digite o telefone do cliente acima para habilitar notificação"
                   }
                 </p>

@@ -424,7 +424,9 @@ const AgendamentosNew = () => {
       const cpf = entrevista.conformidades?.cpf;
 
     // 4. Criar entrada em agendamentos (migração)
-    const formattedData = format(new Date(dataConfirmada), "dd/MM/yyyy", { locale: ptBR });
+    // Formatar data sem conversão de timezone
+    const [ano, mes, dia] = dataConfirmada.split('-');
+    const formattedData = `${dia}/${mes}/${ano}`;
     const { error: insertError } = await supabase
       .from('agendamentos')
       .insert({
