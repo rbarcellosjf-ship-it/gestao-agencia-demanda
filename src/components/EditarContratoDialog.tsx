@@ -106,15 +106,36 @@ export function EditarContratoDialog({
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="valor">Valor do Financiamento *</Label>
-            <Input
-              id="valor"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={valorFinanciamento}
-              onChange={(e) => setValorFinanciamento(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none">
+                R$
+              </span>
+              <Input
+                id="valor"
+                type="number"
+                min="50000"
+                step="1000"
+                placeholder="50.000,00"
+                value={valorFinanciamento}
+                onChange={(e) => {
+                  const valor = parseFloat(e.target.value);
+                  if (valor >= 50000 || e.target.value === "") {
+                    setValorFinanciamento(e.target.value);
+                  }
+                }}
+                onBlur={(e) => {
+                  const valor = parseFloat(e.target.value);
+                  if (valor < 50000 && e.target.value !== "") {
+                    setValorFinanciamento("50000");
+                  }
+                }}
+                className="pl-9"
+                required
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Valor mínimo: R$ 50.000,00 • Use as setas para incrementar R$ 1.000,00
+            </p>
           </div>
 
           <div className="space-y-2">
