@@ -117,12 +117,7 @@ export function EditarContratoDialog({
                 step="1000"
                 placeholder="50.000,00"
                 value={valorFinanciamento}
-                onChange={(e) => {
-                  const valor = parseFloat(e.target.value);
-                  if (valor >= 50000 || e.target.value === "") {
-                    setValorFinanciamento(e.target.value);
-                  }
-                }}
+                onChange={(e) => setValorFinanciamento(e.target.value)}
                 onBlur={(e) => {
                   const valor = parseFloat(e.target.value);
                   if (valor < 50000 && e.target.value !== "") {
