@@ -113,8 +113,7 @@ export function EditarContratoDialog({
               <Input
                 id="valor"
                 type="number"
-                min="50000"
-                step="1000"
+                step="0.01"
                 placeholder="50.000,00"
                 value={valorFinanciamento}
                 onChange={(e) => setValorFinanciamento(e.target.value)}
@@ -129,7 +128,7 @@ export function EditarContratoDialog({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Valor mínimo: R$ 50.000,00 • Use as setas para incrementar R$ 1.000,00
+              Valor mínimo: R$ 50.000,00
             </p>
           </div>
 

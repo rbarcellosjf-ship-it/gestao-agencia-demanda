@@ -178,16 +178,10 @@ export const CriarContratoVinculadoDialog = ({
               <Input
                 id="valor"
                 type="number"
-                min="50000"
-                step="1000"
+                step="0.01"
                 placeholder="50.000,00"
                 value={valorFinanciamento}
-                onChange={(e) => {
-                  const valor = parseFloat(e.target.value);
-                  if (valor >= 50000 || e.target.value === "") {
-                    setValorFinanciamento(e.target.value);
-                  }
-                }}
+                onChange={(e) => setValorFinanciamento(e.target.value)}
                 onBlur={(e) => {
                   const valor = parseFloat(e.target.value);
                   if (valor < 50000 && e.target.value !== "") {
@@ -199,7 +193,7 @@ export const CriarContratoVinculadoDialog = ({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Valor mínimo: R$ 50.000,00 • Use as setas para incrementar R$ 1.000,00
+              Valor mínimo: R$ 50.000,00
             </p>
           </div>
 
