@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { StatusSelect } from "@/components/StatusSelect";
 import { ObservacoesField } from "@/components/ObservacoesField";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AgendarAssinaturaWhatsAppDialog } from "@/components/AgendarAssinaturaWhatsAppDialog";
 
 interface ConformidadeCardProps {
   conformidade: any;
@@ -16,12 +17,12 @@ interface ConformidadeCardProps {
   role: string;
   onDelete: (id: string) => void;
   onPedirPrioridade: (conformidade: any) => void;
-  onAgendarAssinatura: (id: string) => void;
   onDistribute: (id: string) => void;
   onUpdateObservacoes: (id: string, value: string) => Promise<void>;
   onAgendarEntrevista: (conformidade: any) => void;
   onUpdateEntrevistaAprovada: (id: string, aprovada: boolean) => void;
   onEdit?: (conformidade: any) => void;
+  onRefresh?: () => void;
   formatCurrency: (value: number) => string;
 }
 
@@ -40,12 +41,12 @@ export const ConformidadeCard = ({
   role,
   onDelete,
   onPedirPrioridade,
-  onAgendarAssinatura,
   onDistribute,
   onUpdateObservacoes,
   onAgendarEntrevista,
   onUpdateEntrevistaAprovada,
   onEdit,
+  onRefresh,
   formatCurrency,
 }: ConformidadeCardProps) => {
   const [isObservacoesOpen, setIsObservacoesOpen] = useState(false);
@@ -249,21 +250,31 @@ export const ConformidadeCard = ({
               </Button>
             )}
 
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!conformidade.entrevista_aprovada}
-              className={cn(!conformidade.entrevista_aprovada && "opacity-50 cursor-not-allowed")}
-              onClick={() => onAgendarAssinatura(conformidade.id)}
-              title={
-                conformidade.entrevista_aprovada
-                  ? "Agendar assinatura de contrato"
-                  : "Aprovação da entrevista necessária"
+            <AgendarAssinaturaWhatsAppDialog
+              conformidadeId={conformidade.id}
+              cpfCliente={conformidade.cpf}
+              modalidade={conformidade.modalidade === "OUTRO" ? conformidade.modalidade_outro : conformidade.modalidade}
+              tipoContrato={conformidade.tipo_contrato}
+              valorFinanciamento={parseFloat(conformidade.valor_financiamento)}
+              codigoCca={conformidade.codigo_cca}
+              onSuccess={onRefresh}
+              trigger={
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!conformidade.entrevista_aprovada}
+                  className={cn(!conformidade.entrevista_aprovada && "opacity-50 cursor-not-allowed")}
+                  title={
+                    conformidade.entrevista_aprovada
+                      ? "Agendar assinatura de contrato"
+                      : "Aprovação da entrevista necessária"
+                  }
+                >
+                  <Calendar className="w-4 h-4 mr-1" />
+                  Agendar Assinatura
+                </Button>
               }
-            >
-              <Calendar className="w-4 h-4 mr-1" />
-              Agendar Assinatura
-            </Button>
+            />
           </div>
         )}
       </CardFooter>

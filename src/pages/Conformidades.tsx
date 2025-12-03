@@ -494,13 +494,6 @@ const Conformidades = () => {
                     setDeleteDialogOpen(true);
                   }}
                   onPedirPrioridade={handlePedirPrioridade}
-                  onAgendarAssinatura={(id) => {
-                    // Implementar lógica de agendamento se necessário
-                    toast({
-                      title: "Funcionalidade em desenvolvimento",
-                      description: "Agendamento de assinatura estará disponível em breve.",
-                    });
-                  }}
                   onDistribute={(id) => {
                     setDistribuirReferenciaId(id);
                     setDistribuirOpen(true);
@@ -518,6 +511,7 @@ const Conformidades = () => {
                   }}
                   onAgendarEntrevista={handleAgendarEntrevista}
                   onUpdateEntrevistaAprovada={handleUpdateEntrevistaAprovada}
+                  onRefresh={loadData}
                   onEdit={handleEditarContrato}
                   formatCurrency={formatCurrency}
                 />
