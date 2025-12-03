@@ -73,6 +73,89 @@ export type Database = {
           },
         ]
       }
+      assinaturas_agendamento: {
+        Row: {
+          agencia: string | null
+          cca_user_id: string | null
+          chat_id: string | null
+          cliente_nome: string
+          codigo_cca: string | null
+          conformidade_id: string | null
+          created_at: string | null
+          data_confirmada: string | null
+          data_opcao_1: string
+          data_opcao_2: string
+          endereco_agencia: string | null
+          horario_fim: string
+          horario_inicio: string
+          id: string
+          mensagem_id: string | null
+          modalidade_financiamento: string | null
+          observacoes: string | null
+          opcao_escolhida: number | null
+          status: string | null
+          telefone: string
+          tipo_contrato: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          agencia?: string | null
+          cca_user_id?: string | null
+          chat_id?: string | null
+          cliente_nome: string
+          codigo_cca?: string | null
+          conformidade_id?: string | null
+          created_at?: string | null
+          data_confirmada?: string | null
+          data_opcao_1: string
+          data_opcao_2: string
+          endereco_agencia?: string | null
+          horario_fim: string
+          horario_inicio: string
+          id?: string
+          mensagem_id?: string | null
+          modalidade_financiamento?: string | null
+          observacoes?: string | null
+          opcao_escolhida?: number | null
+          status?: string | null
+          telefone: string
+          tipo_contrato?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          agencia?: string | null
+          cca_user_id?: string | null
+          chat_id?: string | null
+          cliente_nome?: string
+          codigo_cca?: string | null
+          conformidade_id?: string | null
+          created_at?: string | null
+          data_confirmada?: string | null
+          data_opcao_1?: string
+          data_opcao_2?: string
+          endereco_agencia?: string | null
+          horario_fim?: string
+          horario_inicio?: string
+          id?: string
+          mensagem_id?: string | null
+          modalidade_financiamento?: string | null
+          observacoes?: string | null
+          opcao_escolhida?: number | null
+          status?: string | null
+          telefone?: string
+          tipo_contrato?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assinaturas_agendamento_conformidade_id_fkey"
+            columns: ["conformidade_id"]
+            isOneToOne: false
+            referencedRelation: "conformidades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       configuracoes: {
         Row: {
           chave: string

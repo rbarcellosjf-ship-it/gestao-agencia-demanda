@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Calendar, Clock, Filter, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Clock, Filter, ChevronDown, ChevronUp, FileSignature } from "lucide-react";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { EntrevistaCard } from "@/components/EntrevistaCard";
 import { EntrevistaPendenteCard } from "@/components/EntrevistaPendenteCard";
+import { AssinaturaPendenteCard } from "@/components/AssinaturaPendenteCard";
 import { DossieUpload } from "@/components/DossieUpload";
 import { ObservacoesField } from "@/components/ObservacoesField";
 import { CriarContratoVinculadoDialog } from "@/components/CriarContratoVinculadoDialog";
@@ -36,6 +37,7 @@ const AgendamentosNew = () => {
   const [entrevistas, setEntrevistas] = useState<any[]>([]);
   const [assinaturas, setAssinaturas] = useState<any[]>([]);
   const [entrevistasPendentes, setEntrevistasPendentes] = useState<any[]>([]);
+  const [assinaturasPendentes, setAssinaturasPendentes] = useState<any[]>([]);
   const [ccas, setCcas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -68,6 +70,7 @@ const AgendamentosNew = () => {
   useEffect(() => {
     loadData();
     loadEntrevistasPendentes();
+    loadAssinaturasPendentes();
     loadCCAs();
     loadUserProfile();
 
@@ -113,10 +116,25 @@ const AgendamentosNew = () => {
       )
       .subscribe();
 
+    const assinaturasPendentesChannel = supabase
+      .channel("assinaturas-pendentes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "assinaturas_agendamento",
+          filter: "status=eq.pendente"
+        },
+        () => loadAssinaturasPendentes()
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(entrevistasChannel);
       supabase.removeChannel(assinaturasChannel);
       supabase.removeChannel(entrevistasPendentesChannel);
+      supabase.removeChannel(assinaturasPendentesChannel);
     };
   }, []);
 
@@ -150,6 +168,37 @@ const AgendamentosNew = () => {
       }
     } catch (error) {
       console.error("Erro ao carregar entrevistas pendentes:", error);
+    }
+  };
+
+  const loadAssinaturasPendentes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('assinaturas_agendamento')
+        .select(`
+          *,
+          conformidades:conformidade_id (
+            cpf,
+            tipo_contrato,
+            modalidade,
+            valor_financiamento
+          )
+        `)
+        .eq('status', 'pendente')
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) {
+        const formatted = data.map((item: any) => ({
+          ...item,
+          cpf: item.conformidades?.cpf,
+          tipo_contrato: item.conformidades?.tipo_contrato || item.tipo_contrato,
+          modalidade: item.conformidades?.modalidade || item.modalidade_financiamento,
+          valor_financiamento: item.conformidades?.valor_financiamento
+        }));
+        setAssinaturasPendentes(formatted);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar assinaturas pendentes:", error);
     }
   };
 
@@ -455,6 +504,79 @@ const AgendamentosNew = () => {
       loadData();
     } catch (error: any) {
       console.error("Erro ao confirmar entrevista:", error);
+      toast({
+        title: "Erro ao confirmar",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleConfirmarAssinatura = async (
+    assinaturaId: string, 
+    dataConfirmada: string, 
+    opcaoEscolhida: number | null,
+    horarioEscolhido: string
+  ) => {
+    try {
+      // 1. Buscar dados completos da assinatura pendente
+      const { data: assinatura, error: fetchError } = await supabase
+        .from('assinaturas_agendamento')
+        .select(`
+          *,
+          conformidades:conformidade_id (*)
+        `)
+        .eq('id', assinaturaId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // 2. Atualizar assinaturas_agendamento
+      const { error: updateError } = await supabase
+        .from('assinaturas_agendamento')
+        .update({
+          data_confirmada: dataConfirmada,
+          opcao_escolhida: opcaoEscolhida,
+          status: 'confirmado'
+        })
+        .eq('id', assinaturaId);
+
+      if (updateError) throw updateError;
+
+      // 3. Buscar CPF do contrato vinculado
+      const cpf = assinatura.conformidades?.cpf;
+
+      // 4. Criar entrada em agendamentos (migração)
+      const [ano, mes, dia] = dataConfirmada.split('-');
+      const formattedData = `${dia}/${mes}/${ano}`;
+      const { error: insertError } = await supabase
+        .from('agendamentos')
+        .insert({
+          tipo: 'assinatura',
+          cpf: cpf,
+          tipo_contrato: assinatura.tipo_contrato,
+          modalidade_financiamento: assinatura.modalidade_financiamento?.toLowerCase() || 'sbpe',
+          data_hora: `${dataConfirmada}T${horarioEscolhido}:00-03:00`,
+          status: 'Aguardando assinatura',
+          comite_credito: false,
+          observacoes: `Assinatura confirmada - ${formattedData} às ${horarioEscolhido}`,
+          cca_user_id: assinatura.cca_user_id,
+          conformidade_id: assinatura.conformidade_id,
+          telefone_cliente: assinatura.telefone
+        });
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: "Data e horário confirmados!",
+        description: `Assinatura agendada para ${format(new Date(dataConfirmada), "dd/MM/yyyy")} às ${horarioEscolhido}`
+      });
+
+      // 5. Recarregar dados
+      loadAssinaturasPendentes();
+      loadData();
+    } catch (error: any) {
+      console.error("Erro ao confirmar assinatura:", error);
       toast({
         title: "Erro ao confirmar",
         description: error.message,
@@ -802,6 +924,25 @@ const AgendamentosNew = () => {
                   key={entrevista.id}
                   entrevista={entrevista}
                   onConfirmar={handleConfirmarEntrevista}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SEÇÃO 2: ASSINATURAS PENDENTES DE CONFIRMAÇÃO */}
+        {assinaturasPendentes.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <FileSignature className="h-5 w-5 text-orange-600" />
+              <h2 className="text-xl font-semibold">Assinaturas Pendentes de Confirmação</h2>
+            </div>
+            <div className="grid gap-4">
+              {assinaturasPendentes.map((assinatura) => (
+                <AssinaturaPendenteCard
+                  key={assinatura.id}
+                  assinatura={assinatura}
+                  onConfirmar={handleConfirmarAssinatura}
                 />
               ))}
             </div>
