@@ -37,7 +37,8 @@ export const statusBorders = {
   pendente: 'border-l-4 border-l-yellow-500',
   em_andamento: 'border-l-4 border-l-blue-500',
   aguardando_assinatura: 'border-l-4 border-l-orange-500',
-  assinado: 'border-l-4 border-l-purple-500',
+  assinado: 'border-l-4 border-l-blue-600',
+  assinatura_confirmada: 'border-l-4 border-l-green-600',
   concluida: 'border-l-4 border-l-green-500',
   cancelada: 'border-l-4 border-l-red-500',
 };
