@@ -14,6 +14,8 @@ import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { EntrevistaCard } from "@/components/EntrevistaCard";
 import { EntrevistaPendenteCard } from "@/components/EntrevistaPendenteCard";
 import { AssinaturaPendenteCard } from "@/components/AssinaturaPendenteCard";
+import { AssinaturaConfirmadaCard } from "@/components/AssinaturaConfirmadaCard";
+import { WeekCalendarFilter } from "@/components/WeekCalendarFilter";
 import { DossieUpload } from "@/components/DossieUpload";
 import { ObservacoesField } from "@/components/ObservacoesField";
 import { CriarContratoVinculadoDialog } from "@/components/CriarContratoVinculadoDialog";
@@ -24,7 +26,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { format } from "date-fns";
+import { format, isSameDay, startOfWeek, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCanCreateAgendamento } from "@/hooks/useCanCreateAgendamento";
 import { safeInsertAgendamento, formatAgendamentoError, type AgendamentoInput } from "@/lib/agendamentoUtils";
@@ -54,6 +56,14 @@ const AgendamentosNew = () => {
     comiteCredito: "Todos"
   });
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  
+  // Filtros específicos de assinaturas
+  const [filtroStatusAssinatura, setFiltroStatusAssinatura] = useState("Aguardando assinatura");
+  const [diasSelecionados, setDiasSelecionados] = useState<Date[]>(() => {
+    // Inicializa com a semana atual selecionada
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  });
   
   // Form state
   const [formData, setFormData] = useState({
@@ -623,8 +633,53 @@ const AgendamentosNew = () => {
     });
   };
 
+  // Filtro específico para assinaturas (com status e calendário)
+  const aplicarFiltrosAssinaturas = (items: any[]) => {
+    return items.filter(item => {
+      // Filtrar por status
+      if (filtroStatusAssinatura !== "Todos" && item.status !== filtroStatusAssinatura) {
+        return false;
+      }
+      
+      // Filtrar por dias selecionados no calendário
+      if (diasSelecionados.length > 0) {
+        const dataAgendamento = new Date(item.data_hora);
+        const diaMatch = diasSelecionados.some(dia => isSameDay(dataAgendamento, dia));
+        if (!diaMatch) return false;
+      }
+      
+      return true;
+    });
+  };
+
+  // Handler para mudar status de assinatura
+  const handleMudarStatusAssinatura = async (id: string, novoStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("agendamentos")
+        .update({ status: novoStatus })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Status atualizado!",
+        description: `Status alterado para "${novoStatus}"`,
+      });
+
+      loadData();
+    } catch (error: any) {
+      console.error("Error updating status:", error);
+      toast({
+        title: "Erro ao atualizar status",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const entrevistasFiltradas = aplicarFiltros(entrevistas);
-  const assinaturasFiltradas = aplicarFiltros(assinaturas);
+  const assinaturasFiltradas = aplicarFiltrosAssinaturas(assinaturas);
 
   const ccasUnicos = Array.from(new Set(ccas.map(c => c.codigo_cca)));
 
@@ -986,42 +1041,53 @@ const AgendamentosNew = () => {
           </TabsContent>
 
           <TabsContent value="assinaturas" className="space-y-4">
+            {/* Filtros de assinaturas - Calendário e Status */}
+            <Card className="p-4">
+              <div className="space-y-4">
+                {/* Calendário semanal */}
+                <WeekCalendarFilter
+                  selectedDays={diasSelecionados}
+                  onSelectionChange={setDiasSelecionados}
+                />
+                
+                {/* Filtro de status */}
+                <div className="flex items-center gap-4 pt-3 border-t">
+                  <Label className="text-sm font-medium whitespace-nowrap">Status:</Label>
+                  <Select
+                    value={filtroStatusAssinatura}
+                    onValueChange={setFiltroStatusAssinatura}
+                  >
+                    <SelectTrigger className="w-[220px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Todos">Todos os status</SelectItem>
+                      <SelectItem value="Aguardando assinatura">Aguardando assinatura</SelectItem>
+                      <SelectItem value="Assinado">Assinado</SelectItem>
+                      <SelectItem value="Assinatura confirmada">Assinatura confirmada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {assinaturasFiltradas.length} resultado{assinaturasFiltradas.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Lista de assinaturas */}
             {assinaturasFiltradas.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  Nenhuma assinatura agendada
+                  Nenhuma assinatura encontrada com os filtros selecionados
                 </CardContent>
               </Card>
             ) : (
               assinaturasFiltradas.map((assinatura) => (
-                <Card key={assinatura.id}>
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-lg">
-                        CPF: {assinatura.cpf}
-                      </CardTitle>
-                      <span className="text-sm text-muted-foreground">
-                        {format(new Date(assinatura.data_hora), "dd/MM/yyyy HH:mm", {
-                          locale: ptBR,
-                        })}
-                      </span>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2 text-sm">
-                      <p>
-                        <span className="text-muted-foreground">Status:</span>{" "}
-                        {assinatura.status}
-                      </p>
-                      {assinatura.observacoes && (
-                        <p>
-                          <span className="text-muted-foreground">Observações:</span>{" "}
-                          {assinatura.observacoes}
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+                <AssinaturaConfirmadaCard
+                  key={assinatura.id}
+                  assinatura={assinatura}
+                  onStatusChange={handleMudarStatusAssinatura}
+                />
               ))
             )}
           </TabsContent>
