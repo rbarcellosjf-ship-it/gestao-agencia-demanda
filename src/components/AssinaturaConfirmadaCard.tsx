@@ -3,7 +3,7 @@ import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, CheckCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, CheckCheck, ChevronDown, ChevronUp, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { statusBorders } from "@/lib/design-tokens";
 import { ObservacoesField } from "@/components/ObservacoesField";
@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatCPF } from "@/lib/cpfValidator";
+import { ReagendarAssinaturaDialog } from "@/components/ReagendarAssinaturaDialog";
 
 interface AssinaturaConfirmadaCardProps {
   assinatura: any;
@@ -27,6 +28,7 @@ export const AssinaturaConfirmadaCard = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isObservacoesOpen, setIsObservacoesOpen] = useState(false);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [reagendarOpen, setReagendarOpen] = useState(false);
 
   const handleSaveObservacoes = async (newObservacoes: string) => {
     setIsSaving(true);
@@ -180,16 +182,27 @@ export const AssinaturaConfirmadaCard = ({
         {/* Botões de ação de status */}
         <div className="flex flex-wrap gap-2 pt-2 border-t">
           {canMarkAsAssinado && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleStatusChange("Assinado")}
-              disabled={isChangingStatus}
-              className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-            >
-              <Check className="h-4 w-4 mr-1" />
-              Marcar como Assinado
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setReagendarOpen(true)}
+                className="border-muted-foreground/30"
+              >
+                <Calendar className="h-4 w-4 mr-1" />
+                Reagendar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleStatusChange("Assinado")}
+                disabled={isChangingStatus}
+                className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950"
+              >
+                <Check className="h-4 w-4 mr-1" />
+                Marcar como Assinado
+              </Button>
+            </>
           )}
           {canConfirmAssinatura && (
             <Button
@@ -209,6 +222,19 @@ export const AssinaturaConfirmadaCard = ({
             </span>
           )}
         </div>
+
+        {/* Dialog de reagendamento */}
+        <ReagendarAssinaturaDialog
+          assinaturaId={assinatura.id}
+          dataAtual={assinatura.data_hora}
+          cpfCliente={assinatura.cpf}
+          telefoneCliente={assinatura.telefone_cliente}
+          nomeCliente={assinatura.cliente_nome}
+          enderecoAgencia={assinatura.endereco_agencia}
+          open={reagendarOpen}
+          onOpenChange={setReagendarOpen}
+          onSuccess={() => onStatusChange(assinatura.id, currentStatus)}
+        />
 
         {/* Observações collapsible */}
         <Collapsible 
