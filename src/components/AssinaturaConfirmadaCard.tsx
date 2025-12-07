@@ -57,7 +57,49 @@ export const AssinaturaConfirmadaCard = ({
   const handleStatusChange = async (novoStatus: string) => {
     setIsChangingStatus(true);
     try {
+      const agora = format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR });
+      
+      // Determinar texto a adicionar baseado no novo status
+      let novaObservacao = "";
+      if (novoStatus === "Assinado") {
+        novaObservacao = `Assinado em ${agora}.`;
+      } else if (novoStatus === "Assinatura confirmada") {
+        novaObservacao = `Assinatura confirmada em ${agora}.`;
+      }
+      
+      // Combinar com observações existentes
+      const observacoesAtualizadas = observacoes 
+        ? `${observacoes}\n${novaObservacao}` 
+        : novaObservacao;
+      
+      // Atualizar no banco: status + observações
+      const { error } = await supabase
+        .from("agendamentos")
+        .update({ 
+          status: novoStatus,
+          observacoes: observacoesAtualizadas 
+        })
+        .eq("id", assinatura.id);
+      
+      if (error) throw error;
+      
+      // Atualizar estado local das observações
+      setObservacoes(observacoesAtualizadas);
+      
+      toast({
+        title: "Status atualizado",
+        description: `${novaObservacao}`,
+      });
+      
+      // Chamar callback para recarregar dados
       await onStatusChange(assinatura.id, novoStatus);
+    } catch (error: any) {
+      console.error("Error changing status:", error);
+      toast({
+        title: "Erro ao atualizar status",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setIsChangingStatus(false);
     }
