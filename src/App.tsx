@@ -15,6 +15,7 @@ import EmailTemplates from "./pages/EmailTemplates";
 import Settings from "./pages/Settings";
 import LeitorDocumentos from "./pages/LeitorDocumentos";
 import MinhasTarefas from "./pages/MinhasTarefas";
+import RelatorioAssinaturas from "./pages/RelatorioAssinaturas";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/settings" element={<Settings />} />
           <Route path="/leitor-documentos" element={<LeitorDocumentos />} />
           <Route path="/minhas-tarefas" element={<MinhasTarefas />} />
+          <Route path="/relatorios/assinaturas" element={<RelatorioAssinaturas />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
