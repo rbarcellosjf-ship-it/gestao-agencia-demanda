@@ -26,7 +26,16 @@ interface Assinatura {
   modalidade_financiamento: string | null;
   observacoes: string | null;
   telefone_cliente: string | null;
+  valor_financiamento: number | null;
 }
+
+const formatCurrency = (value: number | null) => {
+  if (value === null || value === undefined) return "-";
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL"
+  }).format(value);
+};
 
 export default function RelatorioAssinaturas() {
   const navigate = useNavigate();
@@ -60,7 +69,20 @@ export default function RelatorioAssinaturas() {
     try {
       const { data, error } = await supabase
         .from("agendamentos")
-        .select("*")
+        .select(`
+          id,
+          cpf,
+          data_hora,
+          status,
+          tipo_contrato,
+          modalidade_financiamento,
+          observacoes,
+          telefone_cliente,
+          conformidade_id,
+          conformidades (
+            valor_financiamento
+          )
+        `)
         .eq("tipo", "assinatura")
         .in("status", ["Assinado", "Assinatura confirmada"])
         .gte("data_hora", dataInicio.toISOString())
@@ -68,7 +90,21 @@ export default function RelatorioAssinaturas() {
         .order("data_hora", { ascending: false });
 
       if (error) throw error;
-      setAssinaturas(data || []);
+      
+      // Map data to include valor_financiamento from conformidades
+      const mappedData = (data || []).map(item => ({
+        id: item.id,
+        cpf: item.cpf,
+        data_hora: item.data_hora,
+        status: item.status,
+        tipo_contrato: item.tipo_contrato,
+        modalidade_financiamento: item.modalidade_financiamento,
+        observacoes: item.observacoes,
+        telefone_cliente: item.telefone_cliente,
+        valor_financiamento: (item.conformidades as any)?.valor_financiamento ?? null
+      }));
+      
+      setAssinaturas(mappedData);
     } catch (error) {
       console.error("Erro ao carregar assinaturas:", error);
       toast({
@@ -88,6 +124,17 @@ export default function RelatorioAssinaturas() {
     return cleaned.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
   };
 
+  // Totalizadores por modalidade
+  const totalMCMV = assinaturas
+    .filter(a => a.modalidade_financiamento?.toLowerCase() === 'mcmv')
+    .reduce((sum, a) => sum + (a.valor_financiamento || 0), 0);
+  
+  const totalSBPE = assinaturas
+    .filter(a => a.modalidade_financiamento?.toLowerCase() === 'sbpe')
+    .reduce((sum, a) => sum + (a.valor_financiamento || 0), 0);
+
+  const totalGeral = assinaturas.reduce((sum, a) => sum + (a.valor_financiamento || 0), 0);
+
   const exportToCSV = () => {
     if (assinaturas.length === 0) {
       toast({
@@ -98,16 +145,23 @@ export default function RelatorioAssinaturas() {
       return;
     }
 
-    const headers = ["Data/Hora", "CPF", "Status", "Tipo Contrato", "Modalidade", "Telefone", "Observações"];
+    const headers = ["Data/Hora", "CPF", "Status", "Tipo Contrato", "Modalidade", "Valor Financiamento", "Telefone", "Observações"];
     const rows = assinaturas.map(a => [
       format(parseISO(a.data_hora), "dd/MM/yyyy HH:mm"),
       formatCPF(a.cpf),
       a.status || "",
       a.tipo_contrato || "",
       a.modalidade_financiamento || "",
+      a.valor_financiamento ? a.valor_financiamento.toString() : "",
       a.telefone_cliente || "",
       (a.observacoes || "").replace(/"/g, '""')
     ]);
+
+    // Adicionar linhas de totalizadores
+    rows.push([]);
+    rows.push(["", "", "", "", "Total MCMV:", totalMCMV.toString(), "", ""]);
+    rows.push(["", "", "", "", "Total SBPE:", totalSBPE.toString(), "", ""]);
+    rows.push(["", "", "", "", "Total Geral:", totalGeral.toString(), "", ""]);
 
     const csvContent = [
       headers.join(";"),
@@ -155,6 +209,7 @@ export default function RelatorioAssinaturas() {
         <td>${a.status || "-"}</td>
         <td>${a.tipo_contrato || "-"}</td>
         <td>${a.modalidade_financiamento || "-"}</td>
+        <td style="text-align: right;">${formatCurrency(a.valor_financiamento)}</td>
         <td>${a.telefone_cliente || "-"}</td>
       </tr>
     `).join("");
@@ -172,7 +227,13 @@ export default function RelatorioAssinaturas() {
           th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
           th { background-color: #f5f5f5; font-weight: bold; }
           tr:nth-child(even) { background-color: #fafafa; }
-          .summary { margin-top: 20px; font-size: 12px; color: #666; }
+          .summary { margin-top: 20px; font-size: 12px; }
+          .totals { margin-top: 20px; background: #f9f9f9; padding: 15px; border-radius: 8px; }
+          .totals h3 { margin: 0 0 10px 0; font-size: 14px; }
+          .totals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+          .total-item { text-align: center; }
+          .total-label { font-size: 11px; color: #666; }
+          .total-value { font-size: 16px; font-weight: bold; }
         </style>
       </head>
       <body>
@@ -186,6 +247,7 @@ export default function RelatorioAssinaturas() {
               <th>Status</th>
               <th>Tipo Contrato</th>
               <th>Modalidade</th>
+              <th style="text-align: right;">Valor Financiamento</th>
               <th>Telefone</th>
             </tr>
           </thead>
@@ -193,6 +255,23 @@ export default function RelatorioAssinaturas() {
             ${tableRows}
           </tbody>
         </table>
+        <div class="totals">
+          <h3>Totalizadores por Modalidade</h3>
+          <div class="totals-grid">
+            <div class="total-item">
+              <div class="total-label">Total MCMV</div>
+              <div class="total-value">${formatCurrency(totalMCMV)}</div>
+            </div>
+            <div class="total-item">
+              <div class="total-label">Total SBPE</div>
+              <div class="total-value">${formatCurrency(totalSBPE)}</div>
+            </div>
+            <div class="total-item">
+              <div class="total-label">Total Geral</div>
+              <div class="total-value">${formatCurrency(totalGeral)}</div>
+            </div>
+          </div>
+        </div>
         <div class="summary">
           <p><strong>Total de assinaturas:</strong> ${assinaturas.length}</p>
           <p>Gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm")}</p>
@@ -285,13 +364,32 @@ export default function RelatorioAssinaturas() {
         </div>
       </div>
 
-      {/* Resumo */}
+      {/* Resumo e Totalizadores */}
       <div className="bg-muted/50 rounded-lg p-4 mb-6">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <ClipboardList className="h-4 w-4" />
-          <span>
-            <strong className="text-foreground">{assinaturas.length}</strong> assinatura(s) concluída(s) no período
-          </span>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <ClipboardList className="h-4 w-4" />
+            <span>
+              <strong className="text-foreground">{assinaturas.length}</strong> assinatura(s) concluída(s) no período
+            </span>
+          </div>
+          
+          {assinaturas.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-border">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Total MCMV</p>
+                <p className="text-lg font-semibold text-foreground">{formatCurrency(totalMCMV)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Total SBPE</p>
+                <p className="text-lg font-semibold text-foreground">{formatCurrency(totalSBPE)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground">Total Geral</p>
+                <p className="text-lg font-bold text-primary">{formatCurrency(totalGeral)}</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -314,6 +412,7 @@ export default function RelatorioAssinaturas() {
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden md:table-cell">Tipo Contrato</TableHead>
                 <TableHead className="hidden md:table-cell">Modalidade</TableHead>
+                <TableHead className="hidden md:table-cell text-right">Valor</TableHead>
                 <TableHead className="hidden lg:table-cell">Telefone</TableHead>
               </TableRow>
             </TableHeader>
@@ -334,6 +433,9 @@ export default function RelatorioAssinaturas() {
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     {assinatura.modalidade_financiamento || "-"}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell text-right font-medium">
+                    {formatCurrency(assinatura.valor_financiamento)}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
                     {assinatura.telefone_cliente || "-"}
