@@ -20,7 +20,7 @@ export const DashboardStats = ({
       >
         <Clock className="w-4 h-4 text-yellow-600" />
         <span className="font-semibold text-lg">{pendingDemands}</span>
-        <span className="text-sm text-muted-foreground">Pendentes</span>
+        <span className="text-sm text-muted-foreground">Demandas Pendentes</span>
       </button>
 
       <div className="w-px h-6 bg-border hidden sm:block" />
