@@ -79,7 +79,7 @@ export default function RelatorioAssinaturas() {
           observacoes,
           telefone_cliente,
           conformidade_id,
-          conformidades (
+          conformidades!fk_agendamentos_conformidade (
             valor_financiamento
           )
         `)
