@@ -99,8 +99,6 @@ const Dashboard = () => {
           {/* Dashboard Statistics */}
           <DashboardStats
             pendingDemands={stats.pendingDemands}
-            completedDemands={stats.completedDemands}
-            totalConformidades={stats.totalConformidades}
             upcomingAgendamentos={stats.upcomingAgendamentos}
           />
 

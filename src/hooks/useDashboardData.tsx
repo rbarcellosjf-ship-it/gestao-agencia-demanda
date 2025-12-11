@@ -5,8 +5,6 @@ export const useDashboardData = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     pendingDemands: 0,
-    completedDemands: 0,
-    totalConformidades: 0,
     upcomingAgendamentos: 0,
   });
   const [pendingDemandsList, setPendingDemandsList] = useState<any[]>([]);
@@ -21,14 +19,8 @@ export const useDashboardData = () => {
         .select("status, id, type, codigo_cca, created_at, cpf, description");
 
       const pending = demandsData?.filter((d) => d.status === "pendente") || [];
-      const completed = demandsData?.filter((d) => d.status === "concluida") || [];
 
       setPendingDemandsList(pending);
-
-      // Get conformidades count
-      const { count: conformidadesCount } = await supabase
-        .from("conformidades")
-        .select("*", { count: "exact", head: true });
 
       // Get upcoming agendamentos (next 7 days)
       const today = new Date();
@@ -43,8 +35,6 @@ export const useDashboardData = () => {
 
       setStats({
         pendingDemands: pending.length,
-        completedDemands: completed.length,
-        totalConformidades: conformidadesCount || 0,
         upcomingAgendamentos: agendamentosCount || 0,
       });
     } catch (error) {
@@ -57,21 +47,12 @@ export const useDashboardData = () => {
   useEffect(() => {
     loadDashboardData();
 
-    // Setup realtime subscriptions for all relevant tables
+    // Setup realtime subscriptions
     const demandsChannel = supabase
       .channel("dashboard-demands")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "demands" },
-        () => loadDashboardData()
-      )
-      .subscribe();
-
-    const conformidadesChannel = supabase
-      .channel("dashboard-conformidades")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "conformidades" },
         () => loadDashboardData()
       )
       .subscribe();
@@ -87,7 +68,6 @@ export const useDashboardData = () => {
 
     return () => {
       supabase.removeChannel(demandsChannel);
-      supabase.removeChannel(conformidadesChannel);
       supabase.removeChannel(agendamentosChannel);
     };
   }, []);
