@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, Calendar, Clock, Filter, ChevronDown, ChevronUp, FileSignature } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, Clock, Filter, ChevronDown, ChevronUp, FileSignature, FileText } from "lucide-react";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { EntrevistaCard } from "@/components/EntrevistaCard";
 import { EntrevistaPendenteCard } from "@/components/EntrevistaPendenteCard";
@@ -710,13 +710,23 @@ const AgendamentosNew = () => {
             </div>
           </div>
           
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" disabled={!canCreate}>
-                <Plus className="w-4 h-4 mr-2" />
-                Nova Entrevista
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate("/relatorios/assinaturas")}
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              <span className="hidden md:inline">Relatório</span>
+            </Button>
+            
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" disabled={!canCreate}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nova Entrevista
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Agendar Entrevista</DialogTitle>
@@ -835,7 +845,8 @@ const AgendamentosNew = () => {
                 </div>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
       </header>
 
