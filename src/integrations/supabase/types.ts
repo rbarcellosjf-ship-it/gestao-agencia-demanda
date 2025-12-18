@@ -156,6 +156,33 @@ export type Database = {
           },
         ]
       }
+      clientes_cache: {
+        Row: {
+          cpf: string
+          created_at: string
+          id: string
+          nome: string | null
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          cpf: string
+          created_at?: string
+          id?: string
+          nome?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cpf?: string
+          created_at?: string
+          id?: string
+          nome?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       configuracoes: {
         Row: {
           chave: string

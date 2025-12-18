@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Calendar, Trash2, Mail, Loader2, Filter } from "lucide-react";
+import { Plus, Calendar, Trash2, Mail, Loader2, Filter, CheckCircle2 } from "lucide-react";
 import { z } from "zod";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AgendarEntrevistaDialog } from "@/components/AgendarEntrevistaDialog";
 import { EditarContratoDialog } from "@/components/EditarContratoDialog";
+import { useClienteCache } from "@/hooks/useClienteCache";
 
 const conformidadeSchema = z.object({
   cpf: z.string()
@@ -62,6 +63,7 @@ const Conformidades = () => {
   // Form state
   const [cpf, setCpf] = useState("");
   const [nomeCliente, setNomeCliente] = useState("");
+  const [telefoneCliente, setTelefoneCliente] = useState("");
   const [valorFinanciamento, setValorFinanciamento] = useState("");
   const [modalidade, setModalidade] = useState<string>("");
   const [modalidadeOutro, setModalidadeOutro] = useState("");
@@ -69,6 +71,10 @@ const Conformidades = () => {
   const [comiteCredito, setComiteCredito] = useState(false);
   const [observacoes, setObservacoes] = useState("");
   const [entrevistaAprovada, setEntrevistaAprovada] = useState(false);
+  const [clientePreenchido, setClientePreenchido] = useState(false);
+  
+  // Hook de cache de clientes
+  const { clienteData, loading: cacheLoading, salvarCliente, buscarCliente } = useClienteCache();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conformidadeToDelete, setConformidadeToDelete] = useState<string | null>(null);
   
@@ -155,6 +161,32 @@ const Conformidades = () => {
     setLoading(false);
   };
 
+  // Auto-preencher quando encontrar dados no cache
+  useEffect(() => {
+    if (clienteData && dialogOpen) {
+      if (clienteData.nome && !nomeCliente) {
+        setNomeCliente(clienteData.nome);
+        setClientePreenchido(true);
+      }
+      if (clienteData.telefone && !telefoneCliente) {
+        setTelefoneCliente(clienteData.telefone);
+        setClientePreenchido(true);
+      }
+    }
+  }, [clienteData, dialogOpen]);
+
+  // Buscar no cache quando CPF mudar
+  const handleCpfChange = (value: string) => {
+    const formattedCpf = formatCPF(value);
+    setCpf(formattedCpf);
+    setClientePreenchido(false);
+    
+    // Buscar no cache se CPF válido
+    if (validateCPF(formattedCpf)) {
+      buscarCliente(formattedCpf);
+    }
+  };
+
   const handleCreateConformidade = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -185,6 +217,9 @@ const Conformidades = () => {
 
       if (error) throw error;
 
+      // Salvar no cache de clientes
+      await salvarCliente(cpf, nomeCliente, telefoneCliente);
+
       await loadData();
 
       toast({
@@ -214,6 +249,7 @@ const Conformidades = () => {
   const resetForm = () => {
     setCpf("");
     setNomeCliente("");
+    setTelefoneCliente("");
     setValorFinanciamento("50000");
     setModalidade("");
     setModalidadeOutro("");
@@ -221,6 +257,7 @@ const Conformidades = () => {
     setComiteCredito(false);
     setObservacoes("");
     setEntrevistaAprovada(false);
+    setClientePreenchido(false);
   };
 
   const formatCurrency = (value: number) => {
@@ -362,22 +399,51 @@ const Conformidades = () => {
                       id="cpf"
                       placeholder="000.000.000-00"
                       value={cpf}
-                      onChange={(e) => setCpf(formatCPF(e.target.value))}
+                      onChange={(e) => handleCpfChange(e.target.value)}
                       maxLength={14}
                       required
                     />
                     {cpf && !validateCPF(cpf) && (
                       <p className="text-xs text-destructive">CPF inválido</p>
                     )}
+                    {cacheLoading && (
+                      <p className="text-xs text-muted-foreground">Buscando dados...</p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="nomeCliente">Nome do Cliente</Label>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="nomeCliente">Nome do Cliente</Label>
+                      {clientePreenchido && clienteData?.nome && (
+                        <span className="flex items-center gap-1 text-xs text-green-600">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Preenchido automaticamente
+                        </span>
+                      )}
+                    </div>
                     <Input
                       id="nomeCliente"
                       placeholder="Nome completo do cliente"
                       value={nomeCliente}
                       onChange={(e) => setNomeCliente(e.target.value)}
                       maxLength={100}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor="telefoneCliente">Telefone do Cliente</Label>
+                      {clientePreenchido && clienteData?.telefone && (
+                        <span className="flex items-center gap-1 text-xs text-green-600">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Preenchido automaticamente
+                        </span>
+                      )}
+                    </div>
+                    <Input
+                      id="telefoneCliente"
+                      placeholder="(11) 99999-9999"
+                      value={telefoneCliente}
+                      onChange={(e) => setTelefoneCliente(e.target.value)}
+                      maxLength={20}
                     />
                   </div>
                   <div className="space-y-2">
