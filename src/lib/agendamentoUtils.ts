@@ -13,6 +13,7 @@ export const agendamentoSchema = z.object({
   data_hora: z.string().min(1, "Data e hora são obrigatórias"),
   observacoes: z.string().optional(),
   dossie_cliente_url: z.string().optional(),
+  telefone_cliente: z.string().optional(),
   tipo: z.enum(['entrevista', 'assinatura']),
   cca_user_id: z.string().uuid("ID de usuário inválido"),
 });
