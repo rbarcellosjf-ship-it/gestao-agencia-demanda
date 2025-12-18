@@ -31,6 +31,8 @@ import { ptBR } from "date-fns/locale";
 import { useCanCreateAgendamento } from "@/hooks/useCanCreateAgendamento";
 import { safeInsertAgendamento, formatAgendamentoError, type AgendamentoInput } from "@/lib/agendamentoUtils";
 import { normalizeCPF, validateCPF, formatCPF } from "@/lib/cpfValidator";
+import { useClienteCache } from "@/hooks/useClienteCache";
+import { CheckCircle2 } from "lucide-react";
 
 const AgendamentosNew = () => {
   const navigate = useNavigate();
@@ -68,6 +70,8 @@ const AgendamentosNew = () => {
   // Form state
   const [formData, setFormData] = useState({
     cpf: "",
+    nome_cliente: "",
+    telefone_cliente: "",
     tipo_contrato: "",
     modalidade_financiamento: "",
     comite_credito: false,
@@ -76,6 +80,32 @@ const AgendamentosNew = () => {
     dossie_cliente_url: "",
     cca_user_id: "", // Será preenchido automaticamente
   });
+  
+  // Cache de clientes
+  const { clienteData, loading: loadingCliente, salvarCliente, buscarCliente } = useClienteCache();
+  const [clientePreenchido, setClientePreenchido] = useState(false);
+  
+  // Buscar cliente quando CPF muda
+  useEffect(() => {
+    const cpfNormalizado = normalizeCPF(formData.cpf);
+    if (cpfNormalizado.length === 11) {
+      buscarCliente(cpfNormalizado);
+    } else {
+      setClientePreenchido(false);
+    }
+  }, [formData.cpf, buscarCliente]);
+  
+  // Preencher dados do cliente quando encontrado no cache
+  useEffect(() => {
+    if (clienteData && (clienteData.nome || clienteData.telefone)) {
+      setFormData(prev => ({
+        ...prev,
+        nome_cliente: clienteData.nome || prev.nome_cliente,
+        telefone_cliente: clienteData.telefone || prev.telefone_cliente,
+      }));
+      setClientePreenchido(true);
+    }
+  }, [clienteData]);
 
   useEffect(() => {
     loadData();
@@ -323,12 +353,18 @@ const AgendamentosNew = () => {
         dossie_cliente_url: formData.dossie_cliente_url || undefined,
         tipo: "entrevista" as const,
         cca_user_id: ccaUserId,
+        telefone_cliente: formData.telefone_cliente || undefined,
       };
 
       const { data, error } = await safeInsertAgendamento(insertData);
 
       if (error) {
         throw new Error(formatAgendamentoError(error));
+      }
+
+      // Salvar no cache de clientes
+      if (formData.nome_cliente || formData.telefone_cliente) {
+        await salvarCliente(normalizedCPF, formData.nome_cliente, formData.telefone_cliente);
       }
 
       toast({
@@ -352,6 +388,8 @@ const AgendamentosNew = () => {
   const resetForm = () => {
     setFormData({
       cpf: "",
+      nome_cliente: "",
+      telefone_cliente: "",
       tipo_contrato: "",
       modalidade_financiamento: "",
       comite_credito: false,
@@ -360,6 +398,7 @@ const AgendamentosNew = () => {
       dossie_cliente_url: "",
       cca_user_id: "",
     });
+    setClientePreenchido(false);
   };
 
   const handleAprovar = async (id: string) => {
@@ -744,7 +783,7 @@ const AgendamentosNew = () => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="cpf">CPF</Label>
+                    <Label htmlFor="cpf">CPF *</Label>
                     <Input
                       id="cpf"
                       value={formData.cpf}
@@ -753,6 +792,42 @@ const AgendamentosNew = () => {
                       }
                       placeholder="000.000.000-00"
                       required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="nome_cliente" className="flex items-center gap-1">
+                      Nome do Cliente
+                      {clientePreenchido && formData.nome_cliente && (
+                        <span title="Preenchido automaticamente">
+                          <CheckCircle2 className="w-3 h-3 text-green-600" />
+                        </span>
+                      )}
+                    </Label>
+                    <Input
+                      id="nome_cliente"
+                      value={formData.nome_cliente}
+                      onChange={(e) =>
+                        setFormData({ ...formData, nome_cliente: e.target.value })
+                      }
+                      placeholder="Nome completo do cliente"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="telefone_cliente" className="flex items-center gap-1">
+                      Telefone (WhatsApp)
+                      {clientePreenchido && formData.telefone_cliente && (
+                        <span title="Preenchido automaticamente">
+                          <CheckCircle2 className="w-3 h-3 text-green-600" />
+                        </span>
+                      )}
+                    </Label>
+                    <Input
+                      id="telefone_cliente"
+                      value={formData.telefone_cliente}
+                      onChange={(e) =>
+                        setFormData({ ...formData, telefone_cliente: e.target.value })
+                      }
+                      placeholder="(00) 00000-0000"
                     />
                   </div>
                   <div>
