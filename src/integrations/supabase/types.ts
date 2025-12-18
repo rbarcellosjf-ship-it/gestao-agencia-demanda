@@ -196,6 +196,7 @@ export type Database = {
           id: string
           modalidade: Database["public"]["Enums"]["modalidade_financiamento"]
           modalidade_outro: string | null
+          nome_cliente: string | null
           observacoes: string | null
           status: string | null
           tipo_contrato: string
@@ -213,6 +214,7 @@ export type Database = {
           id?: string
           modalidade: Database["public"]["Enums"]["modalidade_financiamento"]
           modalidade_outro?: string | null
+          nome_cliente?: string | null
           observacoes?: string | null
           status?: string | null
           tipo_contrato?: string
@@ -230,6 +232,7 @@ export type Database = {
           id?: string
           modalidade?: Database["public"]["Enums"]["modalidade_financiamento"]
           modalidade_outro?: string | null
+          nome_cliente?: string | null
           observacoes?: string | null
           status?: string | null
           tipo_contrato?: string
@@ -262,6 +265,7 @@ export type Database = {
           matricula_imovel_pdf: string | null
           mo_autorizacao_assinado_pdf: string | null
           mo_autorizacao_pdf: string | null
+          nome_cliente: string | null
           numero_pis: string | null
           response_text: string | null
           status: Database["public"]["Enums"]["demand_status"]
@@ -284,6 +288,7 @@ export type Database = {
           matricula_imovel_pdf?: string | null
           mo_autorizacao_assinado_pdf?: string | null
           mo_autorizacao_pdf?: string | null
+          nome_cliente?: string | null
           numero_pis?: string | null
           response_text?: string | null
           status?: Database["public"]["Enums"]["demand_status"]
@@ -306,6 +311,7 @@ export type Database = {
           matricula_imovel_pdf?: string | null
           mo_autorizacao_assinado_pdf?: string | null
           mo_autorizacao_pdf?: string | null
+          nome_cliente?: string | null
           numero_pis?: string | null
           response_text?: string | null
           status?: Database["public"]["Enums"]["demand_status"]

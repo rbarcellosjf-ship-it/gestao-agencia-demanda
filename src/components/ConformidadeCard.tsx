@@ -63,6 +63,9 @@ export const ConformidadeCard = ({
           <div className="flex-1 min-w-0">
             <CardTitle className="text-base font-semibold mb-1">
               CPF: {conformidade.cpf}
+              {conformidade.nome_cliente && (
+                <span className="font-normal text-muted-foreground"> • {conformidade.nome_cliente}</span>
+              )}
             </CardTitle>
             <CardDescription className="text-xs">
               CCA: {conformidade.codigo_cca} • {format(new Date(conformidade.created_at), "dd/MM/yyyy")}

@@ -99,7 +99,12 @@ export const DemandCard = ({
           {demand.cpf && (
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">CPF</p>
-              <p className="font-medium">{demand.cpf}</p>
+              <p className="font-medium">
+                {demand.cpf}
+                {demand.nome_cliente && (
+                  <span className="text-muted-foreground font-normal"> • {demand.nome_cliente}</span>
+                )}
+              </p>
             </div>
           )}
           {demand.matricula && (
