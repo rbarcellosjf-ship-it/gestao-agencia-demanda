@@ -3,28 +3,23 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, Plus } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { formatCPF } from "@/lib/cpfValidator";
+import { formatCPF, normalizeCPF } from "@/lib/cpfValidator";
+import { useClienteCache } from "@/hooks/useClienteCache";
 
 interface AgendarEntrevistaDialogProps {
-  // Dados do contrato (quando agendado via contrato)
   conformidadeId?: string;
   cpfCliente?: string;
   modalidade?: string;
   tipoContrato?: string;
   valorFinanciamento?: number;
   codigoCca?: string;
-  
-  // Callbacks
+  nomeClienteProp?: string;
   onSuccess?: () => void;
-  
-  // Controle de estado externo
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  
-  // Trigger (quando usado como dialog independente)
   trigger?: React.ReactNode;
 }
 
@@ -35,6 +30,7 @@ export const AgendarEntrevistaDialog = ({
   tipoContrato,
   valorFinanciamento,
   codigoCca,
+  nomeClienteProp,
   onSuccess,
   open: externalOpen,
   onOpenChange: externalOnOpenChange,
@@ -43,11 +39,11 @@ export const AgendarEntrevistaDialog = ({
   const { toast } = useToast();
   const [internalOpen, setInternalOpen] = useState(false);
   
-  // Usa controle externo se fornecido, senão usa interno
   const open = externalOpen !== undefined ? externalOpen : internalOpen;
   const setOpen = externalOnOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [clientePreenchido, setClientePreenchido] = useState(false);
   
   const [nomeCliente, setNomeCliente] = useState("");
   const [telefoneCliente, setTelefoneCliente] = useState("");
@@ -57,11 +53,32 @@ export const AgendarEntrevistaDialog = ({
   const [horarioFim, setHorarioFim] = useState("17:00");
   const [nomeEmpresa, setNomeEmpresa] = useState("");
 
+  // Cache de clientes
+  const { clienteData, loading: cacheLoading, salvarCliente, buscarCliente } = useClienteCache(cpfCliente);
+
   useEffect(() => {
     if (open) {
       loadUserProfile();
+      // Pre-fill from props or cache
+      if (nomeClienteProp) {
+        setNomeCliente(nomeClienteProp);
+      }
     }
-  }, [open]);
+  }, [open, nomeClienteProp]);
+
+  // Auto-fill from cache
+  useEffect(() => {
+    if (clienteData && open) {
+      if (clienteData.nome && !nomeCliente && !nomeClienteProp) {
+        setNomeCliente(clienteData.nome);
+        setClientePreenchido(true);
+      }
+      if (clienteData.telefone && !telefoneCliente) {
+        setTelefoneCliente(clienteData.telefone);
+        setClientePreenchido(true);
+      }
+    }
+  }, [clienteData, open]);
 
   const loadUserProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -167,6 +184,11 @@ export const AgendarEntrevistaDialog = ({
           .eq('id', conformidadeId);
       }
 
+      // Save to client cache
+      if (cpfCliente) {
+        await salvarCliente(cpfCliente, nomeCliente, telefoneCliente);
+      }
+
       toast({
         title: "Entrevista agendada!",
         description: "WhatsApp enviado ao cliente com as opções de data.",
@@ -195,6 +217,7 @@ export const AgendarEntrevistaDialog = ({
     setHorarioInicio("09:00");
     setHorarioFim("17:00");
     setNomeEmpresa("");
+    setClientePreenchido(false);
   };
 
   const formatCurrency = (value: number) => {

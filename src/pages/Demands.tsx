@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Check, X, Filter, Trash2, FileText, Mail, Lock, Send, Loader2 } from "lucide-react";
+import { Plus, Check, X, Filter, Trash2, FileText, Mail, Lock, Send, Loader2, CheckCircle2 } from "lucide-react";
 import { DistribuirTarefaDialog } from "@/components/DistribuirTarefaDialog";
 import { DemandCard } from "@/components/DemandCard";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -29,6 +29,7 @@ import { LoadingState } from "@/components/layout/LoadingState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useClienteCache } from "@/hooks/useClienteCache";
 
 const demandSchema = z.object({
   type: z.enum([
@@ -280,6 +281,8 @@ const Demands = () => {
   const [type, setType] = useState<string>("");
   const [cpf, setCpf] = useState("");
   const [nomeCliente, setNomeCliente] = useState("");
+  const [telefoneCliente, setTelefoneCliente] = useState("");
+  const [clientePreenchido, setClientePreenchido] = useState(false);
   const [matricula, setMatricula] = useState("");
   const [cartorio, setCartorio] = useState("");
   const [description, setDescription] = useState("");
@@ -288,6 +291,9 @@ const Demands = () => {
   const [selectedDemand, setSelectedDemand] = useState<any>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [demandToDelete, setDemandToDelete] = useState<string | null>(null);
+  
+  // Hook de cache de clientes
+  const { clienteData, loading: cacheLoading, salvarCliente, buscarCliente } = useClienteCache();
   
   // Distribuir tarefa state
   const [distribuirOpen, setDistribuirOpen] = useState(false);
@@ -306,6 +312,32 @@ const Demands = () => {
   const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
   const [viewingPdfUrl, setViewingPdfUrl] = useState("");
   const [viewingPdfName, setViewingPdfName] = useState("");
+  
+  // Auto-preencher quando encontrar dados no cache
+  useEffect(() => {
+    if (clienteData && dialogOpen) {
+      if (clienteData.nome && !nomeCliente) {
+        setNomeCliente(clienteData.nome);
+        setClientePreenchido(true);
+      }
+      if (clienteData.telefone && !telefoneCliente) {
+        setTelefoneCliente(clienteData.telefone);
+        setClientePreenchido(true);
+      }
+    }
+  }, [clienteData, dialogOpen]);
+
+  // Buscar no cache quando CPF mudar
+  const handleCpfChange = (value: string) => {
+    const formattedCpf = formatCPF(value);
+    setCpf(formattedCpf);
+    setClientePreenchido(false);
+    
+    // Buscar no cache se CPF válido
+    if (validateCPF(formattedCpf)) {
+      buscarCliente(formattedCpf);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -428,6 +460,11 @@ const Demands = () => {
 
       if (error) throw error;
 
+      // Salvar no cache de clientes
+      if (cpf) {
+        await salvarCliente(cpf, nomeCliente, telefoneCliente);
+      }
+
       console.log('✅ [Demand Created] Starting WhatsApp notification process...');
       console.log('📋 [Demand Data]', { type, cpf, matricula, description, profile, hasTemplate: !!novaDemandaTemplate });
 
@@ -515,6 +552,8 @@ const Demands = () => {
     setType("");
     setCpf("");
     setNomeCliente("");
+    setTelefoneCliente("");
+    setClientePreenchido(false);
     setMatricula("");
     setCartorio("");
     setDescription("");
@@ -899,11 +938,14 @@ const Demands = () => {
                         id="cpf"
                         placeholder="000.000.000-00"
                         value={cpf}
-                        onChange={(e) => setCpf(formatCPF(e.target.value))}
+                        onChange={(e) => handleCpfChange(e.target.value)}
                         maxLength={14}
                       />
                       {cpf && !validateCPF(cpf) && (
                         <p className="text-xs text-destructive">CPF inválido</p>
+                      )}
+                      {cacheLoading && (
+                        <p className="text-xs text-muted-foreground">Buscando dados...</p>
                       )}
                     </div>
                   )}
@@ -916,13 +958,48 @@ const Demands = () => {
                     type === "incluir_pis_siopi" ||
                     type === "autoriza_vendedor_restricao") && (
                     <div className="space-y-2">
-                      <Label htmlFor="nomeCliente">Nome do Cliente</Label>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="nomeCliente">Nome do Cliente</Label>
+                        {clientePreenchido && clienteData?.nome && (
+                          <span className="flex items-center gap-1 text-xs text-green-600">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Preenchido
+                          </span>
+                        )}
+                      </div>
                       <Input
                         id="nomeCliente"
                         placeholder="Nome completo do cliente"
                         value={nomeCliente}
                         onChange={(e) => setNomeCliente(e.target.value)}
                         maxLength={100}
+                      />
+                    </div>
+                  )}
+
+                  {(type === "autoriza_reavaliacao" ||
+                    type === "desconsidera_avaliacoes" ||
+                    type === "cancela_avaliacao_sicaq" ||
+                    type === "cancela_proposta_siopi" ||
+                    type === "solicitar_avaliacao_sigdu" ||
+                    type === "incluir_pis_siopi" ||
+                    type === "autoriza_vendedor_restricao") && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor="telefoneCliente">Telefone do Cliente</Label>
+                        {clientePreenchido && clienteData?.telefone && (
+                          <span className="flex items-center gap-1 text-xs text-green-600">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Preenchido
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        id="telefoneCliente"
+                        placeholder="(11) 99999-9999"
+                        value={telefoneCliente}
+                        onChange={(e) => setTelefoneCliente(e.target.value)}
+                        maxLength={20}
                       />
                     </div>
                   )}
