@@ -279,6 +279,7 @@ const Demands = () => {
   // Form state
   const [type, setType] = useState<string>("");
   const [cpf, setCpf] = useState("");
+  const [nomeCliente, setNomeCliente] = useState("");
   const [matricula, setMatricula] = useState("");
   const [cartorio, setCartorio] = useState("");
   const [description, setDescription] = useState("");
@@ -413,6 +414,7 @@ const Demands = () => {
         codigo_cca: profile?.codigo_cca || "",
         type: type as Database["public"]["Enums"]["demand_type"],
         cpf: cpf || null,
+        nome_cliente: nomeCliente || null,
         matricula: matricula || null,
         cartorio: cartorio || null,
         description: description || null,
@@ -512,6 +514,7 @@ const Demands = () => {
   const resetForm = () => {
     setType("");
     setCpf("");
+    setNomeCliente("");
     setMatricula("");
     setCartorio("");
     setDescription("");
@@ -902,6 +905,25 @@ const Demands = () => {
                       {cpf && !validateCPF(cpf) && (
                         <p className="text-xs text-destructive">CPF inválido</p>
                       )}
+                    </div>
+                  )}
+
+                  {(type === "autoriza_reavaliacao" ||
+                    type === "desconsidera_avaliacoes" ||
+                    type === "cancela_avaliacao_sicaq" ||
+                    type === "cancela_proposta_siopi" ||
+                    type === "solicitar_avaliacao_sigdu" ||
+                    type === "incluir_pis_siopi" ||
+                    type === "autoriza_vendedor_restricao") && (
+                    <div className="space-y-2">
+                      <Label htmlFor="nomeCliente">Nome do Cliente</Label>
+                      <Input
+                        id="nomeCliente"
+                        placeholder="Nome completo do cliente"
+                        value={nomeCliente}
+                        onChange={(e) => setNomeCliente(e.target.value)}
+                        maxLength={100}
+                      />
                     </div>
                   )}
 

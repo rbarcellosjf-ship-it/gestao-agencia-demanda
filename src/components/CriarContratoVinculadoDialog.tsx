@@ -74,6 +74,7 @@ export const CriarContratoVinculadoDialog = ({
           cca_user_id: session.user.id,
           codigo_cca: profile.codigo_cca,
           cpf: normalizeCPF(cpf),
+          nome_cliente: nomeCliente || null,
           valor_financiamento: parseFloat(valorFinanciamento),
           modalidade: modalidade as "SBPE" | "MCMV" | "OUTRO",
           modalidade_outro: modalidade === "OUTRO" ? modalidadeOutro : null,

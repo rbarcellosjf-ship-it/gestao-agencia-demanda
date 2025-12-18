@@ -26,6 +26,7 @@ export function EditarContratoDialog({
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   
+  const [nomeCliente, setNomeCliente] = useState("");
   const [valorFinanciamento, setValorFinanciamento] = useState("");
   const [modalidade, setModalidade] = useState<string>("");
   const [modalidadeOutro, setModalidadeOutro] = useState("");
@@ -34,6 +35,7 @@ export function EditarContratoDialog({
 
   useEffect(() => {
     if (open && conformidade) {
+      setNomeCliente(conformidade.nome_cliente || "");
       setValorFinanciamento(conformidade.valor_financiamento?.toString() || "");
       setModalidade(conformidade.modalidade || "");
       setModalidadeOutro(conformidade.modalidade_outro || "");
@@ -52,6 +54,7 @@ export function EditarContratoDialog({
       }
 
       const updateData: any = {
+        nome_cliente: nomeCliente || null,
         valor_financiamento: parseFloat(valorFinanciamento),
         modalidade: modalidade,
         comite_credito: comiteCredito,
@@ -104,6 +107,17 @@ export function EditarContratoDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="nomeCliente">Nome do Cliente</Label>
+            <Input
+              id="nomeCliente"
+              placeholder="Nome completo do cliente"
+              value={nomeCliente}
+              onChange={(e) => setNomeCliente(e.target.value)}
+              maxLength={100}
+            />
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="valor">Valor do Financiamento *</Label>
             <div className="relative">

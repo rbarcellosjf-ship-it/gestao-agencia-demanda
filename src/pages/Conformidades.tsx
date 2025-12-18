@@ -61,6 +61,7 @@ const Conformidades = () => {
 
   // Form state
   const [cpf, setCpf] = useState("");
+  const [nomeCliente, setNomeCliente] = useState("");
   const [valorFinanciamento, setValorFinanciamento] = useState("");
   const [modalidade, setModalidade] = useState<string>("");
   const [modalidadeOutro, setModalidadeOutro] = useState("");
@@ -173,6 +174,7 @@ const Conformidades = () => {
         cca_user_id: session.user.id,
         codigo_cca: profile?.codigo_cca || "",
         cpf: normalizeCPF(validatedData.cpf),
+        nome_cliente: nomeCliente || null,
         valor_financiamento: validatedData.valor_financiamento,
         modalidade: validatedData.modalidade,
         modalidade_outro: validatedData.modalidade_outro || null,
@@ -211,6 +213,7 @@ const Conformidades = () => {
 
   const resetForm = () => {
     setCpf("");
+    setNomeCliente("");
     setValorFinanciamento("50000");
     setModalidade("");
     setModalidadeOutro("");
@@ -366,6 +369,16 @@ const Conformidades = () => {
                     {cpf && !validateCPF(cpf) && (
                       <p className="text-xs text-destructive">CPF inválido</p>
                     )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nomeCliente">Nome do Cliente</Label>
+                    <Input
+                      id="nomeCliente"
+                      placeholder="Nome completo do cliente"
+                      value={nomeCliente}
+                      onChange={(e) => setNomeCliente(e.target.value)}
+                      maxLength={100}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="valor">Valor do Financiamento *</Label>
