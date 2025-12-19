@@ -293,7 +293,7 @@ const Demands = () => {
   const [demandToDelete, setDemandToDelete] = useState<string | null>(null);
   
   // Hook de cache de clientes
-  const { clienteData, loading: cacheLoading, salvarCliente, buscarCliente } = useClienteCache();
+  const { clienteData, loading: cacheLoading, salvarCliente, buscarCliente, limparCache } = useClienteCache();
   
   // Distribuir tarefa state
   const [distribuirOpen, setDistribuirOpen] = useState(false);
@@ -563,6 +563,7 @@ const Demands = () => {
     setMatriculaImovelFile(null);
     setMoAutorizacaoFile(null);
     setMoAutorizacaoAssinadoFile(null);
+    limparCache();
   };
 
   const getTypeLabel = (type: string) => {

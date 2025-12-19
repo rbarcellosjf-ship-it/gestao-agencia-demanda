@@ -51,7 +51,7 @@ export const AgendarAssinaturaWhatsAppDialog = ({
   const [clientePreenchido, setClientePreenchido] = useState(false);
   
   // Integrar cache de clientes
-  const { clienteData, salvarCliente, buscarCliente } = useClienteCache();
+  const { clienteData, salvarCliente, buscarCliente, limparCache } = useClienteCache();
 
   useEffect(() => {
     if (open) {
@@ -202,6 +202,7 @@ export const AgendarAssinaturaWhatsAppDialog = ({
     setHorarioInicio("09:00");
     setHorarioFim("17:00");
     setClientePreenchido(false);
+    limparCache();
   };
 
   const formatCurrency = (value: number) => {

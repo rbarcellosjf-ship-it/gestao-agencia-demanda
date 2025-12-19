@@ -12,6 +12,7 @@ interface UseClienteCacheReturn {
   loading: boolean;
   salvarCliente: (cpf: string, nome: string, telefone: string) => Promise<void>;
   buscarCliente: (cpf: string) => Promise<void>;
+  limparCache: () => void;
 }
 
 export const useClienteCache = (cpfInicial?: string): UseClienteCacheReturn => {
@@ -99,10 +100,15 @@ export const useClienteCache = (cpfInicial?: string): UseClienteCacheReturn => {
     }
   }, [cpfInicial, buscarCliente]);
 
+  const limparCache = useCallback(() => {
+    setClienteData(null);
+  }, []);
+
   return {
     clienteData,
     loading,
     salvarCliente,
     buscarCliente,
+    limparCache,
   };
 };

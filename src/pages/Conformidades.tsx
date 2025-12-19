@@ -74,7 +74,7 @@ const Conformidades = () => {
   const [clientePreenchido, setClientePreenchido] = useState(false);
   
   // Hook de cache de clientes
-  const { clienteData, loading: cacheLoading, salvarCliente, buscarCliente } = useClienteCache();
+  const { clienteData, loading: cacheLoading, salvarCliente, buscarCliente, limparCache } = useClienteCache();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [conformidadeToDelete, setConformidadeToDelete] = useState<string | null>(null);
   
@@ -258,6 +258,7 @@ const Conformidades = () => {
     setObservacoes("");
     setEntrevistaAprovada(false);
     setClientePreenchido(false);
+    limparCache();
   };
 
   const formatCurrency = (value: number) => {
