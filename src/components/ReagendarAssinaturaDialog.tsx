@@ -44,7 +44,7 @@ export function ReagendarAssinaturaDialog({
   const [telefonePreenchidoCache, setTelefonePreenchidoCache] = useState(false);
 
   // Integrar cache de clientes
-  const { clienteData, salvarCliente, buscarCliente } = useClienteCache();
+  const { clienteData, salvarCliente, buscarCliente, limparCache } = useClienteCache();
 
   useEffect(() => {
     if (open) {
@@ -196,6 +196,7 @@ export function ReagendarAssinaturaDialog({
     setNotificarCliente(true);
     setTelefoneEditavel("");
     setTelefonePreenchidoCache(false);
+    limparCache();
   };
 
   return (

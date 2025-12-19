@@ -54,7 +54,7 @@ export const AgendarEntrevistaDialog = ({
   const [nomeEmpresa, setNomeEmpresa] = useState("");
 
   // Cache de clientes
-  const { clienteData, loading: cacheLoading, salvarCliente, buscarCliente } = useClienteCache(cpfCliente);
+  const { clienteData, loading: cacheLoading, salvarCliente, buscarCliente, limparCache } = useClienteCache(cpfCliente);
 
   useEffect(() => {
     if (open) {
@@ -218,6 +218,7 @@ export const AgendarEntrevistaDialog = ({
     setHorarioFim("17:00");
     setNomeEmpresa("");
     setClientePreenchido(false);
+    limparCache();
   };
 
   const formatCurrency = (value: number) => {

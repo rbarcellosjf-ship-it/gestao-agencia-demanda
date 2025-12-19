@@ -82,7 +82,7 @@ const AgendamentosNew = () => {
   });
   
   // Cache de clientes
-  const { clienteData, loading: loadingCliente, salvarCliente, buscarCliente } = useClienteCache();
+  const { clienteData, loading: loadingCliente, salvarCliente, buscarCliente, limparCache } = useClienteCache();
   const [clientePreenchido, setClientePreenchido] = useState(false);
   
   // Buscar cliente quando CPF muda
@@ -399,6 +399,7 @@ const AgendamentosNew = () => {
       cca_user_id: "",
     });
     setClientePreenchido(false);
+    limparCache();
   };
 
   const handleAprovar = async (id: string) => {
