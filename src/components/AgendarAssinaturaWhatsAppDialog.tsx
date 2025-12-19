@@ -3,11 +3,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, FileSignature } from "lucide-react";
+import { Calendar as CalendarIcon, FileSignature, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCPF } from "@/lib/cpfValidator";
-
+import { useClienteCache } from "@/hooks/useClienteCache";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 interface AgendarAssinaturaWhatsAppDialogProps {
   conformidadeId: string;
   cpfCliente?: string;
@@ -47,12 +48,34 @@ export const AgendarAssinaturaWhatsAppDialog = ({
   const [dataOpcao2, setDataOpcao2] = useState("");
   const [horarioInicio, setHorarioInicio] = useState("09:00");
   const [horarioFim, setHorarioFim] = useState("17:00");
+  const [clientePreenchido, setClientePreenchido] = useState(false);
+  
+  // Integrar cache de clientes
+  const { clienteData, salvarCliente, buscarCliente } = useClienteCache();
 
   useEffect(() => {
     if (open) {
       loadUserProfile();
+      // Buscar cliente no cache quando o diálogo abrir e tiver CPF
+      if (cpfCliente) {
+        buscarCliente(cpfCliente);
+      }
     }
-  }, [open]);
+  }, [open, cpfCliente, buscarCliente]);
+
+  // Preencher automaticamente quando encontrar dados no cache
+  useEffect(() => {
+    if (clienteData && open) {
+      if (clienteData.nome && !nomeCliente) {
+        setNomeCliente(clienteData.nome);
+        setClientePreenchido(true);
+      }
+      if (clienteData.telefone && !telefoneCliente) {
+        setTelefoneCliente(clienteData.telefone);
+        setClientePreenchido(true);
+      }
+    }
+  }, [clienteData, open]);
 
   const loadUserProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -146,6 +169,11 @@ export const AgendarAssinaturaWhatsAppDialog = ({
         }
       }
 
+      // Salvar cliente no cache
+      if (cpfCliente) {
+        await salvarCliente(cpfCliente, nomeCliente, telefoneCliente);
+      }
+
       toast({
         title: "Assinatura agendada!",
         description: "WhatsApp enviado ao cliente com as opções de data.",
@@ -173,6 +201,7 @@ export const AgendarAssinaturaWhatsAppDialog = ({
     setDataOpcao2("");
     setHorarioInicio("09:00");
     setHorarioFim("17:00");
+    setClientePreenchido(false);
   };
 
   const formatCurrency = (value: number) => {
@@ -234,7 +263,21 @@ export const AgendarAssinaturaWhatsAppDialog = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="nome">Nome do Cliente *</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="nome">Nome do Cliente *</Label>
+              {clientePreenchido && nomeCliente && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Preenchido automaticamente do cache</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             <Input
               id="nome"
               placeholder="Nome completo"
@@ -245,7 +288,21 @@ export const AgendarAssinaturaWhatsAppDialog = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="telefone">Telefone do Cliente (WhatsApp) *</Label>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="telefone">Telefone do Cliente (WhatsApp) *</Label>
+              {clientePreenchido && telefoneCliente && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Preenchido automaticamente do cache</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
             <Input
               id="telefone"
               placeholder="(11) 99999-9999"
