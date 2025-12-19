@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, Clock } from "lucide-react";
+import { Calendar, Clock, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { useClienteCache } from "@/hooks/useClienteCache";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ReagendarAssinaturaDialogProps {
   assinaturaId: string;
@@ -39,15 +41,39 @@ export function ReagendarAssinaturaDialog({
   const [novoHorario, setNovoHorario] = useState("");
   const [notificarCliente, setNotificarCliente] = useState(true);
   const [telefoneEditavel, setTelefoneEditavel] = useState("");
+  const [telefonePreenchidoCache, setTelefonePreenchidoCache] = useState(false);
+
+  // Integrar cache de clientes
+  const { clienteData, salvarCliente, buscarCliente } = useClienteCache();
 
   useEffect(() => {
     if (open) {
-      setTelefoneEditavel(telefoneCliente || "");
+      // Se já tem telefone via prop, usa ele; senão busca no cache
+      if (telefoneCliente) {
+        setTelefoneEditavel(telefoneCliente);
+        setTelefonePreenchidoCache(false);
+      } else {
+        setTelefoneEditavel("");
+        // Buscar no cache se tiver CPF
+        if (cpfCliente) {
+          buscarCliente(cpfCliente);
+        }
+      }
       setNovaData("");
       setNovoHorario("");
       setNotificarCliente(true);
     }
-  }, [open, telefoneCliente]);
+  }, [open, telefoneCliente, cpfCliente, buscarCliente]);
+
+  // Preencher telefone do cache quando disponível
+  useEffect(() => {
+    if (clienteData && open && !telefoneCliente && !telefoneEditavel) {
+      if (clienteData.telefone) {
+        setTelefoneEditavel(clienteData.telefone);
+        setTelefonePreenchidoCache(true);
+      }
+    }
+  }, [clienteData, open, telefoneCliente]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +116,11 @@ export function ReagendarAssinaturaDialog({
         .eq("id", assinaturaId);
 
       if (updateError) throw updateError;
+
+      // Salvar telefone no cache de clientes
+      if (cpfCliente && telefoneEditavel) {
+        await salvarCliente(cpfCliente, nomeCliente || "", telefoneEditavel);
+      }
 
       // Enviar notificação WhatsApp se solicitado e houver telefone
       const telefoneParaNotificar = telefoneEditavel || telefoneCliente;
@@ -164,6 +195,7 @@ export function ReagendarAssinaturaDialog({
     setNovoHorario("");
     setNotificarCliente(true);
     setTelefoneEditavel("");
+    setTelefonePreenchidoCache(false);
   };
 
   return (
@@ -219,12 +251,29 @@ export function ReagendarAssinaturaDialog({
             <Label className="text-base font-semibold">📱 Notificação ao Cliente</Label>
             
             <div className="space-y-2 mb-3">
-              <Label htmlFor="telefone-editavel">Telefone do Cliente (WhatsApp)</Label>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="telefone-editavel">Telefone do Cliente (WhatsApp)</Label>
+                {telefonePreenchidoCache && telefoneEditavel && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Preenchido automaticamente do cache</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
               <Input
                 id="telefone-editavel"
                 placeholder="(11) 99999-9999"
                 value={telefoneEditavel}
-                onChange={(e) => setTelefoneEditavel(e.target.value)}
+                onChange={(e) => {
+                  setTelefoneEditavel(e.target.value);
+                  setTelefonePreenchidoCache(false);
+                }}
               />
               <p className="text-xs text-muted-foreground">
                 {telefoneCliente 
