@@ -276,10 +276,23 @@ const handler = async (req: Request): Promise<Response> => {
     let demandUpdated = false;
     let demandId: string | null = null;
 
+    let whatsappSent = false;
+
     if (distribuicao.tipo_tarefa === "demanda" && distribuicao.referencia_id) {
       demandId = distribuicao.referencia_id;
       
-      // 1) Atualizar a demanda para concluída imediatamente
+      // 1) Buscar dados completos da demanda
+      const { data: demandData, error: demandFetchError } = await supabase
+        .from("demands")
+        .select("type, cpf, cca_user_id")
+        .eq("id", demandId)
+        .single();
+
+      if (demandFetchError) {
+        console.error("[INBOUND] Erro ao buscar demanda:", demandFetchError);
+      }
+
+      // 2) Atualizar a demanda para concluída imediatamente
       const { error: demandError } = await supabase
         .from("demands")
         .update({
@@ -296,7 +309,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log("[INBOUND] Demanda atualizada para concluída:", demandId);
       }
 
-      // 2) Atualizar TODAS as distribuições dessa demanda para concluída (consistência)
+      // 3) Atualizar TODAS as distribuições dessa demanda para concluída (consistência)
       const { error: allDistError } = await supabase
         .from("distribuicao_tarefas")
         .update({
@@ -312,6 +325,85 @@ const handler = async (req: Request): Promise<Response> => {
       } else {
         console.log("[INBOUND] Todas distribuições da demanda atualizadas:", demandId);
       }
+
+      // 4) Enviar WhatsApp para o CCA que abriu a demanda
+      if (demandData?.cca_user_id && demandUpdated) {
+        try {
+          // Buscar telefone do CCA
+          const { data: ccaData, error: ccaError } = await supabase
+            .from("profiles")
+            .select("phone, full_name")
+            .eq("user_id", demandData.cca_user_id)
+            .maybeSingle();
+
+          if (ccaError) {
+            console.error("[INBOUND] Erro ao buscar perfil do CCA:", ccaError);
+          }
+
+          if (ccaData?.phone) {
+            // Buscar template de WhatsApp
+            const { data: whatsappTemplate } = await supabase
+              .from("whatsapp_templates")
+              .select("*")
+              .eq("template_key", "demanda_respondida")
+              .maybeSingle();
+
+            // Mapa de tipos para labels legíveis
+            const demandTypeLabels: Record<string, string> = {
+              autoriza_reavaliacao: "Autorização de Reavaliação",
+              desconsidera_avaliacoes: "Desconsidera Avaliações",
+              vincula_imovel: "Vincula Imóvel",
+              cancela_avaliacao_sicaq: "Cancela Avaliação SICAQ",
+              cancela_proposta_siopi: "Cancela Proposta SIOPI",
+              solicitar_avaliacao_sigdu: "Solicitar Avaliação SIGDU",
+              outras: "Outras",
+              incluir_pis_siopi: "Incluir PIS SIOPI",
+              autoriza_vendedor_restricao: "Autoriza Vendedor com Restrição",
+            };
+
+            const typeLabel = demandTypeLabels[demandData.type] || demandData.type;
+
+            // Montar mensagem
+            let whatsappMessage: string;
+            if (whatsappTemplate?.message) {
+              whatsappMessage = whatsappTemplate.message
+                .replace(/\{\{status\}\}/g, "✅ Concluída")
+                .replace(/\{\{tipo_demanda\}\}/g, typeLabel)
+                .replace(/\{\{resposta\}\}/g, `Concluída via e-mail (${matched}).`);
+            } else {
+              whatsappMessage = `🔔 *Demanda Concluída*\n\n*Tipo:* ${typeLabel}\n*Status:* ✅ Concluída\n\nSua demanda foi concluída via resposta por e-mail.`;
+            }
+
+            // Enviar WhatsApp via edge function
+            const supabaseUrl = Deno.env.get("SUPABASE_URL");
+            const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+            const whatsappResponse = await fetch(`${supabaseUrl}/functions/v1/send-whatsapp`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${serviceRoleKey}`,
+              },
+              body: JSON.stringify({
+                phone: ccaData.phone,
+                message: whatsappMessage,
+              }),
+            });
+
+            if (whatsappResponse.ok) {
+              whatsappSent = true;
+              console.log("[INBOUND] WhatsApp enviado para CCA:", ccaData.phone);
+            } else {
+              const whatsappError = await whatsappResponse.text();
+              console.error("[INBOUND] Erro ao enviar WhatsApp:", whatsappError);
+            }
+          } else {
+            console.log("[INBOUND] CCA não possui telefone cadastrado");
+          }
+        } catch (whatsappErr) {
+          console.error("[INBOUND] Exceção ao enviar WhatsApp:", whatsappErr);
+        }
+      }
     }
 
     return new Response(
@@ -322,6 +414,7 @@ const handler = async (req: Request): Promise<Response> => {
         matched_keyword: matched,
         demand_updated: demandUpdated,
         demand_id: demandId,
+        whatsapp_sent: whatsappSent,
         ...debugPayload,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
