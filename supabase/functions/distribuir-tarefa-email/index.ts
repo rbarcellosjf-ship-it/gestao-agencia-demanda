@@ -103,18 +103,91 @@ const handler = async (req: Request): Promise<Response> => {
           html: body,
         });
 
-        console.log("Email sent to:", empregado.email_preferencia, emailResponse);
-        results.push({ empregadoId, success: true });
-      } catch (emailError) {
-        console.error("Error sending email:", emailError);
-        results.push({ empregadoId, success: false, error: emailError });
+        console.log("Email response:", JSON.stringify(emailResponse));
+
+        // Verificar se houve erro na resposta do Resend
+        if (emailResponse.error) {
+          console.error("Resend error:", emailResponse.error);
+          
+          const errorMessage = emailResponse.error.message || "Erro desconhecido";
+          const errorName = emailResponse.error.name || "";
+          
+          // Verificar se é erro de domínio não verificado
+          if (errorName === "validation_error" || errorMessage.includes("verify a domain")) {
+            results.push({ 
+              empregadoId, 
+              success: false, 
+              error: "domain_not_verified",
+              message: "Domínio não verificado. Configure em resend.com/domains"
+            });
+          } else {
+            results.push({ 
+              empregadoId, 
+              success: false, 
+              error: errorName,
+              message: errorMessage
+            });
+          }
+        } else {
+          console.log("Email sent successfully to:", empregado.email_preferencia);
+          results.push({ empregadoId, success: true, email: empregado.email_preferencia });
+        }
+      } catch (emailError: any) {
+        console.error("Exception sending email:", emailError);
+        results.push({ 
+          empregadoId, 
+          success: false, 
+          error: "exception",
+          message: emailError.message || "Erro ao enviar e-mail"
+        });
       }
+    }
+
+    // Verificar se algum e-mail foi enviado com sucesso
+    const successCount = results.filter(r => r.success).length;
+    const failedCount = results.filter(r => !r.success).length;
+    
+    // Se todos falharam por domínio não verificado, retornar erro específico
+    const domainErrors = results.filter(r => r.error === "domain_not_verified");
+    if (domainErrors.length === results.length && results.length > 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "domain_not_verified",
+          message: "Domínio de e-mail não verificado. Para enviar e-mails para qualquer destinatário, configure um domínio verificado em resend.com/domains. Atualmente só é possível enviar para o e-mail cadastrado na conta Resend.",
+          results
+        }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Se todos falharam por outro motivo
+    if (successCount === 0 && failedCount > 0) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: "email_send_failed",
+          message: `Falha ao enviar e-mails. ${results[0]?.message || "Verifique as configurações do Resend."}`,
+          results
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `Tarefa distribuída para ${empregadosIds.length} empregado(s)`,
+        message: successCount > 0 
+          ? `Tarefa distribuída para ${successCount} empregado(s)${failedCount > 0 ? `, ${failedCount} falha(s)` : ""}`
+          : "Tarefa registrada, mas nenhum e-mail foi enviado",
+        successCount,
+        failedCount,
         results
       }),
       {
