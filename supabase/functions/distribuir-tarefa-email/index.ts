@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { Resend } from "npm:resend";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const INBOUND_DOMAIN = Deno.env.get("RESEND_INBOUND_DOMAIN") || "reply.example.com";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,20 +34,31 @@ const handler = async (req: Request): Promise<Response> => {
     const results = [];
 
     for (const empregadoId of empregadosIds) {
-      // 1. Registrar distribuição
-      const { error: insertError } = await supabaseClient
+      // 1. Registrar distribuição e capturar o ID usando select().single()
+      const { data: distribuicaoData, error: insertError } = await supabaseClient
         .from("distribuicao_tarefas")
         .insert({
           tipo_tarefa: tipoTarefa,
           referencia_id: referenciaId,
           user_id: empregadoId,
           status: "em_andamento",
-        });
+        })
+        .select("id")
+        .single();
 
-      if (insertError) {
+      if (insertError || !distribuicaoData) {
         console.error("Error inserting task:", insertError);
+        results.push({ 
+          empregadoId, 
+          success: false, 
+          error: "insert_failed",
+          message: insertError?.message || "Falha ao registrar tarefa"
+        });
         continue;
       }
+
+      const distribuicaoId = distribuicaoData.id;
+      console.log("Tarefa criada com ID:", distribuicaoId);
 
       // 2. Buscar dados do empregado da tabela profiles
       const { data: empregado, error: empError } = await supabaseClient
@@ -57,11 +69,18 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (empError || !empregado?.email_preferencia) {
         console.error("Error fetching empregado:", empError);
+        results.push({ 
+          empregadoId, 
+          success: false, 
+          error: "empregado_not_found",
+          message: "Email do empregado não encontrado"
+        });
         continue;
       }
 
       // 3. Determinar a chave do template baseado no tipo de tarefa
       let templateKey = `task_${tipoTarefa}`;
+      let demandaType = null;
 
       // Se for demanda, buscar detalhes para encontrar o tipo específico
       if (tipoTarefa === "demanda") {
@@ -73,6 +92,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         if (demandaData?.type) {
           templateKey = `task_demanda_${demandaData.type}`;
+          demandaType = demandaData.type;
         }
       }
 
@@ -87,20 +107,36 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Fallback para template genérico
       const subject = template?.subject || `Nova Tarefa: ${tipoTarefa}`;
-      const body = template?.body || `
+      const baseBody = template?.body || `
         <h2>Olá ${empregado.full_name},</h2>
         <p>Você recebeu uma nova tarefa do tipo <strong>${tipoTarefa}</strong>.</p>
         <p>Por favor, acesse o sistema para mais detalhes.</p>
-        <p>Atenciosamente,<br>Sistema de Gestão</p>
       `;
 
-      // 4. Enviar e-mail
+      // 5. Criar replyTo único com o ID da distribuição
+      const replyToAddress = `tarefa-${distribuicaoId}@${INBOUND_DOMAIN}`;
+      console.log("ReplyTo address:", replyToAddress);
+
+      // Adicionar instruções de resposta ao corpo do email
+      const bodyWithReplyInstructions = `
+        ${baseBody}
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+        <p style="color: #666; font-size: 12px;">
+          <strong>Dica:</strong> Ao concluir esta tarefa, você pode responder este e-mail com 
+          <strong>"ok"</strong>, <strong>"feito"</strong> ou <strong>"concluído"</strong> 
+          para finalizar automaticamente no sistema.
+        </p>
+        <p style="color: #999; font-size: 11px;">Atenciosamente,<br>Sistema de Gestão</p>
+      `;
+
+      // 6. Enviar e-mail com replyTo
       try {
         const emailResponse = await resend.emails.send({
           from: "Sistema de Tarefas <onboarding@resend.dev>",
           to: [empregado.email_preferencia],
+          replyTo: replyToAddress,
           subject,
-          html: body,
+          html: bodyWithReplyInstructions,
         });
 
         console.log("Email response:", JSON.stringify(emailResponse));
@@ -116,6 +152,7 @@ const handler = async (req: Request): Promise<Response> => {
           if (errorName === "validation_error" || errorMessage.includes("verify a domain")) {
             results.push({ 
               empregadoId, 
+              distribuicaoId,
               success: false, 
               error: "domain_not_verified",
               message: "Domínio não verificado. Configure em resend.com/domains"
@@ -123,19 +160,46 @@ const handler = async (req: Request): Promise<Response> => {
           } else {
             results.push({ 
               empregadoId, 
+              distribuicaoId,
               success: false, 
               error: errorName,
               message: errorMessage
             });
           }
         } else {
+          // 7. Atualizar a tarefa com metadados do email enviado
+          const resendSentId = emailResponse.data?.id;
+          
+          const { error: updateError } = await supabaseClient
+            .from("distribuicao_tarefas")
+            .update({
+              resend_sent_id: resendSentId,
+              reply_to_address: replyToAddress,
+              last_email_sent_at: new Date().toISOString(),
+            })
+            .eq("id", distribuicaoId);
+
+          if (updateError) {
+            console.error("Error updating task with email metadata:", updateError);
+          } else {
+            console.log("Task updated with email metadata:", { resendSentId, replyToAddress });
+          }
+
           console.log("Email sent successfully to:", empregado.email_preferencia);
-          results.push({ empregadoId, success: true, email: empregado.email_preferencia });
+          results.push({ 
+            empregadoId, 
+            distribuicaoId,
+            success: true, 
+            email: empregado.email_preferencia,
+            replyTo: replyToAddress,
+            resendId: resendSentId
+          });
         }
       } catch (emailError: any) {
         console.error("Exception sending email:", emailError);
         results.push({ 
           empregadoId, 
+          distribuicaoId,
           success: false, 
           error: "exception",
           message: emailError.message || "Erro ao enviar e-mail"

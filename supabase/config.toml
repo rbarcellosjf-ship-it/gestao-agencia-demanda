@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.enhance-text]
 verify_jwt = true
+
+[functions.resend-inbound-task-reply]
+verify_jwt = false
