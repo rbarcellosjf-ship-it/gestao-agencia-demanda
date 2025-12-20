@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, User, CheckCircle2, Clock, ListTodo, Filter, FileText, Calendar, ClipboardList, ArrowLeft } from "lucide-react";
+import { LogOut, User, CheckCircle2, Clock, ListTodo, Filter, FileText, Calendar, ClipboardList, ArrowLeft, Mail, MailCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,11 @@ interface TarefaDistribuida {
   status: string;
   created_at: string;
   updated_at: string;
+  // Campos de email
+  concluida_por_email?: boolean;
+  concluida_em?: string;
+  inbound_from?: string;
+  inbound_email_id?: string;
   // Dados relacionados
   demand?: any;
   conformidade?: any;
@@ -244,7 +249,16 @@ const MinhasTarefas = () => {
     return labels[tipo] || tipo;
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, concluidaPorEmail?: boolean) => {
+    if (status === "concluida" && concluidaPorEmail) {
+      return (
+        <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700 flex items-center gap-1">
+          <MailCheck className="w-3 h-3" />
+          Via E-mail
+        </Badge>
+      );
+    }
+    
     const variants: { [key: string]: "default" | "secondary" | "outline" } = {
       em_andamento: "secondary",
       concluida: "default",
@@ -401,10 +415,36 @@ const MinhasTarefas = () => {
                             Criada em {new Date(tarefa.created_at).toLocaleDateString("pt-BR")}
                           </CardDescription>
                         </div>
-                        {getStatusBadge(tarefa.status)}
+                        {getStatusBadge(tarefa.status, tarefa.concluida_por_email)}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
+                      {/* Indicador de conclusão via e-mail */}
+                      {tarefa.concluida_por_email && tarefa.concluida_em && (
+                        <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg text-sm">
+                          <Mail className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+                          <div className="text-emerald-700 dark:text-emerald-300">
+                            <span className="font-medium">Concluída via resposta de e-mail</span>
+                            <span className="mx-1">•</span>
+                            <span>
+                              {new Date(tarefa.concluida_em).toLocaleString("pt-BR", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit"
+                              })}
+                            </span>
+                            {tarefa.inbound_from && (
+                              <>
+                                <span className="mx-1">•</span>
+                                <span className="text-emerald-600 dark:text-emerald-400">{tarefa.inbound_from}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Detalhes da Tarefa */}
                       {tarefa.demand && (
                         <div className="space-y-2 text-sm">
