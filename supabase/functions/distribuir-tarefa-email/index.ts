@@ -132,7 +132,7 @@ const handler = async (req: Request): Promise<Response> => {
       // 6. Enviar e-mail com replyTo
       try {
         const emailResponse = await resend.emails.send({
-          from: "Sistema de Tarefas <onboarding@resend.dev>",
+          from: "Sistema de Tarefas <noreply@habitacao0126.com>",
           to: [empregado.email_preferencia],
           replyTo: replyToAddress,
           subject,
