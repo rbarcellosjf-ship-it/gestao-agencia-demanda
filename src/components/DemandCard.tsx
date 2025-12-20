@@ -273,7 +273,6 @@ export const DemandCard = ({
               size="sm"
               variant="default"
               onClick={() => onUpdate(demand.id, "concluida", responseText)}
-              disabled={!responseText}
             >
               <Check className="w-4 h-4 mr-1" />
               Concluir
