@@ -3,7 +3,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import { Resend } from "npm:resend";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
-const INBOUND_DOMAIN = Deno.env.get("RESEND_INBOUND_DOMAIN") || "reply.example.com";
+const INBOUND_DOMAIN = Deno.env.get("RESEND_INBOUND_DOMAIN") || "";
+
+if (!INBOUND_DOMAIN) {
+  throw new Error("RESEND_INBOUND_DOMAIN is not configured");
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

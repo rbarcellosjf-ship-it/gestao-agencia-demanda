@@ -11,36 +11,28 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
-// Palavras-chave que indicam confirmação de conclusão (serão normalizadas)
-const CONFIRMATION_KEYWORDS = [
-  "ok", "feito", "feita", "concluido", "concluído", "concluida", "concluída", 
-  "done", "finalizado", "finalizada", "pronto", "pronta", "realizado", "realizada",
-  "concluí", "concluíndo"
-];
-
 /**
  * Extrai o distribuicao_id do endereço de email (ex: tarefa-uuid@domain.com)
+ * Deve aceitar UUID/IDs com '-' '_' etc.
  */
 function extractDistribuicaoId(toAddress: string): string | null {
-  const match = toAddress.match(/tarefa-([a-zA-Z0-9-]+)@/);
+  const match = toAddress.match(/tarefa-([0-9a-zA-Z_-]+)@/);
   return match ? match[1] : null;
 }
 
-/**
- * Converte HTML para texto plano
- */
-function htmlToText(html: string | null | undefined): string {
-  if (!html) return "";
-  
+function stripQuotedHtml(html: string): string {
+  const idx = html.toLowerCase().indexOf("<blockquote");
+  return idx >= 0 ? html.slice(0, idx) : html;
+}
+
+function htmlToText(html: string): string {
   return html
-    // Substituir <br>, <br/>, <br />, </p>, </div> por quebras de linha
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<\/li>/gi, "\n")
-    // Remover todas as outras tags HTML
+    // quebras de linha
+    .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/<\/(p|div|li|tr|h1|h2|h3|h4|h5|h6)\s*>/gi, "\n")
+    // remover tags
     .replace(/<[^>]*>/g, "")
-    // Decodificar entidades HTML comuns
+    // entidades comuns
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
@@ -48,101 +40,69 @@ function htmlToText(html: string | null | undefined): string {
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&apos;/g, "'")
-    // Decodificar entidades numéricas
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code)))
-    // Colapsar espaços repetidos (mas preservar quebras de linha)
+    // numéricas
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
+    // colapsar espaços/linhas
     .replace(/[ \t]+/g, " ")
-    // Colapsar múltiplas quebras de linha
-    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\n\s*\n\s*\n+/g, "\n\n")
     .trim();
 }
 
-/**
- * Normaliza o texto removendo acentos e convertendo para lowercase
- */
-function normalizeText(text: string): string {
-  return text
+function normalizeForMatch(s: string): string {
+  return s
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove diacríticos/acentos
+    .replace(/[\u0300-\u036f]/g, "")
     .trim();
 }
 
-/**
- * Verifica se o texto contém palavras-chave de confirmação
- * Usa regex para detectar palavra inteira, tolerante a pontuação/emoji
- */
-function hasConfirmationKeyword(text: string): { confirmed: boolean; matchedKeyword: string | null } {
-  const normalizedText = normalizeText(text);
-  
-  for (const keyword of CONFIRMATION_KEYWORDS) {
-    const normalizedKeyword = normalizeText(keyword);
-    // Regex que busca a palavra inteira, delimitada por não-letras ou início/fim de string
-    // Tolerante a pontuação e emoji adjacentes
-    const regex = new RegExp(`(^|[^a-zA-Z0-9])${normalizedKeyword}($|[^a-zA-Z0-9])`, "i");
-    if (regex.test(normalizedText)) {
-      return { confirmed: true, matchedKeyword: keyword };
-    }
-  }
-  
-  return { confirmed: false, matchedKeyword: null };
+function hasConfirmation(candidateText: string): { confirmed: boolean; matched: string | null } {
+  const normalized = normalizeForMatch(candidateText);
+
+  // termos (sem acento porque já normalizamos)
+  const pattern =
+    /(^|[^a-z0-9])(ok|feito|feita|concluido|concluida|done|finalizado|finalizada|conclui|concluindo)([^a-z0-9]|$)/i;
+
+  const match = normalized.match(pattern);
+  return { confirmed: !!match, matched: match?.[2] ?? null };
 }
 
-/**
- * Verifica se todas as distribuições de uma referência estão concluídas
- */
-async function checkAllTasksCompleted(
-  supabase: any, 
-  referenciaId: string, 
-  tipoTarefa: string
-): Promise<boolean> {
+async function checkAllTasksCompleted(supabase: any, referenciaId: string, tipoTarefa: string): Promise<boolean> {
   const { data, error } = await supabase
     .from("distribuicao_tarefas")
     .select("status")
     .eq("referencia_id", referenciaId)
     .eq("tipo_tarefa", tipoTarefa);
-  
+
   if (error || !data) return false;
-  
-  return data.every((task: any) => task.status === "concluida");
+  return data.every((t: any) => t.status === "concluida");
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Apenas aceitar POST
   if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: "Method not allowed" }),
-      { status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Method not allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
-    // Validar webhook secret (flexível para aceitar Resend que não envia header por padrão)
+    // Validar webhook secret (flexível)
     const webhookSecret = req.headers.get("x-webhook-secret");
-    const userAgent = req.headers.get("user-agent") || "";
-    const resendWebhookId = req.headers.get("x-resend-webhook-id");
-    
-    console.log("Request headers info:", { 
+    console.log("Request headers info:", {
       hasWebhookSecret: !!webhookSecret,
-      userAgent,
-      hasResendWebhookId: !!resendWebhookId
+      userAgent: req.headers.get("user-agent") || "",
     });
-    
+
     if (WEBHOOK_SECRET && webhookSecret && webhookSecret !== WEBHOOK_SECRET) {
-      console.error("Invalid webhook secret - header provided but doesn't match");
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-    
-    if (WEBHOOK_SECRET && !webhookSecret) {
-      console.log("Note: RESEND_WEBHOOK_SECRET is configured but no x-webhook-secret header received. Allowing request (Resend default behavior).");
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const supabase = createClient(
@@ -150,70 +110,59 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Parse o payload do webhook
     const payload = await req.json();
     console.log("Webhook payload received:", JSON.stringify(payload));
 
-    // Estrutura esperada do Resend: { type: "email.received", data: {...} }
     const eventType = payload.type;
-    const eventData = payload.data || payload;
+    const event = payload.data || payload;
 
     if (eventType !== "email.received") {
-      console.log("Ignoring non-email.received event:", eventType);
-      return new Response(
-        JSON.stringify({ success: true, action: "ignored", reason: "Not email.received event" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: true, action: "ignored", reason: "Not email.received event" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Extrair informações do evento
-    const emailId = eventData.email_id || eventData.id;
-    const toAddresses = eventData.to || [];
-    const fromAddress = eventData.from || "";
-    const subject = eventData.subject || "";
+    const emailId: string = event.email_id;
+    const toAddresses: any[] = event.to || [];
+    const fromAddress: string = event.from || "";
+    const subject: string = event.subject || "";
 
-    console.log("[INBOUND] Processing email:", { emailId, to: toAddresses, from: fromAddress });
     console.log("[INBOUND] subject:", subject);
 
-    // Encontrar o endereço de tarefa no campo "to"
+    // encontrar distribuicao_id no alias
     let distribuicaoId: string | null = null;
     let targetAddress: string | null = null;
 
     for (const addr of toAddresses) {
-      const extracted = extractDistribuicaoId(typeof addr === 'string' ? addr : addr.email || addr);
+      const email = typeof addr === "string" ? addr : addr.email || addr;
+      const extracted = extractDistribuicaoId(email);
       if (extracted) {
         distribuicaoId = extracted;
-        targetAddress = typeof addr === 'string' ? addr : addr.email || addr;
+        targetAddress = email;
         break;
       }
     }
 
     if (!distribuicaoId) {
-      console.log("No distribuicao_id found in to addresses:", toAddresses);
-      
       await supabase.from("task_email_events").insert({
         event_type: "email_received_invalid",
         email_id: emailId,
         from_addr: fromAddress,
-        to_addr: toAddresses.join(", "),
-        subject: subject,
+        to_addr: toAddresses.map((a) => (typeof a === "string" ? a : a.email || a)).join(", "),
+        subject,
         action_taken: "ignored_no_id",
         raw_payload: payload,
       });
 
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          action: "ignored", 
-          reason: "No valid distribuicao_id found in to address" 
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: true, action: "ignored", reason: "No valid distribuicao_id found in to address" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     console.log("Found distribuicao_id:", distribuicaoId);
 
-    // Buscar a distribuição para verificar se existe e está em andamento
     const { data: distribuicao, error: distError } = await supabase
       .from("distribuicao_tarefas")
       .select("*")
@@ -221,213 +170,138 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (distError || !distribuicao) {
-      console.error("Distribuição não encontrada:", distError);
-      
       await supabase.from("task_email_events").insert({
         event_type: "email_received",
         email_id: emailId,
         from_addr: fromAddress,
         to_addr: targetAddress,
-        subject: subject,
+        subject,
         action_taken: "ignored_not_found",
         raw_payload: payload,
       });
 
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          action: "ignored", 
-          reason: "Distribuição não encontrada",
-          distribuicao_id: distribuicaoId
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: true, action: "ignored", reason: "Distribuição não encontrada", distribuicao_id: distribuicaoId }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Se já está concluída, ignorar
     if (distribuicao.status === "concluida") {
-      console.log("Distribuição já concluída, ignorando");
-      
       await supabase.from("task_email_events").insert({
         distribuicao_id: distribuicaoId,
         event_type: "email_received",
         email_id: emailId,
         from_addr: fromAddress,
         to_addr: targetAddress,
-        subject: subject,
+        subject,
         action_taken: "ignored_already_completed",
         raw_payload: payload,
       });
 
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          action: "ignored", 
-          reason: "Tarefa já concluída",
-          distribuicao_id: distribuicaoId
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: true, action: "ignored", reason: "Tarefa já concluída", distribuicao_id: distribuicaoId }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Buscar o conteúdo completo do email via Resend receiving API
-    let emailText: string | null = null;
-    let emailHtml: string | null = null;
-    
+    // 1) Buscar email completo via Resend receiving API
+    let text = "";
+    let html = "";
+
     try {
-      // Usar a API de receiving do Resend para buscar o email completo
-      const emailDetails = await resend.emails.get(emailId);
-      console.log("[INBOUND] Email details fetched from Resend");
-      
-      if (emailDetails.data) {
-        emailText = emailDetails.data.text || null;
-        emailHtml = emailDetails.data.html || null;
-      }
-    } catch (fetchError) {
-      console.log("[INBOUND] Could not fetch email content from Resend:", fetchError);
+      const { data: email } = await resend.emails.receiving.get(emailId);
+      text = email?.text ?? "";
+      html = email?.html ?? "";
+    } catch (e) {
+      console.log("[INBOUND] Failed to fetch receiving email:", e);
     }
 
-    // Log de debug dos tamanhos
-    console.log("[INBOUND] text_len:", emailText?.length ?? 0);
-    console.log("[INBOUND] html_len:", emailHtml?.length ?? 0);
+    // 2-5) candidateText com subject + text + html convertido (apenas topo)
+    const htmlTop = stripQuotedHtml(html);
+    const htmlTopText = htmlToText(htmlTop);
+    const candidateText = [subject, text, htmlTopText].filter(Boolean).join("\n\n");
 
-    // Construir candidateText usando fallback
-    const textParts: string[] = [];
-    
-    // 1. Adicionar subject
-    if (subject) {
-      textParts.push(subject);
-    }
-    
-    // 2. Adicionar email.text se existir
-    if (emailText && emailText.trim()) {
-      textParts.push(emailText);
-    }
-    
-    // 3. Se email.text estiver vazio, converter email.html para texto
-    if ((!emailText || !emailText.trim()) && emailHtml) {
-      const convertedText = htmlToText(emailHtml);
-      if (convertedText) {
-        textParts.push(convertedText);
-      }
-    }
-    
-    const candidateText = textParts.join("\n\n");
-    
+    // 9) logs
+    console.log("[INBOUND] text_len:", text.length);
+    console.log("[INBOUND] html_len:", html.length);
     console.log("[INBOUND] candidate_preview:", candidateText.slice(0, 200));
 
-    // Verificar se há palavra-chave de confirmação
-    const { confirmed, matchedKeyword } = hasConfirmationKeyword(candidateText);
-    console.log("[INBOUND] Confirmation check:", { confirmed, matchedKeyword });
+    const { confirmed, matched } = hasConfirmation(candidateText);
 
-    // Preview para debug
-    const debugInfo = DEBUG_INBOUND ? {
-      preview_subject: subject?.slice(0, 120),
-      preview_text: candidateText?.slice(0, 400),
-    } : {};
-
-    if (confirmed) {
-      // Atualizar a distribuição como concluída
-      const { error: updateError } = await supabase
-        .from("distribuicao_tarefas")
-        .update({
-          status: "concluida",
-          concluida_em: new Date().toISOString(),
-          concluida_por_email: true,
-          inbound_email_id: emailId,
-          inbound_from: fromAddress,
-        })
-        .eq("id", distribuicaoId);
-
-      if (updateError) {
-        console.error("[INBOUND] Error updating distribuicao:", updateError);
-        throw updateError;
-      }
-
-      console.log("[INBOUND] Tarefa concluída via email:", distribuicaoId);
-
-      // Registrar evento de conclusão
-      await supabase.from("task_email_events").insert({
-        distribuicao_id: distribuicaoId,
-        event_type: "email_received",
-        email_id: emailId,
-        from_addr: fromAddress,
-        to_addr: targetAddress,
-        subject: subject,
-        body_preview: candidateText.substring(0, 500),
-        action_taken: `completed_via_keyword:${matchedKeyword}`,
-        raw_payload: payload,
-      });
-
-      // Verificar se todas as tarefas da referência estão concluídas
-      if (distribuicao.tipo_tarefa === "demanda") {
-        const allCompleted = await checkAllTasksCompleted(
-          supabase, 
-          distribuicao.referencia_id, 
-          "demanda"
-        );
-
-        if (allCompleted) {
-          const { error: demandError } = await supabase
-            .from("demands")
-            .update({
-              status: "concluida",
-              concluded_at: new Date().toISOString(),
-            })
-            .eq("id", distribuicao.referencia_id);
-
-          if (demandError) {
-            console.error("[INBOUND] Error updating demand status:", demandError);
-          } else {
-            console.log("[INBOUND] Demanda também concluída:", distribuicao.referencia_id);
-          }
+    const debugPayload = DEBUG_INBOUND
+      ? {
+          preview_subject: subject.slice(0, 120),
+          preview_text: candidateText.slice(0, 400),
+          lens: { text_len: text.length, html_len: html.length, htmlTop_len: htmlTop.length },
         }
-      }
+      : {};
 
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          action: "completed", 
-          distribuicao_id: distribuicaoId,
-          matched_keyword: matchedKeyword,
-          reason: "Tarefa concluída via resposta de email",
-          ...debugInfo
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    } else {
-      // Não confirmou - registrar o evento
+    if (!confirmed) {
       await supabase.from("task_email_events").insert({
         distribuicao_id: distribuicaoId,
         event_type: "email_received",
         email_id: emailId,
         from_addr: fromAddress,
         to_addr: targetAddress,
-        subject: subject,
-        body_preview: candidateText.substring(0, 500),
+        subject,
+        body_preview: candidateText.slice(0, 500),
         action_taken: "ignored_no_keyword",
         raw_payload: payload,
       });
 
-      console.log("[INBOUND] Email recebido mas sem palavra-chave de confirmação");
-
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          action: "ignored", 
-          distribuicao_id: distribuicaoId,
-          reason: "Nenhuma palavra-chave de confirmação encontrada",
-          ...debugInfo
-        }),
+        JSON.stringify({ success: true, action: "ignored", reason: "Nenhuma palavra-chave de confirmação encontrada", distribuicao_id: distribuicaoId, ...debugPayload }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // 7) atualizar tarefa
+    const { error: updateError } = await supabase
+      .from("distribuicao_tarefas")
+      .update({
+        status: "concluida",
+        concluida_em: new Date().toISOString(),
+        concluida_por_email: true,
+        inbound_email_id: emailId,
+        inbound_from: fromAddress,
+      })
+      .eq("id", distribuicaoId);
+
+    if (updateError) throw updateError;
+
+    await supabase.from("task_email_events").insert({
+      distribuicao_id: distribuicaoId,
+      event_type: "email_received",
+      email_id: emailId,
+      from_addr: fromAddress,
+      to_addr: targetAddress,
+      subject,
+      body_preview: candidateText.slice(0, 500),
+      action_taken: `completed_via_keyword:${matched ?? "unknown"}`,
+      raw_payload: payload,
+    });
+
+    // concluir demanda se todas concluídas
+    if (distribuicao.tipo_tarefa === "demanda") {
+      const allCompleted = await checkAllTasksCompleted(supabase, distribuicao.referencia_id, "demanda");
+      if (allCompleted) {
+        await supabase
+          .from("demands")
+          .update({ status: "concluida", concluded_at: new Date().toISOString() })
+          .eq("id", distribuicao.referencia_id);
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, action: "completed", distribuicao_id: distribuicaoId, matched_keyword: matched, ...debugPayload }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error: any) {
     console.error("[INBOUND] Error processing inbound email:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 };
 
