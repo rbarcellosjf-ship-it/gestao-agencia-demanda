@@ -16,6 +16,16 @@ interface DistribuirTarefaRequest {
   empregadosIds: string[];
 }
 
+// Função para substituir variáveis no template
+function replaceTemplateVariables(template: string, variables: Record<string, string | null | undefined>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(variables)) {
+    const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+    result = result.replace(regex, value || '');
+  }
+  return result;
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -30,6 +40,54 @@ const handler = async (req: Request): Promise<Response> => {
     const { tipoTarefa, referenciaId, empregadosIds }: DistribuirTarefaRequest = await req.json();
 
     console.log("Distribuindo tarefa:", { tipoTarefa, referenciaId, empregadosIds });
+
+    // Buscar dados da referência para substituir variáveis no template
+    let referenciaData: Record<string, any> = {};
+    let templateKey = `task_${tipoTarefa}`;
+
+    if (tipoTarefa === "demanda") {
+      const { data: demandaData, error: demandaError } = await supabaseClient
+        .from("demands")
+        .select("*")
+        .eq("id", referenciaId)
+        .single();
+      
+      if (demandaData) {
+        referenciaData = demandaData;
+        templateKey = `task_demanda_${demandaData.type}`;
+        console.log("Demanda data loaded:", { type: demandaData.type, cpf: demandaData.cpf });
+      } else {
+        console.error("Error fetching demanda:", demandaError);
+      }
+    } else if (tipoTarefa === "assinatura") {
+      const { data: assinaturaData, error: assinaturaError } = await supabaseClient
+        .from("assinaturas_agendamento")
+        .select("*")
+        .eq("id", referenciaId)
+        .single();
+      
+      if (assinaturaData) {
+        referenciaData = assinaturaData;
+        console.log("Assinatura data loaded:", { cliente: assinaturaData.cliente_nome });
+      } else {
+        console.error("Error fetching assinatura:", assinaturaError);
+      }
+    } else if (tipoTarefa === "comite") {
+      const { data: conformidadeData, error: conformidadeError } = await supabaseClient
+        .from("conformidades")
+        .select("*")
+        .eq("id", referenciaId)
+        .single();
+      
+      if (conformidadeData) {
+        referenciaData = conformidadeData;
+        console.log("Conformidade data loaded:", { cpf: conformidadeData.cpf });
+      } else {
+        console.error("Error fetching conformidade:", conformidadeError);
+      }
+    }
+
+    console.log("Looking for template with key:", templateKey);
 
     const results = [];
 
@@ -78,42 +136,70 @@ const handler = async (req: Request): Promise<Response> => {
         continue;
       }
 
-      // 3. Determinar a chave do template baseado no tipo de tarefa
-      let templateKey = `task_${tipoTarefa}`;
-      let demandaType = null;
-
-      // Se for demanda, buscar detalhes para encontrar o tipo específico
-      if (tipoTarefa === "demanda") {
-        const { data: demandaData } = await supabaseClient
-          .from("demands")
-          .select("type")
-          .eq("id", referenciaId)
-          .single();
-        
-        if (demandaData?.type) {
-          templateKey = `task_demanda_${demandaData.type}`;
-          demandaType = demandaData.type;
-        }
-      }
-
-      console.log("Looking for template with key:", templateKey);
-
-      // 4. Buscar template de e-mail
+      // 3. Buscar template de e-mail
       const { data: template } = await supabaseClient
         .from("email_templates")
         .select("subject, body")
         .eq("template_key", templateKey)
         .single();
 
-      // Fallback para template genérico
-      const subject = template?.subject || `Nova Tarefa: ${tipoTarefa}`;
-      const baseBody = template?.body || `
-        <h2>Olá ${empregado.full_name},</h2>
-        <p>Você recebeu uma nova tarefa do tipo <strong>${tipoTarefa}</strong>.</p>
-        <p>Por favor, acesse o sistema para mais detalhes.</p>
-      `;
+      // 4. Preparar variáveis para substituição
+      const templateVariables: Record<string, string | null | undefined> = {
+        // Dados do empregado
+        empregado_nome: empregado.full_name,
+        empregado_email: empregado.email_preferencia,
+        
+        // Dados comuns de demanda
+        cpf: referenciaData.cpf,
+        nome_cliente: referenciaData.nome_cliente,
+        matricula: referenciaData.matricula,
+        cartorio: referenciaData.cartorio,
+        description: referenciaData.description,
+        numero_pis: referenciaData.numero_pis,
+        codigo_cca: referenciaData.codigo_cca,
+        
+        // Dados de assinatura
+        cliente_nome: referenciaData.cliente_nome,
+        telefone: referenciaData.telefone,
+        data_opcao_1: referenciaData.data_opcao_1,
+        data_opcao_2: referenciaData.data_opcao_2,
+        horario_inicio: referenciaData.horario_inicio,
+        horario_fim: referenciaData.horario_fim,
+        agencia: referenciaData.agencia,
+        endereco_agencia: referenciaData.endereco_agencia,
+        modalidade_financiamento: referenciaData.modalidade_financiamento,
+        tipo_contrato: referenciaData.tipo_contrato,
+        
+        // Dados de conformidade/comitê
+        valor_financiamento: referenciaData.valor_financiamento?.toString(),
+        modalidade: referenciaData.modalidade,
+        
+        // Tipo de tarefa
+        tipo_tarefa: tipoTarefa,
+      };
 
-      // 5. Criar replyTo único com o ID da distribuição
+      console.log("Template variables prepared:", Object.keys(templateVariables).filter(k => templateVariables[k]));
+
+      // 5. Substituir variáveis no template ou usar fallback
+      let subject: string;
+      let baseBody: string;
+
+      if (template?.subject && template?.body) {
+        subject = replaceTemplateVariables(template.subject, templateVariables);
+        baseBody = replaceTemplateVariables(template.body, templateVariables);
+        console.log("Template found and variables replaced");
+      } else {
+        // Fallback para template genérico
+        subject = `Nova Tarefa: ${tipoTarefa}`;
+        baseBody = `
+          <h2>Olá ${empregado.full_name},</h2>
+          <p>Você recebeu uma nova tarefa do tipo <strong>${tipoTarefa}</strong>.</p>
+          <p>Por favor, acesse o sistema para mais detalhes.</p>
+        `;
+        console.log("Using fallback template");
+      }
+
+      // 6. Criar replyTo único com o ID da distribuição
       const replyToAddress = `tarefa-${distribuicaoId}@${INBOUND_DOMAIN}`;
       console.log("ReplyTo address:", replyToAddress);
 
@@ -129,7 +215,7 @@ const handler = async (req: Request): Promise<Response> => {
         <p style="color: #999; font-size: 11px;">Atenciosamente,<br>Sistema de Gestão</p>
       `;
 
-      // 6. Enviar e-mail com replyTo
+      // 7. Enviar e-mail com replyTo
       try {
         const emailResponse = await resend.emails.send({
           from: "Sistema de Tarefas <noreply@habitacao0126.com>",
@@ -167,7 +253,7 @@ const handler = async (req: Request): Promise<Response> => {
             });
           }
         } else {
-          // 7. Atualizar a tarefa com metadados do email enviado
+          // 8. Atualizar a tarefa com metadados do email enviado
           const resendSentId = emailResponse.data?.id;
           
           const { error: updateError } = await supabaseClient
