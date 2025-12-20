@@ -67,16 +67,7 @@ function hasConfirmation(candidateText: string): { confirmed: boolean; matched: 
   return { confirmed: !!match, matched: match?.[2] ?? null };
 }
 
-async function checkAllTasksCompleted(supabase: any, referenciaId: string, tipoTarefa: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("distribuicao_tarefas")
-    .select("status")
-    .eq("referencia_id", referenciaId)
-    .eq("tipo_tarefa", tipoTarefa);
-
-  if (error || !data) return false;
-  return data.every((t: any) => t.status === "concluida");
-}
+// Removida função checkAllTasksCompleted - agora fechamos a demanda na primeira resposta
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -281,19 +272,58 @@ const handler = async (req: Request): Promise<Response> => {
       raw_payload: payload,
     });
 
-    // concluir demanda se todas concluídas
-    if (distribuicao.tipo_tarefa === "demanda") {
-      const allCompleted = await checkAllTasksCompleted(supabase, distribuicao.referencia_id, "demanda");
-      if (allCompleted) {
-        await supabase
-          .from("demands")
-          .update({ status: "concluida", concluded_at: new Date().toISOString() })
-          .eq("id", distribuicao.referencia_id);
+    // NOVA REGRA: Fechar a demanda IMEDIATAMENTE na primeira resposta
+    let demandUpdated = false;
+    let demandId: string | null = null;
+
+    if (distribuicao.tipo_tarefa === "demanda" && distribuicao.referencia_id) {
+      demandId = distribuicao.referencia_id;
+      
+      // 1) Atualizar a demanda para concluída imediatamente
+      const { error: demandError } = await supabase
+        .from("demands")
+        .update({
+          status: "concluida",
+          concluded_at: new Date().toISOString(),
+          response_text: `Concluída via e-mail (${matched}).`,
+        })
+        .eq("id", demandId);
+
+      if (demandError) {
+        console.error("[INBOUND] Erro ao atualizar demanda:", demandError);
+      } else {
+        demandUpdated = true;
+        console.log("[INBOUND] Demanda atualizada para concluída:", demandId);
+      }
+
+      // 2) Atualizar TODAS as distribuições dessa demanda para concluída (consistência)
+      const { error: allDistError } = await supabase
+        .from("distribuicao_tarefas")
+        .update({
+          status: "concluida",
+          concluida_em: new Date().toISOString(),
+          concluida_por_email: true,
+        })
+        .eq("tipo_tarefa", "demanda")
+        .eq("referencia_id", demandId);
+
+      if (allDistError) {
+        console.error("[INBOUND] Erro ao atualizar todas distribuições:", allDistError);
+      } else {
+        console.log("[INBOUND] Todas distribuições da demanda atualizadas:", demandId);
       }
     }
 
     return new Response(
-      JSON.stringify({ success: true, action: "completed", distribuicao_id: distribuicaoId, matched_keyword: matched, ...debugPayload }),
+      JSON.stringify({
+        success: true,
+        action: "completed",
+        distribuicao_id: distribuicaoId,
+        matched_keyword: matched,
+        demand_updated: demandUpdated,
+        demand_id: demandId,
+        ...debugPayload,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: any) {
