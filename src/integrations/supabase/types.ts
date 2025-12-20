@@ -349,27 +349,48 @@ export type Database = {
       }
       distribuicao_tarefas: {
         Row: {
+          concluida_em: string | null
+          concluida_por_email: boolean | null
           created_at: string | null
           id: string
+          inbound_email_id: string | null
+          inbound_from: string | null
+          last_email_sent_at: string | null
           referencia_id: string
+          reply_to_address: string | null
+          resend_sent_id: string | null
           status: string | null
           tipo_tarefa: string
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
+          concluida_em?: string | null
+          concluida_por_email?: boolean | null
           created_at?: string | null
           id?: string
+          inbound_email_id?: string | null
+          inbound_from?: string | null
+          last_email_sent_at?: string | null
           referencia_id: string
+          reply_to_address?: string | null
+          resend_sent_id?: string | null
           status?: string | null
           tipo_tarefa: string
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
+          concluida_em?: string | null
+          concluida_por_email?: boolean | null
           created_at?: string | null
           id?: string
+          inbound_email_id?: string | null
+          inbound_from?: string | null
+          last_email_sent_at?: string | null
           referencia_id?: string
+          reply_to_address?: string | null
+          resend_sent_id?: string | null
           status?: string | null
           tipo_tarefa?: string
           updated_at?: string | null
@@ -603,6 +624,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      task_email_events: {
+        Row: {
+          action_taken: string | null
+          body_preview: string | null
+          created_at: string | null
+          distribuicao_id: string | null
+          email_id: string | null
+          event_type: string
+          from_addr: string | null
+          id: string
+          raw_payload: Json | null
+          subject: string | null
+          to_addr: string | null
+        }
+        Insert: {
+          action_taken?: string | null
+          body_preview?: string | null
+          created_at?: string | null
+          distribuicao_id?: string | null
+          email_id?: string | null
+          event_type: string
+          from_addr?: string | null
+          id?: string
+          raw_payload?: Json | null
+          subject?: string | null
+          to_addr?: string | null
+        }
+        Update: {
+          action_taken?: string | null
+          body_preview?: string | null
+          created_at?: string | null
+          distribuicao_id?: string | null
+          email_id?: string | null
+          event_type?: string
+          from_addr?: string | null
+          id?: string
+          raw_payload?: Json | null
+          subject?: string | null
+          to_addr?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_email_events_distribuicao_id_fkey"
+            columns: ["distribuicao_id"]
+            isOneToOne: false
+            referencedRelation: "distribuicao_tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
