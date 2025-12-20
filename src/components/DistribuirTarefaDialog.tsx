@@ -89,7 +89,7 @@ export function DistribuirTarefaDialog({
       const empregadosIds = selectedUsers.map(u => u.user_id);
       
       // Chamar edge function para distribuir tarefas e enviar emails
-      const { error: distribuirError } = await supabase.functions.invoke("distribuir-tarefa-email", {
+      const { data, error: distribuirError } = await supabase.functions.invoke("distribuir-tarefa-email", {
         body: {
           tipoTarefa,
           referenciaId,
@@ -99,10 +99,41 @@ export function DistribuirTarefaDialog({
 
       if (distribuirError) throw distribuirError;
 
-      toast({
-        title: "Tarefa distribuída!",
-        description: `Tarefa enviada para ${selectedUsers.length} empregado(s).`,
-      });
+      // Verificar resposta da edge function
+      if (data && !data.success) {
+        if (data.error === "domain_not_verified") {
+          toast({
+            title: "Domínio não verificado",
+            description: "Para enviar e-mails, configure um domínio verificado no Resend (resend.com/domains). A tarefa foi registrada, mas o e-mail não foi enviado.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Erro ao enviar e-mail",
+            description: data.message || "Verifique as configurações do Resend.",
+            variant: "destructive",
+          });
+        }
+        // Ainda assim fechar o dialog pois a tarefa foi registrada
+        onSuccess?.();
+        onOpenChange(false);
+        setSelectedUserId("");
+        return;
+      }
+
+      // Verificar se houve falhas parciais
+      if (data?.failedCount > 0 && data?.successCount > 0) {
+        toast({
+          title: "Tarefa distribuída parcialmente",
+          description: `${data.successCount} e-mail(s) enviado(s), ${data.failedCount} falha(s).`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Tarefa distribuída!",
+          description: data?.message || `Tarefa enviada para ${selectedUsers.length} empregado(s).`,
+        });
+      }
 
       onSuccess?.();
       onOpenChange(false);
@@ -111,7 +142,7 @@ export function DistribuirTarefaDialog({
       console.error("Error distributing task:", error);
       toast({
         title: "Erro ao distribuir tarefa",
-        description: error.message,
+        description: error.message || "Erro desconhecido. Verifique os logs.",
         variant: "destructive",
       });
     } finally {
