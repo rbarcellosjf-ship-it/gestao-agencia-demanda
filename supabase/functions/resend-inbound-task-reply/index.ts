@@ -4,25 +4,57 @@ import { Resend } from "npm:resend";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 const WEBHOOK_SECRET = Deno.env.get("RESEND_WEBHOOK_SECRET") || "";
+const DEBUG_INBOUND = Deno.env.get("DEBUG_INBOUND") === "true";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
-// Palavras-chave que indicam confirmação de conclusão
+// Palavras-chave que indicam confirmação de conclusão (serão normalizadas)
 const CONFIRMATION_KEYWORDS = [
   "ok", "feito", "feita", "concluido", "concluído", "concluida", "concluída", 
-  "done", "finalizado", "finalizada", "pronto", "pronta", "realizado", "realizada"
+  "done", "finalizado", "finalizada", "pronto", "pronta", "realizado", "realizada",
+  "concluí", "concluíndo"
 ];
 
 /**
  * Extrai o distribuicao_id do endereço de email (ex: tarefa-uuid@domain.com)
  */
 function extractDistribuicaoId(toAddress: string): string | null {
-  // Suporta UUID e IDs numéricos
   const match = toAddress.match(/tarefa-([a-zA-Z0-9-]+)@/);
   return match ? match[1] : null;
+}
+
+/**
+ * Converte HTML para texto plano
+ */
+function htmlToText(html: string | null | undefined): string {
+  if (!html) return "";
+  
+  return html
+    // Substituir <br>, <br/>, <br />, </p>, </div> por quebras de linha
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<\/li>/gi, "\n")
+    // Remover todas as outras tags HTML
+    .replace(/<[^>]*>/g, "")
+    // Decodificar entidades HTML comuns
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    // Decodificar entidades numéricas
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code)))
+    // Colapsar espaços repetidos (mas preservar quebras de linha)
+    .replace(/[ \t]+/g, " ")
+    // Colapsar múltiplas quebras de linha
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**
@@ -32,23 +64,23 @@ function normalizeText(text: string): string {
   return text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^\w\s]/g, " ")
-    .replace(/\s+/g, " ")
+    .replace(/[\u0300-\u036f]/g, "") // Remove diacríticos/acentos
     .trim();
 }
 
 /**
  * Verifica se o texto contém palavras-chave de confirmação
+ * Usa regex para detectar palavra inteira, tolerante a pontuação/emoji
  */
 function hasConfirmationKeyword(text: string): { confirmed: boolean; matchedKeyword: string | null } {
   const normalizedText = normalizeText(text);
-  const words = normalizedText.split(" ");
   
   for (const keyword of CONFIRMATION_KEYWORDS) {
     const normalizedKeyword = normalizeText(keyword);
-    // Verificar se a palavra-chave existe como palavra inteira
-    if (words.includes(normalizedKeyword)) {
+    // Regex que busca a palavra inteira, delimitada por não-letras ou início/fim de string
+    // Tolerante a pontuação e emoji adjacentes
+    const regex = new RegExp(`(^|[^a-zA-Z0-9])${normalizedKeyword}($|[^a-zA-Z0-9])`, "i");
+    if (regex.test(normalizedText)) {
       return { confirmed: true, matchedKeyword: keyword };
     }
   }
@@ -95,15 +127,12 @@ const handler = async (req: Request): Promise<Response> => {
     const userAgent = req.headers.get("user-agent") || "";
     const resendWebhookId = req.headers.get("x-resend-webhook-id");
     
-    // Log para debug
     console.log("Request headers info:", { 
       hasWebhookSecret: !!webhookSecret,
       userAgent,
       hasResendWebhookId: !!resendWebhookId
     });
     
-    // Se um secret está configurado E um header foi enviado, validar
-    // Se nenhum header foi enviado, permitir (o Resend não envia header secret por padrão)
     if (WEBHOOK_SECRET && webhookSecret && webhookSecret !== WEBHOOK_SECRET) {
       console.error("Invalid webhook secret - header provided but doesn't match");
       return new Response(
@@ -112,7 +141,6 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
     
-    // Aviso em dev quando secret configurado mas não enviado
     if (WEBHOOK_SECRET && !webhookSecret) {
       console.log("Note: RESEND_WEBHOOK_SECRET is configured but no x-webhook-secret header received. Allowing request (Resend default behavior).");
     }
@@ -144,7 +172,8 @@ const handler = async (req: Request): Promise<Response> => {
     const fromAddress = eventData.from || "";
     const subject = eventData.subject || "";
 
-    console.log("Processing email:", { emailId, to: toAddresses, from: fromAddress, subject });
+    console.log("[INBOUND] Processing email:", { emailId, to: toAddresses, from: fromAddress });
+    console.log("[INBOUND] subject:", subject);
 
     // Encontrar o endereço de tarefa no campo "to"
     let distribuicaoId: string | null = null;
@@ -162,7 +191,6 @@ const handler = async (req: Request): Promise<Response> => {
     if (!distribuicaoId) {
       console.log("No distribuicao_id found in to addresses:", toAddresses);
       
-      // Registrar evento mesmo sem ID válido
       await supabase.from("task_email_events").insert({
         event_type: "email_received_invalid",
         email_id: emailId,
@@ -242,30 +270,61 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Tentar buscar o conteúdo do email via API Resend
-    let emailContent = "";
-    let emailBodyPreview = "";
+    // Buscar o conteúdo completo do email via Resend receiving API
+    let emailText: string | null = null;
+    let emailHtml: string | null = null;
     
     try {
-      // Resend API para buscar email recebido
-      // Nota: Dependendo da API do Resend, pode ser necessário ajustar
+      // Usar a API de receiving do Resend para buscar o email completo
       const emailDetails = await resend.emails.get(emailId);
-      console.log("Email details from Resend:", JSON.stringify(emailDetails));
+      console.log("[INBOUND] Email details fetched from Resend");
       
       if (emailDetails.data) {
-        emailContent = emailDetails.data.text || emailDetails.data.html || "";
-        emailBodyPreview = emailContent.substring(0, 500);
+        emailText = emailDetails.data.text || null;
+        emailHtml = emailDetails.data.html || null;
       }
     } catch (fetchError) {
-      console.log("Could not fetch email content from Resend:", fetchError);
-      // Usar o subject como fallback para verificação
-      emailContent = subject;
-      emailBodyPreview = `[Subject only] ${subject}`;
+      console.log("[INBOUND] Could not fetch email content from Resend:", fetchError);
     }
 
+    // Log de debug dos tamanhos
+    console.log("[INBOUND] text_len:", emailText?.length ?? 0);
+    console.log("[INBOUND] html_len:", emailHtml?.length ?? 0);
+
+    // Construir candidateText usando fallback
+    const textParts: string[] = [];
+    
+    // 1. Adicionar subject
+    if (subject) {
+      textParts.push(subject);
+    }
+    
+    // 2. Adicionar email.text se existir
+    if (emailText && emailText.trim()) {
+      textParts.push(emailText);
+    }
+    
+    // 3. Se email.text estiver vazio, converter email.html para texto
+    if ((!emailText || !emailText.trim()) && emailHtml) {
+      const convertedText = htmlToText(emailHtml);
+      if (convertedText) {
+        textParts.push(convertedText);
+      }
+    }
+    
+    const candidateText = textParts.join("\n\n");
+    
+    console.log("[INBOUND] candidate_preview:", candidateText.slice(0, 200));
+
     // Verificar se há palavra-chave de confirmação
-    const { confirmed, matchedKeyword } = hasConfirmationKeyword(emailContent || subject);
-    console.log("Confirmation check:", { confirmed, matchedKeyword, textChecked: emailContent || subject });
+    const { confirmed, matchedKeyword } = hasConfirmationKeyword(candidateText);
+    console.log("[INBOUND] Confirmation check:", { confirmed, matchedKeyword });
+
+    // Preview para debug
+    const debugInfo = DEBUG_INBOUND ? {
+      preview_subject: subject?.slice(0, 120),
+      preview_text: candidateText?.slice(0, 400),
+    } : {};
 
     if (confirmed) {
       // Atualizar a distribuição como concluída
@@ -281,11 +340,11 @@ const handler = async (req: Request): Promise<Response> => {
         .eq("id", distribuicaoId);
 
       if (updateError) {
-        console.error("Error updating distribuicao:", updateError);
+        console.error("[INBOUND] Error updating distribuicao:", updateError);
         throw updateError;
       }
 
-      console.log("Tarefa concluída via email:", distribuicaoId);
+      console.log("[INBOUND] Tarefa concluída via email:", distribuicaoId);
 
       // Registrar evento de conclusão
       await supabase.from("task_email_events").insert({
@@ -295,13 +354,12 @@ const handler = async (req: Request): Promise<Response> => {
         from_addr: fromAddress,
         to_addr: targetAddress,
         subject: subject,
-        body_preview: emailBodyPreview,
+        body_preview: candidateText.substring(0, 500),
         action_taken: `completed_via_keyword:${matchedKeyword}`,
         raw_payload: payload,
       });
 
       // Verificar se todas as tarefas da referência estão concluídas
-      // e atualizar a demanda se for o caso
       if (distribuicao.tipo_tarefa === "demanda") {
         const allCompleted = await checkAllTasksCompleted(
           supabase, 
@@ -319,9 +377,9 @@ const handler = async (req: Request): Promise<Response> => {
             .eq("id", distribuicao.referencia_id);
 
           if (demandError) {
-            console.error("Error updating demand status:", demandError);
+            console.error("[INBOUND] Error updating demand status:", demandError);
           } else {
-            console.log("Demanda também concluída:", distribuicao.referencia_id);
+            console.log("[INBOUND] Demanda também concluída:", distribuicao.referencia_id);
           }
         }
       }
@@ -332,12 +390,13 @@ const handler = async (req: Request): Promise<Response> => {
           action: "completed", 
           distribuicao_id: distribuicaoId,
           matched_keyword: matchedKeyword,
-          reason: "Tarefa concluída via resposta de email"
+          reason: "Tarefa concluída via resposta de email",
+          ...debugInfo
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else {
-      // Não confirmou - apenas registrar o evento
+      // Não confirmou - registrar o evento
       await supabase.from("task_email_events").insert({
         distribuicao_id: distribuicaoId,
         event_type: "email_received",
@@ -345,25 +404,26 @@ const handler = async (req: Request): Promise<Response> => {
         from_addr: fromAddress,
         to_addr: targetAddress,
         subject: subject,
-        body_preview: emailBodyPreview,
+        body_preview: candidateText.substring(0, 500),
         action_taken: "ignored_no_keyword",
         raw_payload: payload,
       });
 
-      console.log("Email recebido mas sem palavra-chave de confirmação");
+      console.log("[INBOUND] Email recebido mas sem palavra-chave de confirmação");
 
       return new Response(
         JSON.stringify({ 
           success: true, 
           action: "ignored", 
           distribuicao_id: distribuicaoId,
-          reason: "Nenhuma palavra-chave de confirmação encontrada"
+          reason: "Nenhuma palavra-chave de confirmação encontrada",
+          ...debugInfo
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
   } catch (error: any) {
-    console.error("Error processing inbound email:", error);
+    console.error("[INBOUND] Error processing inbound email:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
