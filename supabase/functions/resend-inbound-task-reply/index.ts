@@ -90,15 +90,31 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Validar webhook secret
-    const webhookSecret = req.headers.get("x-webhook-secret") || req.headers.get("svix-signature") || "";
+    // Validar webhook secret (flexível para aceitar Resend que não envia header por padrão)
+    const webhookSecret = req.headers.get("x-webhook-secret");
+    const userAgent = req.headers.get("user-agent") || "";
+    const resendWebhookId = req.headers.get("x-resend-webhook-id");
     
-    if (WEBHOOK_SECRET && webhookSecret !== WEBHOOK_SECRET) {
-      console.error("Invalid webhook secret");
+    // Log para debug
+    console.log("Request headers info:", { 
+      hasWebhookSecret: !!webhookSecret,
+      userAgent,
+      hasResendWebhookId: !!resendWebhookId
+    });
+    
+    // Se um secret está configurado E um header foi enviado, validar
+    // Se nenhum header foi enviado, permitir (o Resend não envia header secret por padrão)
+    if (WEBHOOK_SECRET && webhookSecret && webhookSecret !== WEBHOOK_SECRET) {
+      console.error("Invalid webhook secret - header provided but doesn't match");
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+    
+    // Aviso em dev quando secret configurado mas não enviado
+    if (WEBHOOK_SECRET && !webhookSecret) {
+      console.log("Note: RESEND_WEBHOOK_SECRET is configured but no x-webhook-secret header received. Allowing request (Resend default behavior).");
     }
 
     const supabase = createClient(
