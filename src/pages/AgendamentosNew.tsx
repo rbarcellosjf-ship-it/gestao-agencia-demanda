@@ -528,10 +528,14 @@ const AgendamentosNew = () => {
 
       // 2.1. Atualizar conformidade com entrevista_aprovada = true
       if (entrevista.conformidade_id) {
-        await supabase
+        const { error: conformidadeError } = await supabase
           .from('conformidades')
           .update({ entrevista_aprovada: true })
           .eq('id', entrevista.conformidade_id);
+        
+        if (conformidadeError) {
+          console.error('Erro ao atualizar conformidade (entrevista):', conformidadeError);
+        }
       }
 
       // 3. Buscar CPF do contrato vinculado ou usar o do próprio agendamento
@@ -610,10 +614,14 @@ const AgendamentosNew = () => {
 
       // 2.1. Atualizar conformidade com assinatura_confirmada = true
       if (assinatura.conformidade_id) {
-        await supabase
+        const { error: conformidadeError } = await supabase
           .from('conformidades')
           .update({ assinatura_confirmada: true })
           .eq('id', assinatura.conformidade_id);
+        
+        if (conformidadeError) {
+          console.error('Erro ao atualizar conformidade (assinatura):', conformidadeError);
+        }
       }
 
       // 3. Buscar CPF do contrato vinculado
