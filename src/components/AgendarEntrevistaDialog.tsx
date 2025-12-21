@@ -207,11 +207,14 @@ export const AgendarEntrevistaDialog = ({
         // Não bloquear se WhatsApp falhar
       }
 
-      // 5. Se tiver conformidadeId, atualizar a conformidade com o entrevista_id
+      // 5. Se tiver conformidadeId, atualizar a conformidade com o entrevista_id e entrevista_aprovada
       if (conformidadeId && novaEntrevista?.id) {
         await supabase
           .from('conformidades')
-          .update({ entrevista_id: novaEntrevista.id })
+          .update({ 
+            entrevista_id: novaEntrevista.id,
+            entrevista_aprovada: true 
+          })
           .eq('id', conformidadeId);
       }
 

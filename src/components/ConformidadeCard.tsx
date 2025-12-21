@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Calendar, Mail, Trash2, ChevronDown, ChevronUp, Pencil } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { StatusSelect } from "@/components/StatusSelect";
@@ -111,36 +112,41 @@ export const ConformidadeCard = ({
           </div>
         )}
 
-        {/* Status da Entrevista */}
+        {/* Status do Contrato */}
         <div className="space-y-2 pt-2 border-t">
-          <Label className="text-xs text-muted-foreground uppercase tracking-wide">Status da Entrevista</Label>
-          <div className="flex items-center gap-3">
+          <Label className="text-xs text-muted-foreground uppercase tracking-wide">Status do Contrato</Label>
+          <div className="flex flex-col gap-2">
+            {/* Checkbox Entrevista */}
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
+              <Checkbox
                 id={`entrevista-${conformidade.id}`}
                 checked={conformidade.entrevista_aprovada || false}
-                onChange={(e) => {
-                  if (role === 'agencia' || role === 'admin') {
-                    onUpdateEntrevistaAprovada(conformidade.id, e.target.checked);
-                  }
-                }}
-                disabled={role !== 'agencia' && role !== 'admin'}
-                className="w-4 h-4 rounded border-input"
+                disabled
+                className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
               />
-              <Label htmlFor={`entrevista-${conformidade.id}`} className="text-sm font-medium cursor-pointer">
-                Entrevista Aprovada
+              <Label htmlFor={`entrevista-${conformidade.id}`} className="text-sm">
+                Entrevista Confirmada
               </Label>
+              {conformidade.entrevista_aprovada && (
+                <Badge variant="default" className="bg-green-500 text-xs">✓</Badge>
+              )}
             </div>
-            {conformidade.entrevista_aprovada ? (
-              <Badge variant="default" className="bg-green-500">✓ Aprovada</Badge>
-            ) : agendamento ? (
-              <Badge variant="default" className="bg-yellow-500">📅 Agendada</Badge>
-            ) : conformidade.entrevista_id ? (
-              <Badge variant="secondary">Pendente</Badge>
-            ) : (
-              <Badge variant="outline">Não Agendada</Badge>
-            )}
+            
+            {/* Checkbox Assinatura */}
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id={`assinatura-${conformidade.id}`}
+                checked={conformidade.assinatura_confirmada || false}
+                disabled
+                className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+              />
+              <Label htmlFor={`assinatura-${conformidade.id}`} className="text-sm">
+                Assinatura Confirmada
+              </Label>
+              {conformidade.assinatura_confirmada && (
+                <Badge variant="default" className="bg-green-500 text-xs">✓</Badge>
+              )}
+            </div>
           </div>
         </div>
 

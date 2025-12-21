@@ -212,6 +212,7 @@ export type Database = {
       }
       conformidades: {
         Row: {
+          assinatura_confirmada: boolean | null
           cca_user_id: string
           codigo_cca: string
           comite_credito: boolean | null
@@ -230,6 +231,7 @@ export type Database = {
           valor_financiamento: number
         }
         Insert: {
+          assinatura_confirmada?: boolean | null
           cca_user_id: string
           codigo_cca: string
           comite_credito?: boolean | null
@@ -248,6 +250,7 @@ export type Database = {
           valor_financiamento: number
         }
         Update: {
+          assinatura_confirmada?: boolean | null
           cca_user_id?: string
           codigo_cca?: string
           comite_credito?: boolean | null
