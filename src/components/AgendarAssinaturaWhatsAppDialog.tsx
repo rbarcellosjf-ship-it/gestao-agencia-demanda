@@ -154,6 +154,12 @@ export const AgendarAssinaturaWhatsAppDialog = ({
         telefone_cliente: telefoneCliente,
       });
 
+      // 2.1. Atualizar conformidade com assinatura_confirmada = true
+      await supabase
+        .from('conformidades')
+        .update({ assinatura_confirmada: true })
+        .eq('id', conformidadeId);
+
       // 3. Buscar template WhatsApp para aviso de confirmação
       const { data: template } = await supabase
         .from('whatsapp_templates')
