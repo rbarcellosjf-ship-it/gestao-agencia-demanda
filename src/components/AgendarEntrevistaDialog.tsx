@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCPF } from "@/lib/cpfValidator";
 import { useClienteCache } from "@/hooks/useClienteCache";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FileUploadField } from "@/components/FileUploadField";
 
 interface AgendarEntrevistaDialogProps {
   conformidadeId?: string;
@@ -51,6 +52,7 @@ export const AgendarEntrevistaDialog = ({
   const [telefoneCliente, setTelefoneCliente] = useState("");
   const [data, setData] = useState("");
   const [horario, setHorario] = useState("09:00");
+  const [dossieUrl, setDossieUrl] = useState<string | null>(null);
 
   // Cache de clientes
   const { clienteData, loading: cacheLoading, salvarCliente, buscarCliente, limparCache } = useClienteCache(cpfCliente);
@@ -138,7 +140,8 @@ export const AgendarEntrevistaDialog = ({
           cca_user_id: user.id,
           tipo_contrato: tipoContrato || 'individual',
           modalidade_financiamento: modalidade || null,
-          comite_credito: false
+          comite_credito: false,
+          dossie_cliente_url: dossieUrl
         })
         .select()
         .single();
@@ -156,6 +159,7 @@ export const AgendarEntrevistaDialog = ({
         cca_user_id: user.id,
         conformidade_id: conformidadeId || null,
         telefone_cliente: telefoneCliente,
+        dossie_cliente_url: dossieUrl,
       });
 
       // 3. Buscar template WhatsApp para aviso de confirmação
@@ -249,6 +253,7 @@ export const AgendarEntrevistaDialog = ({
     setData("");
     setHorario("09:00");
     setClientePreenchido(false);
+    setDossieUrl(null);
     limparCache();
   };
 
@@ -393,7 +398,14 @@ export const AgendarEntrevistaDialog = ({
                 onChange={(e) => setHorario(e.target.value)}
                 required
               />
-            </div>
+          </div>
+
+          <FileUploadField
+            label="Dossiê do Cliente"
+            bucket="dossie-clientes"
+            onUploadComplete={setDossieUrl}
+            currentUrl={dossieUrl}
+          />
           </div>
 
           <div className="flex gap-2 pt-4">

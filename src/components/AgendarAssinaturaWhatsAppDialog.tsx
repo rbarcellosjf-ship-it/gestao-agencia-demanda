@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatCPF } from "@/lib/cpfValidator";
 import { useClienteCache } from "@/hooks/useClienteCache";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { FileUploadField } from "@/components/FileUploadField";
 
 interface AgendarAssinaturaWhatsAppDialogProps {
   conformidadeId: string;
@@ -49,6 +50,7 @@ export const AgendarAssinaturaWhatsAppDialog = ({
   const [data, setData] = useState("");
   const [horario, setHorario] = useState("09:00");
   const [clientePreenchido, setClientePreenchido] = useState(false);
+  const [matriculaOnusUrl, setMatriculaOnusUrl] = useState<string | null>(null);
   
   // Integrar cache de clientes
   const { clienteData, salvarCliente, buscarCliente, limparCache } = useClienteCache();
@@ -134,7 +136,8 @@ export const AgendarAssinaturaWhatsAppDialog = ({
           codigo_cca: userProfile?.codigo_cca || codigoCca || '0126',
           cca_user_id: user.id,
           tipo_contrato: tipoContrato || 'individual',
-          modalidade_financiamento: modalidade || null
+          modalidade_financiamento: modalidade || null,
+          matricula_onus_url: matriculaOnusUrl
         })
         .select()
         .single();
@@ -152,6 +155,7 @@ export const AgendarAssinaturaWhatsAppDialog = ({
         cca_user_id: user.id,
         conformidade_id: conformidadeId,
         telefone_cliente: telefoneCliente,
+        matricula_onus_url: matriculaOnusUrl,
       });
 
       // 2.1. Atualizar conformidade com assinatura_confirmada = true
@@ -239,6 +243,7 @@ export const AgendarAssinaturaWhatsAppDialog = ({
     setData("");
     setHorario("09:00");
     setClientePreenchido(false);
+    setMatriculaOnusUrl(null);
     limparCache();
   };
 
@@ -383,6 +388,13 @@ export const AgendarAssinaturaWhatsAppDialog = ({
               />
             </div>
           </div>
+
+          <FileUploadField
+            label="Matrícula com Ônus"
+            bucket="dossie-clientes"
+            onUploadComplete={setMatriculaOnusUrl}
+            currentUrl={matriculaOnusUrl}
+          />
 
           <div className="flex gap-2 pt-4">
             <Button
