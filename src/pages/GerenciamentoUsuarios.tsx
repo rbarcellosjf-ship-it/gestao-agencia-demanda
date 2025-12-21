@@ -504,12 +504,12 @@ const GerenciamentoUsuarios = () => {
                   Nenhum CCA cadastrado. Cadastre CCAs primeiro.
                 </div>
               ) : (
-                <Select value={newCodigoCca} onValueChange={setNewCodigoCca}>
+                <Select value={newCodigoCca || "__none__"} onValueChange={(val) => setNewCodigoCca(val === "__none__" ? "" : val)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o CCA" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="__none__">Nenhum</SelectItem>
                     {escritorios.map((esc) => (
                       <SelectItem key={esc.id} value={esc.codigo}>
                         {esc.codigo} - {esc.nome}
