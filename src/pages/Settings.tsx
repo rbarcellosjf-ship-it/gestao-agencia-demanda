@@ -187,7 +187,7 @@ const Settings = () => {
         <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="profile">Meu Perfil</TabsTrigger>
-            {role === "agencia" && (
+            {(role === "agencia" || role === "admin") && (
               <TabsTrigger value="whatsapp">Templates WhatsApp</TabsTrigger>
             )}
           </TabsList>
@@ -247,7 +247,7 @@ const Settings = () => {
             </Card>
           </TabsContent>
 
-          {role === "agencia" && (
+          {(role === "agencia" || role === "admin") && (
             <TabsContent value="whatsapp" className="space-y-4">
               <Card>
                 <CardHeader>

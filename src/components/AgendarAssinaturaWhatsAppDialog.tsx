@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar as CalendarIcon, FileSignature, CheckCircle2 } from "lucide-react";
+import { FileSignature, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCPF } from "@/lib/cpfValidator";
 import { useClienteCache } from "@/hooks/useClienteCache";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 interface AgendarAssinaturaWhatsAppDialogProps {
   conformidadeId: string;
   cpfCliente?: string;
@@ -41,13 +42,12 @@ export const AgendarAssinaturaWhatsAppDialog = ({
   const setOpen = externalOnOpenChange || setInternalOpen;
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [nomeEscritorio, setNomeEscritorio] = useState("");
   
   const [nomeCliente, setNomeCliente] = useState("");
   const [telefoneCliente, setTelefoneCliente] = useState("");
-  const [dataOpcao1, setDataOpcao1] = useState("");
-  const [dataOpcao2, setDataOpcao2] = useState("");
-  const [horarioInicio, setHorarioInicio] = useState("09:00");
-  const [horarioFim, setHorarioFim] = useState("17:00");
+  const [data, setData] = useState("");
+  const [horario, setHorario] = useState("09:00");
   const [clientePreenchido, setClientePreenchido] = useState(false);
   
   // Integrar cache de clientes
@@ -86,6 +86,20 @@ export const AgendarAssinaturaWhatsAppDialog = ({
         .eq('user_id', user.id)
         .single();
       setUserProfile(data);
+
+      // Buscar nome do escritório pelo código CCA
+      const codigoParaBuscar = codigoCca || data?.codigo_cca;
+      if (codigoParaBuscar) {
+        const { data: escritorio } = await supabase
+          .from('escritorios_cca')
+          .select('nome')
+          .eq('codigo', codigoParaBuscar)
+          .maybeSingle();
+        
+        setNomeEscritorio(escritorio?.nome || "Manchester");
+      } else {
+        setNomeEscritorio("Manchester");
+      }
     }
   };
 
@@ -94,25 +108,27 @@ export const AgendarAssinaturaWhatsAppDialog = ({
     setLoading(true);
 
     try {
-      if (!nomeCliente || !telefoneCliente || !dataOpcao1 || !dataOpcao2) {
+      if (!nomeCliente || !telefoneCliente || !data || !horario) {
         throw new Error("Preencha todos os campos obrigatórios");
       }
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      // 1. Inserir assinatura pendente em assinaturas_agendamento
+      // 1. Inserir assinatura JÁ CONFIRMADA em assinaturas_agendamento
       const { data: novaAssinatura, error: insertError } = await supabase
         .from('assinaturas_agendamento')
         .insert({
           cliente_nome: nomeCliente,
           telefone: telefoneCliente,
-          data_opcao_1: dataOpcao1,
-          data_opcao_2: dataOpcao2,
-          horario_inicio: horarioInicio,
-          horario_fim: horarioFim,
+          data_opcao_1: data,
+          data_opcao_2: data,
+          data_confirmada: data,
+          horario_inicio: horario,
+          horario_fim: horario,
+          opcao_escolhida: 1,
           conformidade_id: conformidadeId,
-          status: 'pendente',
+          status: 'confirmado',
           agencia: 'Manchester',
           endereco_agencia: 'Avenida Barao Do Rio Branco, 2340',
           codigo_cca: userProfile?.codigo_cca || codigoCca || '0126',
@@ -125,48 +141,65 @@ export const AgendarAssinaturaWhatsAppDialog = ({
 
       if (insertError) throw insertError;
 
-      // 2. Buscar template WhatsApp
+      // 2. Também inserir em agendamentos para aparecer na lista
+      await supabase.from('agendamentos').insert({
+        cpf: cpfCliente || null,
+        tipo: 'assinatura',
+        tipo_contrato: tipoContrato || 'individual',
+        modalidade_financiamento: modalidade || null,
+        data_hora: `${data}T${horario}:00`,
+        status: 'Assinatura confirmada',
+        cca_user_id: user.id,
+        conformidade_id: conformidadeId,
+        telefone_cliente: telefoneCliente,
+      });
+
+      // 3. Buscar template WhatsApp para aviso de confirmação
       const { data: template } = await supabase
         .from('whatsapp_templates')
         .select('*')
-        .eq('template_key', 'agendamento_assinatura')
+        .eq('template_key', 'aviso_assinatura_confirmada')
         .maybeSingle();
 
-      // 3. Enviar WhatsApp ao cliente
-      if (template) {
-        const formatDate = (dateStr: string) => {
-          try {
-            const date = new Date(dateStr + 'T00:00:00');
-            return date.toLocaleDateString('pt-BR', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            });
-          } catch {
-            return dateStr;
-          }
-        };
-
-        const message = template.message
-          .replace(/\{\{nome_cliente\}\}/g, nomeCliente)
-          .replace(/\{\{agencia\}\}/g, 'Manchester')
-          .replace(/\{\{data_opcao_1\}\}/g, formatDate(dataOpcao1))
-          .replace(/\{\{data_opcao_2\}\}/g, formatDate(dataOpcao2))
-          .replace(/\{\{horario_inicio\}\}/g, horarioInicio)
-          .replace(/\{\{horario_fim\}\}/g, horarioFim)
-          .replace(/\{\{endereco_agencia\}\}/g, 'Avenida Barao Do Rio Branco, 2340');
-
+      // 4. Enviar WhatsApp ao cliente com aviso de data/hora
+      const formatDate = (dateStr: string) => {
         try {
-          await supabase.functions.invoke('send-whatsapp', {
-            body: {
-              phone: telefoneCliente,
-              message: message
-            }
+          const dateObj = new Date(dateStr + 'T00:00:00');
+          return dateObj.toLocaleDateString('pt-BR', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
           });
-        } catch (whatsappError) {
-          console.error('Erro ao enviar WhatsApp:', whatsappError);
+        } catch {
+          return dateStr;
         }
+      };
+
+      // Mensagem padrão caso não exista template
+      let message = template?.message || 
+        `Olá ${nomeCliente}! 👋\n\nSua assinatura de contrato no escritório *${nomeEscritorio}* está agendada para:\n\n📅 *${formatDate(data)}*\n⏰ *${horario}*\n📍 Agência Manchester - Avenida Barao Do Rio Branco, 2340\n\n📄 Lembre-se de trazer os documentos necessários!\n\nAguardamos você! Se precisar remarcar, entre em contato.`;
+
+      if (template?.message) {
+        message = template.message
+          .replace(/\{\{nome_cliente\}\}/g, nomeCliente)
+          .replace(/\{\{nome_escritorio\}\}/g, nomeEscritorio)
+          .replace(/\{\{nome_empresa\}\}/g, nomeEscritorio)
+          .replace(/\{\{data\}\}/g, formatDate(data))
+          .replace(/\{\{horario\}\}/g, horario)
+          .replace(/\{\{agencia\}\}/g, 'Manchester')
+          .replace(/\{\{endereco_agencia\}\}/g, 'Avenida Barao Do Rio Branco, 2340');
+      }
+
+      try {
+        await supabase.functions.invoke('send-whatsapp', {
+          body: {
+            phone: telefoneCliente,
+            message: message
+          }
+        });
+      } catch (whatsappError) {
+        console.error('Erro ao enviar WhatsApp:', whatsappError);
       }
 
       // Salvar cliente no cache
@@ -176,7 +209,7 @@ export const AgendarAssinaturaWhatsAppDialog = ({
 
       toast({
         title: "Assinatura agendada!",
-        description: "WhatsApp enviado ao cliente com as opções de data.",
+        description: "WhatsApp enviado ao cliente com a confirmação.",
       });
 
       setOpen(false);
@@ -197,10 +230,8 @@ export const AgendarAssinaturaWhatsAppDialog = ({
   const resetForm = () => {
     setNomeCliente("");
     setTelefoneCliente("");
-    setDataOpcao1("");
-    setDataOpcao2("");
-    setHorarioInicio("09:00");
-    setHorarioFim("17:00");
+    setData("");
+    setHorario("09:00");
     setClientePreenchido(false);
     limparCache();
   };
@@ -225,9 +256,9 @@ export const AgendarAssinaturaWhatsAppDialog = ({
       )}
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Agendar Assinatura via WhatsApp</DialogTitle>
+          <DialogTitle>Agendar Assinatura</DialogTitle>
           <DialogDescription>
-            O cliente receberá uma mensagem no WhatsApp com as opções de data para assinatura do contrato.
+            O cliente receberá uma mensagem no WhatsApp com a confirmação da data e horário.
           </DialogDescription>
         </DialogHeader>
 
@@ -258,8 +289,17 @@ export const AgendarAssinaturaWhatsAppDialog = ({
               disabled
               className="bg-muted"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Escritório</Label>
+            <Input
+              value={nomeEscritorio || "Carregando..."}
+              disabled
+              className="bg-muted"
+            />
             <p className="text-xs text-muted-foreground">
-              Este campo é preenchido automaticamente
+              Preenchido automaticamente pelo código CCA
             </p>
           </div>
 
@@ -315,46 +355,25 @@ export const AgendarAssinaturaWhatsAppDialog = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label htmlFor="data1">Data Opção 1 *</Label>
+              <Label htmlFor="data">Data da Assinatura *</Label>
               <Input
-                id="data1"
+                id="data"
                 type="date"
-                value={dataOpcao1}
-                onChange={(e) => setDataOpcao1(e.target.value)}
+                value={data}
+                onChange={(e) => setData(e.target.value)}
                 required
+                min={new Date().toISOString().split('T')[0]}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="data2">Data Opção 2 *</Label>
+              <Label htmlFor="horario">Horário *</Label>
               <Input
-                id="data2"
-                type="date"
-                value={dataOpcao2}
-                onChange={(e) => setDataOpcao2(e.target.value)}
+                id="horario"
+                type="time"
+                value={horario}
+                onChange={(e) => setHorario(e.target.value)}
                 required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="inicio">Horário Início</Label>
-              <Input
-                id="inicio"
-                type="time"
-                value={horarioInicio}
-                onChange={(e) => setHorarioInicio(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fim">Horário Fim</Label>
-              <Input
-                id="fim"
-                type="time"
-                value={horarioFim}
-                onChange={(e) => setHorarioFim(e.target.value)}
               />
             </div>
           </div>
@@ -369,7 +388,7 @@ export const AgendarAssinaturaWhatsAppDialog = ({
               Cancelar
             </Button>
             <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Agendando..." : "Enviar Agendamento"}
+              {loading ? "Agendando..." : "Confirmar Agendamento"}
             </Button>
           </div>
         </form>
