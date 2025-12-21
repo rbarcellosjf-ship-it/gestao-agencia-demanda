@@ -37,7 +37,7 @@ interface EntrevistaCardProps {
 
 export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, onCriarContrato, onDelete }: EntrevistaCardProps) {
   const { role } = useUserRole();
-  const isAgencia = role === "agencia";
+  const canApprove = role === "agencia" || role === "admin";
   const { toast } = useToast();
   const [observacoes, setObservacoes] = useState(entrevista.observacoes || "");
   const [isSaving, setIsSaving] = useState(false);
@@ -223,25 +223,30 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
           )}
         </div>
 
-        {isAgencia && entrevista.status === "Aguardando entrevista" && (
+        {entrevista.status === "Aguardando entrevista" && (
           <div className="flex flex-wrap gap-2 pt-3 border-t">
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => onAprovar(entrevista.id)}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <Check className="w-4 h-4 mr-2" />
-              Aprovar
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => onReprovar(entrevista.id)}
-            >
-              <X className="w-4 h-4 mr-2" />
-              Reprovar
-            </Button>
+            {/* Aprovar/Reprovar apenas para agencia e admin */}
+            {canApprove && (
+              <>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => onAprovar(entrevista.id)}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Check className="w-4 h-4 mr-2" />
+                  Aprovar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => onReprovar(entrevista.id)}
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Reprovar
+                </Button>
+              </>
+            )}
             <Button
               size="sm"
               variant="outline"
@@ -253,7 +258,7 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
           </div>
         )}
 
-        {isAgencia && entrevista.status === "Aprovado" && !hasConformidade && onCriarContrato && (
+        {entrevista.status === "Aprovado" && !hasConformidade && onCriarContrato && (
           <div className="flex flex-wrap gap-2 pt-3 border-t">
             <Button
               size="sm"

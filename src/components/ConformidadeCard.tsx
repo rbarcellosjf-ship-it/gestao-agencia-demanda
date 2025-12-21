@@ -121,11 +121,11 @@ export const ConformidadeCard = ({
                 id={`entrevista-${conformidade.id}`}
                 checked={conformidade.entrevista_aprovada || false}
                 onChange={(e) => {
-                  if (role === 'agencia') {
+                  if (role === 'agencia' || role === 'admin') {
                     onUpdateEntrevistaAprovada(conformidade.id, e.target.checked);
                   }
                 }}
-                disabled={role !== 'agencia'}
+                disabled={role !== 'agencia' && role !== 'admin'}
                 className="w-4 h-4 rounded border-input"
               />
               <Label htmlFor={`entrevista-${conformidade.id}`} className="text-sm font-medium cursor-pointer">
@@ -200,86 +200,84 @@ export const ConformidadeCard = ({
       </CardContent>
 
       <CardFooter className="pt-3 border-t flex-wrap gap-2">
-        {/* Botões de ação */}
-        {role === "agencia" && (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => onAgendarEntrevista(conformidade)}
-              disabled={!!conformidade.entrevista_id}
-              className={cn(!!conformidade.entrevista_id && "opacity-50 cursor-not-allowed")}
-              title={conformidade.entrevista_id ? "Entrevista já agendada" : "Agendar entrevista"}
-            >
-              <Calendar className="w-4 h-4 mr-2" />
-              Agendar Entrevista
-            </Button>
+        {/* Botões de ação - visíveis para todos os roles */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => onAgendarEntrevista(conformidade)}
+            disabled={!!conformidade.entrevista_id}
+            className={cn(!!conformidade.entrevista_id && "opacity-50 cursor-not-allowed")}
+            title={conformidade.entrevista_id ? "Entrevista já agendada" : "Agendar entrevista"}
+          >
+            <Calendar className="w-4 h-4 mr-2" />
+            Agendar Entrevista
+          </Button>
 
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onPedirPrioridade(conformidade)}
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Pedir Prioridade
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!conformidade.comite_credito}
+            className={cn(
+              !conformidade.comite_credito && "opacity-50 cursor-not-allowed"
+            )}
+            onClick={() => onDistribute(conformidade.id)}
+            title={
+              !conformidade.comite_credito 
+                ? "Este contrato não requer Comitê de Crédito" 
+                : "Distribuir tarefa de Comitê de Crédito"
+            }
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Solicitar Comitê de Crédito
+          </Button>
+
+          {onEdit && (
             <Button
               size="sm"
               variant="outline"
-              onClick={() => onPedirPrioridade(conformidade)}
+              onClick={() => onEdit(conformidade)}
             >
-              <Mail className="w-4 h-4 mr-2" />
-              Pedir Prioridade
+              <Pencil className="w-4 h-4 mr-2" />
+              Editar
             </Button>
+          )}
 
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!conformidade.comite_credito}
-              className={cn(
-                !conformidade.comite_credito && "opacity-50 cursor-not-allowed"
-              )}
-              onClick={() => onDistribute(conformidade.id)}
-              title={
-                !conformidade.comite_credito 
-                  ? "Este contrato não requer Comitê de Crédito" 
-                  : "Distribuir tarefa de Comitê de Crédito"
-              }
-            >
-              <Mail className="w-4 h-4 mr-2" />
-              Solicitar Comitê de Crédito
-            </Button>
-
-            {role === "agencia" && onEdit && (
+          <AgendarAssinaturaWhatsAppDialog
+            conformidadeId={conformidade.id}
+            cpfCliente={conformidade.cpf}
+            modalidade={conformidade.modalidade === "OUTRO" ? conformidade.modalidade_outro : conformidade.modalidade}
+            tipoContrato={conformidade.tipo_contrato}
+            valorFinanciamento={parseFloat(conformidade.valor_financiamento)}
+            codigoCca={conformidade.codigo_cca}
+            onSuccess={onRefresh}
+            trigger={
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => onEdit(conformidade)}
+                disabled={!conformidade.entrevista_aprovada}
+                className={cn(!conformidade.entrevista_aprovada && "opacity-50 cursor-not-allowed")}
+                title={
+                  conformidade.entrevista_aprovada
+                    ? "Agendar assinatura de contrato"
+                    : "Aprovação da entrevista necessária"
+                }
               >
-                <Pencil className="w-4 h-4 mr-2" />
-                Editar
+                <Calendar className="w-4 h-4 mr-1" />
+                Agendar Assinatura
               </Button>
-            )}
-
-            <AgendarAssinaturaWhatsAppDialog
-              conformidadeId={conformidade.id}
-              cpfCliente={conformidade.cpf}
-              modalidade={conformidade.modalidade === "OUTRO" ? conformidade.modalidade_outro : conformidade.modalidade}
-              tipoContrato={conformidade.tipo_contrato}
-              valorFinanciamento={parseFloat(conformidade.valor_financiamento)}
-              codigoCca={conformidade.codigo_cca}
-              onSuccess={onRefresh}
-              trigger={
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!conformidade.entrevista_aprovada}
-                  className={cn(!conformidade.entrevista_aprovada && "opacity-50 cursor-not-allowed")}
-                  title={
-                    conformidade.entrevista_aprovada
-                      ? "Agendar assinatura de contrato"
-                      : "Aprovação da entrevista necessária"
-                  }
-                >
-                  <Calendar className="w-4 h-4 mr-1" />
-                  Agendar Assinatura
-                </Button>
-              }
-            />
-          </div>
-        )}
+            }
+          />
+        </div>
       </CardFooter>
     </Card>
   );
