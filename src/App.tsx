@@ -16,6 +16,8 @@ import Settings from "./pages/Settings";
 import LeitorDocumentos from "./pages/LeitorDocumentos";
 import MinhasTarefas from "./pages/MinhasTarefas";
 import RelatorioAssinaturas from "./pages/RelatorioAssinaturas";
+import GerenciamentoCCAs from "./pages/GerenciamentoCCAs";
+import GerenciamentoUsuarios from "./pages/GerenciamentoUsuarios";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +42,8 @@ const App = () => (
           <Route path="/leitor-documentos" element={<LeitorDocumentos />} />
           <Route path="/minhas-tarefas" element={<MinhasTarefas />} />
           <Route path="/relatorios/assinaturas" element={<RelatorioAssinaturas />} />
+          <Route path="/admin/ccas" element={<GerenciamentoCCAs />} />
+          <Route path="/admin/usuarios" element={<GerenciamentoUsuarios />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

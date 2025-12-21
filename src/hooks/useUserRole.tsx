@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-export type UserRole = "agencia" | "cca" | null;
+export type UserRole = "agencia" | "cca" | "admin" | null;
 
 export function useUserRole() {
   const [role, setRole] = useState<UserRole>(null);
@@ -40,5 +40,8 @@ export function useUserRole() {
     }
   };
 
-  return { role, loading, refresh: loadRole };
+  // Helper para verificar se é admin ou agencia
+  const isAdminOrAgencia = role === "admin" || role === "agencia";
+
+  return { role, loading, refresh: loadRole, isAdminOrAgencia };
 }
