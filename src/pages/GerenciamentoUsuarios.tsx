@@ -36,6 +36,13 @@ interface ConfigAprovacao {
   exigir_aprovacao: boolean;
 }
 
+interface EscritorioCCA {
+  id: string;
+  codigo: string;
+  nome: string;
+  ativo: boolean;
+}
+
 const GerenciamentoUsuarios = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -45,11 +52,13 @@ const GerenciamentoUsuarios = () => {
   const [loading, setLoading] = useState(true);
   const [configAprovacao, setConfigAprovacao] = useState<ConfigAprovacao>({ exigir_aprovacao: false });
   const [savingConfig, setSavingConfig] = useState(false);
+  const [escritorios, setEscritorios] = useState<EscritorioCCA[]>([]);
   
   // Dialog states
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [newRole, setNewRole] = useState<string>("");
+  const [newCodigoCca, setNewCodigoCca] = useState<string>("");
   const [saving, setSaving] = useState(false);
   
   // Filter states
@@ -65,8 +74,24 @@ const GerenciamentoUsuarios = () => {
     if (!roleLoading && role === "admin") {
       loadUsuarios();
       loadConfigAprovacao();
+      loadEscritorios();
     }
   }, [roleLoading, role, navigate]);
+
+  const loadEscritorios = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("escritorios_cca")
+        .select("*")
+        .eq("ativo", true)
+        .order("codigo");
+
+      if (error) throw error;
+      setEscritorios(data || []);
+    } catch (error) {
+      console.error("Erro ao carregar CCAs:", error);
+    }
+  };
 
   const loadUsuarios = async () => {
     try {
@@ -199,27 +224,37 @@ const GerenciamentoUsuarios = () => {
   const handleOpenEditDialog = (usuario: UserProfile) => {
     setSelectedUser(usuario);
     setNewRole(usuario.role || "cca");
+    setNewCodigoCca(usuario.codigo_cca || "");
     setEditDialogOpen(true);
   };
 
-  const handleSaveRole = async () => {
+  const handleSaveUserChanges = async () => {
     if (!selectedUser) return;
 
     setSaving(true);
     try {
-      const { error } = await supabase
+      // Atualizar role
+      const { error: roleError } = await supabase
         .from("user_roles")
         .update({ role: newRole as "admin" | "agencia" | "cca" })
         .eq("user_id", selectedUser.user_id);
 
-      if (error) throw error;
+      if (roleError) throw roleError;
+
+      // Atualizar codigo_cca no profile
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ codigo_cca: newCodigoCca || null })
+        .eq("id", selectedUser.id);
+
+      if (profileError) throw profileError;
       
-      toast({ title: "Perfil atualizado com sucesso!" });
+      toast({ title: "Usuário atualizado com sucesso!" });
       setEditDialogOpen(false);
       loadUsuarios();
     } catch (error: any) {
       toast({
-        title: "Erro ao atualizar perfil",
+        title: "Erro ao atualizar usuário",
         description: error.message,
         variant: "destructive",
       });
@@ -439,33 +474,60 @@ const GerenciamentoUsuarios = () => {
         </Card>
       </div>
 
-      {/* Dialog de Edição de Perfil */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Alterar Perfil do Usuário</DialogTitle>
+            <DialogTitle>Editar Usuário</DialogTitle>
             <DialogDescription>
               Usuário: {selectedUser?.full_name}
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4">
-            <Label>Novo Perfil</Label>
-            <Select value={newRole} onValueChange={setNewRole}>
-              <SelectTrigger className="mt-2">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="cca">CCA (Correspondente Bancário)</SelectItem>
-                <SelectItem value="agencia">Agência (Gerente)</SelectItem>
-                <SelectItem value="admin">Administrador</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="py-4 space-y-4">
+            <div className="space-y-2">
+              <Label>Perfil</Label>
+              <Select value={newRole} onValueChange={setNewRole}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cca">CCA (Correspondente Bancário)</SelectItem>
+                  <SelectItem value="agencia">Agência (Gerente)</SelectItem>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>CCA Vinculado</Label>
+              {escritorios.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-2 px-3 border rounded-md bg-muted/50">
+                  Nenhum CCA cadastrado. Cadastre CCAs primeiro.
+                </div>
+              ) : (
+                <Select value={newCodigoCca} onValueChange={setNewCodigoCca}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o CCA" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nenhum</SelectItem>
+                    {escritorios.map((esc) => (
+                      <SelectItem key={esc.id} value={esc.codigo}>
+                        {esc.codigo} - {esc.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Vincule o usuário a um escritório CCA cadastrado
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveRole} disabled={saving}>
+            <Button onClick={handleSaveUserChanges} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Salvar
             </Button>
