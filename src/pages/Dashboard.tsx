@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, FileText, Calendar, Users, Plus, User, Mail, Settings as SettingsIcon, ScanText, ListTodo } from "lucide-react";
+import { LogOut, FileText, Calendar, Users, Plus, User, Mail, Settings as SettingsIcon, ScanText, ListTodo, Building2, Shield } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { QuickActions } from "@/components/dashboard/QuickActions";
@@ -77,7 +77,7 @@ const Dashboard = () => {
       <PageContainer>
         <PageHeader
           title="Dashboard"
-          description={`Bem-vindo, ${profile?.full_name} • ${role === "agencia" ? "Gerente" : "CCA"}`}
+          description={`Bem-vindo, ${profile?.full_name} • ${role === "admin" ? "Administrador" : role === "agencia" ? "Gerente" : "CCA"}`}
           action={
             <div className="flex gap-2">
               <Button variant="ghost" size="sm" onClick={() => navigate("/profile")}>
@@ -189,7 +189,7 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            {role === "agencia" && (
+            {(role === "agencia" || role === "admin") && (
               <>
                 <Card className="hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/minhas-tarefas")}>
                   <CardHeader className="pb-3">
@@ -244,7 +244,45 @@ const Dashboard = () => {
                     </Button>
                   </CardContent>
                 </Card>
+
+                <Card className="hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/admin/ccas")}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <Building2 className="w-5 h-5 text-teal-600" />
+                      Gerenciar CCAs
+                    </CardTitle>
+                    <CardDescription className="text-sm">
+                      Cadastrar escritórios de correspondentes
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button className="w-full" variant="outline" size="sm">
+                      <Building2 className="w-4 h-4 mr-2" />
+                      Gerenciar CCAs
+                    </Button>
+                  </CardContent>
+                </Card>
               </>
+            )}
+
+            {role === "admin" && (
+              <Card className="hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/admin/usuarios")}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Shield className="w-5 h-5 text-purple-600" />
+                    Gerenciar Usuários
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Aprovar cadastros e alterar perfis
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full" variant="outline" size="sm">
+                    <Shield className="w-4 h-4 mr-2" />
+                    Gerenciar Usuários
+                  </Button>
+                </CardContent>
+              </Card>
             )}
 
             <Card className="hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/settings")}>

@@ -592,8 +592,38 @@ export type Database = {
           },
         ]
       }
+      escritorios_cca: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          created_at: string | null
+          id: string
+          nome: string
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          created_at?: string | null
+          id?: string
+          nome: string
+          updated_at?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          created_at?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          ativo: boolean | null
           codigo_cca: string
           created_at: string
           email_preferencia: string | null
@@ -604,6 +634,9 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          ativo?: boolean | null
           codigo_cca: string
           created_at?: string
           email_preferencia?: string | null
@@ -614,6 +647,9 @@ export type Database = {
           user_id: string
         }
         Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          ativo?: boolean | null
           codigo_cca?: string
           created_at?: string
           email_preferencia?: string | null
@@ -751,7 +787,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "agencia" | "cca"
+      app_role: "agencia" | "cca" | "admin"
       demand_status:
         | "pendente"
         | "concluida"
@@ -897,7 +933,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["agencia", "cca"],
+      app_role: ["agencia", "cca", "admin"],
       demand_status: [
         "pendente",
         "concluida",

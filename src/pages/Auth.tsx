@@ -9,7 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import { Building2 } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
+
+interface EscritorioCCA {
+  id: string;
+  codigo: string;
+  nome: string;
+  ativo: boolean;
+}
 
 const signupSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -29,6 +36,8 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [escritorios, setEscritorios] = useState<EscritorioCCA[]>([]);
+  const [loadingEscritorios, setLoadingEscritorios] = useState(true);
 
   // Login state
   const [loginEmail, setLoginEmail] = useState("");
@@ -59,6 +68,27 @@ const Auth = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  // Carregar lista de CCAs cadastrados
+  useEffect(() => {
+    const loadEscritorios = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("escritorios_cca")
+          .select("*")
+          .eq("ativo", true)
+          .order("codigo");
+
+        if (error) throw error;
+        setEscritorios(data || []);
+      } catch (error) {
+        console.error("Erro ao carregar CCAs:", error);
+      } finally {
+        setLoadingEscritorios(false);
+      }
+    };
+    loadEscritorios();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,7 +141,7 @@ const Auth = () => {
       });
 
       if (role === "cca" && !codigoCca) {
-        throw new Error("Código do CCA é obrigatório");
+        throw new Error("Selecione o CCA ao qual você está vinculado");
       }
 
       setLoading(true);
@@ -234,7 +264,10 @@ const Auth = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="role">Perfil</Label>
-                  <Select value={role} onValueChange={(value: "agencia" | "cca") => setRole(value)}>
+                  <Select value={role} onValueChange={(value: "agencia" | "cca") => {
+                    setRole(value);
+                    if (value === "agencia") setCodigoCca("");
+                  }}>
                     <SelectTrigger id="role">
                       <SelectValue />
                     </SelectTrigger>
@@ -246,15 +279,30 @@ const Auth = () => {
                 </div>
                 {role === "cca" && (
                   <div className="space-y-2">
-                    <Label htmlFor="codigo-cca">Código do CCA</Label>
-                    <Input
-                      id="codigo-cca"
-                      type="text"
-                      placeholder="Ex: CCA001"
-                      value={codigoCca}
-                      onChange={(e) => setCodigoCca(e.target.value)}
-                      required
-                    />
+                    <Label htmlFor="codigo-cca">CCA Vinculado</Label>
+                    {loadingEscritorios ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Carregando CCAs...
+                      </div>
+                    ) : escritorios.length === 0 ? (
+                      <div className="text-sm text-muted-foreground py-2 px-3 border rounded-md bg-muted/50">
+                        Nenhum CCA cadastrado. Entre em contato com a agência.
+                      </div>
+                    ) : (
+                      <Select value={codigoCca} onValueChange={setCodigoCca}>
+                        <SelectTrigger id="codigo-cca">
+                          <SelectValue placeholder="Selecione o CCA" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {escritorios.map((esc) => (
+                            <SelectItem key={esc.id} value={esc.codigo}>
+                              {esc.codigo} - {esc.nome}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
                 )}
                 <div className="space-y-2">
@@ -279,7 +327,11 @@ const Auth = () => {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={loading || (role === "cca" && escritorios.length === 0)}
+                >
                   {loading ? "Criando conta..." : "Criar Conta"}
                 </Button>
               </form>
