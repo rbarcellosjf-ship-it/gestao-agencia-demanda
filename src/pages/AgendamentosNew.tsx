@@ -60,7 +60,7 @@ const AgendamentosNew = () => {
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   
   // Filtros específicos de assinaturas
-  const [filtroStatusAssinatura, setFiltroStatusAssinatura] = useState("Aguardando assinatura");
+  const [filtroStatusAssinatura, setFiltroStatusAssinatura] = useState("Todos");
   const [diasSelecionados, setDiasSelecionados] = useState<Date[]>(() => {
     // Inicializa com a semana atual selecionada
     const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
