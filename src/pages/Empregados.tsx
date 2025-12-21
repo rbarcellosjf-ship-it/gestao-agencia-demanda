@@ -33,7 +33,7 @@ const Empregados = () => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (!roleLoading && role !== "agencia") {
+    if (!roleLoading && role !== "agencia" && role !== "admin") {
       navigate("/dashboard");
       return;
     }
