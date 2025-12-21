@@ -198,8 +198,8 @@ export const DemandCard = ({
           </div>
         )}
 
-        {/* Área de resposta da agência */}
-        {role === "agencia" && demand.status === "pendente" && (
+        {/* Área de resposta - visível para todos os roles */}
+        {demand.status === "pendente" && (
           <div className="space-y-2 pt-2 border-t">
             <Label className="text-xs text-muted-foreground uppercase tracking-wide">Responder Demanda</Label>
             <Textarea 
@@ -220,9 +220,8 @@ export const DemandCard = ({
           </div>
         )}
 
-        {/* Gov.BR Signing - Agencia role */}
-        {role === "agencia" && 
-         demand.type === "autoriza_vendedor_restricao" && 
+        {/* Gov.BR Signing - visível para todos os roles */}
+        {demand.type === "autoriza_vendedor_restricao" && 
          demand.status === "pendente" && 
          demand.mo_autorizacao_pdf && 
          !demand.mo_autorizacao_assinado_pdf && 
@@ -244,9 +243,8 @@ export const DemandCard = ({
           </div>
         )}
 
-        {/* Upload Signed PDF - Agencia role */}
-        {role === "agencia" && 
-         demand.type === "autoriza_vendedor_restricao" && 
+        {/* Upload Signed PDF - visível para todos os roles */}
+        {demand.type === "autoriza_vendedor_restricao" && 
          demand.status === "aguardando_assinatura" && 
          !demand.mo_autorizacao_assinado_pdf && 
          onUploadSignedPdf && (
@@ -266,8 +264,8 @@ export const DemandCard = ({
       </CardContent>
 
       <CardFooter className="pt-3 border-t flex-wrap gap-2">
-        {/* Ações específicas por role e status */}
-        {role === "agencia" && demand.status === "pendente" && (
+        {/* Ações - visíveis para todos os roles */}
+        {demand.status === "pendente" && (
           <>
             <Button
               size="sm"
@@ -297,9 +295,8 @@ export const DemandCard = ({
           </>
         )}
 
-        {/* Send Signed Document - Agencia role */}
-        {role === "agencia" && 
-         demand.type === "autoriza_vendedor_restricao" && 
+        {/* Send Signed Document - visível para todos os roles */}
+        {demand.type === "autoriza_vendedor_restricao" && 
          demand.status === "assinado" && 
          demand.mo_autorizacao_assinado_pdf && 
          onSendSignedDocument && (
