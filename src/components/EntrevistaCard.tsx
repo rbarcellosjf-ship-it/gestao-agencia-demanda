@@ -51,42 +51,46 @@ export function EntrevistaCard({ entrevista, onAprovar, onReprovar, onEditar, on
     const checkConformidadeAndLoadClientInfo = async () => {
       let telefone: string | undefined;
       let nome: string | undefined;
-      let hasConf = false;
 
-      // Se há conformidade_id vinculada, buscar info da entrevista_agendamento via conformidade
+      // Se já tem conformidade_id, significa que veio de um contrato existente
+      // Então marcamos hasConformidade como true IMEDIATAMENTE
       if (entrevista.conformidade_id) {
+        setHasConformidade(true);
+
+        // Buscar info do cliente via conformidade
         const { data: entrevistaViaConformidade } = await supabase
           .from('entrevistas_agendamento')
-          .select('cliente_nome, telefone, conformidade_id')
+          .select('cliente_nome, telefone')
           .eq('conformidade_id', entrevista.conformidade_id)
           .maybeSingle();
-        
+
         if (entrevistaViaConformidade) {
           telefone = entrevistaViaConformidade.telefone;
           nome = entrevistaViaConformidade.cliente_nome;
-          hasConf = !!entrevistaViaConformidade.conformidade_id;
         }
-      }
-      
-      // Se não encontrou ainda, tentar buscar pela própria ID (se vier de entrevistas_agendamento)
-      if (!telefone) {
-        const { data: entrevistaOriginal } = await supabase
-          .from('entrevistas_agendamento')
-          .select('cliente_nome, telefone, conformidade_id')
-          .eq('id', entrevista.id)
-          .maybeSingle();
-        
-        if (entrevistaOriginal) {
-          telefone = entrevistaOriginal.telefone;
-          nome = entrevistaOriginal.cliente_nome;
-          hasConf = hasConf || !!entrevistaOriginal.conformidade_id;
-        }
+
+        setClienteInfo({ telefone, nome });
+        return;
       }
 
-      setHasConformidade(hasConf);
+      // Se não tem conformidade_id, buscar pela própria ID
+      const { data: entrevistaOriginal } = await supabase
+        .from('entrevistas_agendamento')
+        .select('cliente_nome, telefone, conformidade_id')
+        .eq('id', entrevista.id)
+        .maybeSingle();
+
+      if (entrevistaOriginal) {
+        telefone = entrevistaOriginal.telefone;
+        nome = entrevistaOriginal.cliente_nome;
+        setHasConformidade(!!entrevistaOriginal.conformidade_id);
+      } else {
+        setHasConformidade(false);
+      }
+
       setClienteInfo({ telefone, nome });
     };
-    
+
     checkConformidadeAndLoadClientInfo();
   }, [entrevista.id, entrevista.conformidade_id]);
 
