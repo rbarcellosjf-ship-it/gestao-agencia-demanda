@@ -67,6 +67,13 @@ const AgendamentosNew = () => {
     return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   });
   
+  // Filtros específicos de entrevistas
+  const [filtroStatusEntrevista, setFiltroStatusEntrevista] = useState("Todos");
+  const [diasSelecionadosEntrevistas, setDiasSelecionadosEntrevistas] = useState<Date[]>(() => {
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
+    return Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  });
+  
   // Form state
   const [formData, setFormData] = useState({
     cpf: "",
@@ -692,6 +699,25 @@ const AgendamentosNew = () => {
     });
   };
 
+  // Filtro específico para entrevistas (com status e calendário)
+  const aplicarFiltrosEntrevistas = (items: any[]) => {
+    return items.filter(item => {
+      // Filtrar por status
+      if (filtroStatusEntrevista !== "Todos" && item.status !== filtroStatusEntrevista) {
+        return false;
+      }
+      
+      // Filtrar por dias selecionados no calendário
+      if (diasSelecionadosEntrevistas.length > 0) {
+        const dataAgendamento = new Date(item.data_hora);
+        const diaMatch = diasSelecionadosEntrevistas.some(dia => isSameDay(dataAgendamento, dia));
+        if (!diaMatch) return false;
+      }
+      
+      return true;
+    });
+  };
+
   // Handler para mudar status de assinatura
   const handleMudarStatusAssinatura = async (id: string, novoStatus: string) => {
     try {
@@ -718,7 +744,7 @@ const AgendamentosNew = () => {
     }
   };
 
-  const entrevistasFiltradas = aplicarFiltros(entrevistas);
+  const entrevistasFiltradas = aplicarFiltrosEntrevistas(entrevistas);
   const assinaturasFiltradas = aplicarFiltrosAssinaturas(assinaturas);
 
   const ccasUnicos = Array.from(new Set(ccas.map(c => c.codigo_cca)));
@@ -1103,10 +1129,44 @@ const AgendamentosNew = () => {
           </TabsList>
 
           <TabsContent value="entrevistas" className="space-y-4">
+            {/* Filtros de entrevistas - Calendário e Status */}
+            <Card className="p-4">
+              <div className="space-y-4">
+                {/* Calendário semanal */}
+                <WeekCalendarFilter
+                  selectedDays={diasSelecionadosEntrevistas}
+                  onSelectionChange={setDiasSelecionadosEntrevistas}
+                />
+                
+                {/* Filtro de status */}
+                <div className="flex items-center gap-4 pt-3 border-t">
+                  <Label className="text-sm font-medium whitespace-nowrap">Status:</Label>
+                  <Select
+                    value={filtroStatusEntrevista}
+                    onValueChange={setFiltroStatusEntrevista}
+                  >
+                    <SelectTrigger className="w-[220px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Todos">Todos os status</SelectItem>
+                      <SelectItem value="Aguardando entrevista">Aguardando entrevista</SelectItem>
+                      <SelectItem value="Aprovado">Aprovado</SelectItem>
+                      <SelectItem value="Reprovado">Reprovado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground ml-auto">
+                    {entrevistasFiltradas.length} resultado{entrevistasFiltradas.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+              </div>
+            </Card>
+
+            {/* Lista de entrevistas */}
             {entrevistasFiltradas.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  Nenhuma entrevista agendada
+                  Nenhuma entrevista encontrada com os filtros selecionados
                 </CardContent>
               </Card>
             ) : (
