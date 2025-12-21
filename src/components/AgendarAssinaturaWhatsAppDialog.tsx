@@ -142,14 +142,13 @@ export const AgendarAssinaturaWhatsAppDialog = ({
       if (insertError) throw insertError;
 
       // 2. Também inserir em agendamentos para aparecer na lista
-      const modalidadeLower = modalidade ? modalidade.toLowerCase() : null;
       await supabase.from('agendamentos').insert({
         cpf: cpfCliente || null,
         tipo: 'assinatura',
         tipo_contrato: tipoContrato || 'individual',
-        modalidade_financiamento: modalidadeLower,
+        modalidade_financiamento: modalidade || null,
         data_hora: `${data}T${horario}:00`,
-        status: 'Assinatura confirmada',
+        status: 'Aguardando assinatura',
         cca_user_id: user.id,
         conformidade_id: conformidadeId,
         telefone_cliente: telefoneCliente,
