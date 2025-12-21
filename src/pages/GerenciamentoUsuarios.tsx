@@ -383,14 +383,26 @@ const GerenciamentoUsuarios = () => {
                       </TableCell>
                       <TableCell>{getRoleBadge(usuario.role || "cca")}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={usuario.ativo}
-                            onCheckedChange={() => handleToggleAtivo(usuario)}
-                          />
-                          <Badge variant={usuario.ativo ? "default" : "secondary"}>
-                            {usuario.ativo ? "Ativo" : "Inativo"}
-                          </Badge>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={usuario.ativo}
+                              onCheckedChange={() => handleToggleAtivo(usuario)}
+                            />
+                            <Badge variant={usuario.ativo ? "default" : "secondary"}>
+                              {usuario.ativo ? "Ativo" : "Inativo"}
+                            </Badge>
+                          </div>
+                          {configAprovacao.exigir_aprovacao && !usuario.aprovado_por && (
+                            <Badge variant="outline" className="text-amber-600 border-amber-400 bg-amber-50 dark:bg-amber-950/30">
+                              Aguardando aprovação
+                            </Badge>
+                          )}
+                          {usuario.aprovado_por && usuario.aprovado_em && (
+                            <span className="text-xs text-muted-foreground">
+                              Aprovado em {format(new Date(usuario.aprovado_em), "dd/MM/yyyy", { locale: ptBR })}
+                            </span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
