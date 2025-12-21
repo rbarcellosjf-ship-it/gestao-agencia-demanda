@@ -24,6 +24,7 @@ export type Database = {
           data_hora: string
           dossie_cliente_url: string | null
           id: string
+          matricula_onus_url: string | null
           modalidade_financiamento: string | null
           observacoes: string | null
           status: string | null
@@ -40,6 +41,7 @@ export type Database = {
           data_hora: string
           dossie_cliente_url?: string | null
           id?: string
+          matricula_onus_url?: string | null
           modalidade_financiamento?: string | null
           observacoes?: string | null
           status?: string | null
@@ -56,6 +58,7 @@ export type Database = {
           data_hora?: string
           dossie_cliente_url?: string | null
           id?: string
+          matricula_onus_url?: string | null
           modalidade_financiamento?: string | null
           observacoes?: string | null
           status?: string | null
@@ -89,6 +92,7 @@ export type Database = {
           horario_fim: string
           horario_inicio: string
           id: string
+          matricula_onus_url: string | null
           mensagem_id: string | null
           modalidade_financiamento: string | null
           observacoes: string | null
@@ -113,6 +117,7 @@ export type Database = {
           horario_fim: string
           horario_inicio: string
           id?: string
+          matricula_onus_url?: string | null
           mensagem_id?: string | null
           modalidade_financiamento?: string | null
           observacoes?: string | null
@@ -137,6 +142,7 @@ export type Database = {
           horario_fim?: string
           horario_inicio?: string
           id?: string
+          matricula_onus_url?: string | null
           mensagem_id?: string | null
           modalidade_financiamento?: string | null
           observacoes?: string | null
@@ -517,6 +523,7 @@ export type Database = {
           data_confirmada: string | null
           data_opcao_1: string
           data_opcao_2: string
+          dossie_cliente_url: string | null
           endereco_agencia: string | null
           horario_fim: string
           horario_inicio: string
@@ -544,6 +551,7 @@ export type Database = {
           data_confirmada?: string | null
           data_opcao_1: string
           data_opcao_2: string
+          dossie_cliente_url?: string | null
           endereco_agencia?: string | null
           horario_fim: string
           horario_inicio: string
@@ -571,6 +579,7 @@ export type Database = {
           data_confirmada?: string | null
           data_opcao_1?: string
           data_opcao_2?: string
+          dossie_cliente_url?: string | null
           endereco_agencia?: string | null
           horario_fim?: string
           horario_inicio?: string
