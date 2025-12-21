@@ -51,7 +51,7 @@ const EmailTemplates = () => {
   const updateMutation = useUpdateEmailTemplate();
   const deleteMutation = useDeleteEmailTemplate();
 
-  if (role !== "agencia") {
+  if (role !== "agencia" && role !== "admin") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md">
