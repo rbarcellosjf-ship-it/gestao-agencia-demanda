@@ -109,7 +109,17 @@ export function CreateEmpregadoDialog({
               id="email"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) => {
+                const newEmail = e.target.value;
+                setFormData({ 
+                  ...formData, 
+                  email: newEmail,
+                  // Auto-preencher emailPreferencia se ainda não foi alterado manualmente
+                  emailPreferencia: formData.emailPreferencia === "" || formData.emailPreferencia === formData.email 
+                    ? newEmail 
+                    : formData.emailPreferencia
+                });
+              }}
               required
             />
           </div>
@@ -139,14 +149,17 @@ export function CreateEmpregadoDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="emailPreferencia">Email de Notificações (Opcional)</Label>
+            <Label htmlFor="emailPreferencia">Email para Notificações</Label>
             <Input
               id="emailPreferencia"
               type="email"
-              placeholder="email@example.com"
+              placeholder="Padrão: mesmo email de login"
               value={formData.emailPreferencia}
               onChange={(e) => setFormData({ ...formData, emailPreferencia: e.target.value })}
             />
+            <p className="text-xs text-muted-foreground">
+              Se não alterado, o email de login será usado para notificações
+            </p>
           </div>
 
           <DialogFooter>
