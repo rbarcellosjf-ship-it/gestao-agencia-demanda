@@ -388,12 +388,12 @@ const Conformidades = () => {
                   Incluir Contrato
                 </Button>
               </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Incluir Contrato</DialogTitle>
                     <DialogDescription>Preencha os dados do contrato</DialogDescription>
                   </DialogHeader>
-                <form onSubmit={handleCreateConformidade} className="space-y-4">
+                <form onSubmit={handleCreateConformidade} className="space-y-3 sm:space-y-4 pb-4">
                   <div className="space-y-2">
                     <Label htmlFor="cpf">CPF do Cliente *</Label>
                     <Input
