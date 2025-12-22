@@ -649,7 +649,7 @@ export type Database = {
           aprovado_em?: string | null
           aprovado_por?: string | null
           ativo?: boolean | null
-          codigo_cca: string
+          codigo_cca?: string
           created_at?: string
           email_preferencia?: string | null
           full_name: string
