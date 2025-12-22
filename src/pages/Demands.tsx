@@ -97,27 +97,29 @@ const sendWhatsAppToConfiguredPhones = async (
     }
   }
 
-  // Se não houver telefones configurados, tentar fallback para agencia user
+  // Se não houver telefones configurados, tentar fallback para agencia ou admin
   if (phonesToNotify.length === 0) {
-    console.log('⚠️ [WhatsApp Notification] No phones configured, trying agencia fallback...');
+    console.log('⚠️ [WhatsApp Notification] No phones configured, trying fallback...');
     
-    const { data: agenciaRoles } = await supabase
+    // Buscar usuários com role agencia ou admin
+    const { data: roleUsers } = await supabase
       .from("user_roles")
-      .select("user_id")
-      .eq("role", "agencia")
-      .limit(1)
-      .maybeSingle();
+      .select("user_id, role")
+      .in("role", ["agencia", "admin"]);
 
-    if (agenciaRoles?.user_id) {
-      const { data: managerData } = await supabase
+    if (roleUsers && roleUsers.length > 0) {
+      // Priorizar agencia sobre admin
+      const priorityUser = roleUsers.find(u => u.role === 'agencia') || roleUsers[0];
+      
+      const { data: userData } = await supabase
         .from("profiles")
         .select("phone")
-        .eq("user_id", agenciaRoles.user_id)
+        .eq("user_id", priorityUser.user_id)
         .single();
       
-      if (managerData?.phone) {
-        phonesToNotify = [managerData.phone];
-        console.log('✓ [WhatsApp Notification] Using agencia fallback phone:', managerData.phone);
+      if (userData?.phone) {
+        phonesToNotify = [userData.phone];
+        console.log(`✓ [WhatsApp Notification] Using ${priorityUser.role} fallback phone:`, userData.phone);
       }
     }
   }
