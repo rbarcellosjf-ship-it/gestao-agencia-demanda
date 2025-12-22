@@ -53,8 +53,10 @@ const demandSchema = z.object({
   numero_pis: z.string().optional(),
 });
 
-// Helper function to send WhatsApp to manager
-const sendWhatsAppToManager = async (
+const WHATSAPP_PHONES_KEY = "whatsapp_telefones_notificacao";
+
+// Helper function to send WhatsApp to configured phones
+const sendWhatsAppToConfiguredPhones = async (
   type: string, 
   cpf: string, 
   matricula: string,
@@ -62,8 +64,8 @@ const sendWhatsAppToManager = async (
   profile: any,
   novaDemandaTemplate: any
 ) => {
-  console.log('🔔 [WhatsApp Manager] Starting notification...');
-  console.log('🔔 [WhatsApp Manager] Input params:', { 
+  console.log('🔔 [WhatsApp Notification] Starting notification...');
+  console.log('🔔 [WhatsApp Notification] Input params:', { 
     type, 
     cpf, 
     matricula, 
@@ -73,46 +75,59 @@ const sendWhatsAppToManager = async (
     hasTemplate: !!novaDemandaTemplate 
   });
   
-  const { data: agenciaRoles, error: roleError } = await supabase
-    .from("user_roles")
-    .select("user_id")
-    .eq("role", "agencia")
-    .limit(1)
+  // Buscar telefones configurados
+  const { data: configData, error: configError } = await supabase
+    .from("configuracoes")
+    .select("valor")
+    .eq("chave", WHATSAPP_PHONES_KEY)
     .maybeSingle();
 
-  console.log('🔍 [WhatsApp Manager] Query result:', { agenciaRoles, roleError });
-
-  if (roleError) {
-    console.error('❌ [WhatsApp Manager] Error fetching agencia role:', roleError);
-    throw new Error(`Failed to fetch agencia role: ${roleError.message}`);
+  if (configError) {
+    console.error('❌ [WhatsApp Notification] Error fetching config:', configError);
+    throw new Error(`Failed to fetch notification config: ${configError.message}`);
   }
 
-  if (!agenciaRoles?.user_id) {
-    console.warn('⚠️ [WhatsApp Manager] No agencia user found');
-    throw new Error('No agencia user found in the system');
+  let phonesToNotify: string[] = [];
+  
+  if (configData?.valor) {
+    try {
+      phonesToNotify = JSON.parse(configData.valor);
+    } catch (e) {
+      console.error('❌ [WhatsApp Notification] Error parsing phones:', e);
+    }
   }
 
-  console.log('✓ [WhatsApp Manager] Found agencia user:', agenciaRoles.user_id);
+  // Se não houver telefones configurados, tentar fallback para agencia user
+  if (phonesToNotify.length === 0) {
+    console.log('⚠️ [WhatsApp Notification] No phones configured, trying agencia fallback...');
+    
+    const { data: agenciaRoles } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "agencia")
+      .limit(1)
+      .maybeSingle();
 
-  const { data: managerData, error: managerError } = await supabase
-    .from("profiles")
-    .select("phone, full_name")
-    .eq("user_id", agenciaRoles.user_id)
-    .single();
-
-  console.log('🔍 [WhatsApp Manager] Manager data result:', { managerData, managerError });
-
-  if (managerError) {
-    console.error('❌ [WhatsApp Manager] Error fetching manager data:', managerError);
-    throw new Error(`Failed to fetch manager profile: ${managerError.message}`);
+    if (agenciaRoles?.user_id) {
+      const { data: managerData } = await supabase
+        .from("profiles")
+        .select("phone")
+        .eq("user_id", agenciaRoles.user_id)
+        .single();
+      
+      if (managerData?.phone) {
+        phonesToNotify = [managerData.phone];
+        console.log('✓ [WhatsApp Notification] Using agencia fallback phone:', managerData.phone);
+      }
+    }
   }
 
-  if (!managerData?.phone) {
-    console.warn('⚠️ [WhatsApp Manager] Manager has no phone number');
-    throw new Error('Manager profile exists but has no phone number configured');
+  if (phonesToNotify.length === 0) {
+    console.warn('⚠️ [WhatsApp Notification] No phones to notify');
+    throw new Error('Nenhum telefone configurado para receber notificações. Configure em Configurações > Notificações.');
   }
 
-  console.log('✓ [WhatsApp Manager] Manager phone found:', managerData.phone);
+  console.log('✓ [WhatsApp Notification] Phones to notify:', phonesToNotify);
 
   const typeLabels: Record<string, string> = {
     autoriza_reavaliacao: "Autoriza Reavaliação",
@@ -169,26 +184,36 @@ const sendWhatsAppToManager = async (
       `*Descrição:* ${description || "N/A"}`;
   }
 
-  console.log('📤 [WhatsApp Manager] Sending message...');
-  console.log('📤 [WhatsApp Manager] Message payload:', { 
-    phone: managerData.phone, 
-    messageLength: message.length,
-    messagePreview: message.substring(0, 100) + '...'
-  });
+  console.log('📤 [WhatsApp Notification] Sending messages to configured phones...');
   
-  const { data, error } = await supabase.functions.invoke("send-whatsapp", {
-    body: { phone: managerData.phone, message },
-  });
+  // Enviar para todos os telefones configurados
+  const results = await Promise.allSettled(
+    phonesToNotify.map(async (phone) => {
+      console.log('📤 [WhatsApp Notification] Sending to:', phone);
+      const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+        body: { phone, message },
+      });
+      
+      if (error) {
+        console.error(`❌ [WhatsApp Notification] Error sending to ${phone}:`, error);
+        throw error;
+      }
+      
+      console.log(`✅ [WhatsApp Notification] Sent to ${phone}:`, data);
+      return { phone, data };
+    })
+  );
+
+  const successful = results.filter(r => r.status === 'fulfilled').length;
+  const failed = results.filter(r => r.status === 'rejected').length;
   
-  console.log('📥 [WhatsApp Manager] Edge function response:', { data, error });
+  console.log(`📊 [WhatsApp Notification] Results: ${successful} sent, ${failed} failed`);
   
-  if (error) {
-    console.error('❌ [WhatsApp Manager] Send error:', error);
-    throw new Error(`Failed to send WhatsApp: ${error.message}`);
+  if (successful === 0 && failed > 0) {
+    throw new Error('Falha ao enviar notificações WhatsApp');
   }
 
-  console.log('✅ [WhatsApp Manager] Message sent successfully:', data);
-  return data;
+  return { successful, failed, total: phonesToNotify.length };
 };
 
 // Helper function to send WhatsApp to CCA
@@ -468,13 +493,13 @@ const Demands = () => {
       console.log('✅ [Demand Created] Starting WhatsApp notification process...');
       console.log('📋 [Demand Data]', { type, cpf, matricula, description, profile, hasTemplate: !!novaDemandaTemplate });
 
-      // Send WhatsApp notification to manager (agencia) - RUNS INDEPENDENTLY
-      sendWhatsAppToManager(type, cpf, matricula, description, profile, novaDemandaTemplate)
-        .then(() => {
-          console.log('✅ [WhatsApp] Notification sent successfully');
+      // Send WhatsApp notification to configured phones - RUNS INDEPENDENTLY
+      sendWhatsAppToConfiguredPhones(type, cpf, matricula, description, profile, novaDemandaTemplate)
+        .then((result) => {
+          console.log('✅ [WhatsApp] Notification sent successfully', result);
           toast({
             title: "WhatsApp enviado!",
-            description: "Notificação enviada para o gerente.",
+            description: `Notificação enviada para ${result.successful} telefone(s).`,
           });
         })
         .catch(err => {

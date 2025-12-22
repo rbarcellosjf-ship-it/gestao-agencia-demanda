@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Save, MessageSquare } from "lucide-react";
+import { Save, MessageSquare, Phone, Plus, Trash2, Loader2, Settings2 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,6 +24,8 @@ import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { LoadingState } from "@/components/layout/LoadingState";
 
+const WHATSAPP_PHONES_KEY = "whatsapp_telefones_notificacao";
+
 const Settings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -35,6 +37,11 @@ const Settings = () => {
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [codigoCCA, setCodigoCCA] = useState("");
+
+  // WhatsApp phones config
+  const [whatsappPhones, setWhatsappPhones] = useState<string[]>([]);
+  const [newPhone, setNewPhone] = useState("");
+  const [savingPhones, setSavingPhones] = useState(false);
 
   // WhatsApp template state
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
@@ -51,6 +58,7 @@ const Settings = () => {
 
   useEffect(() => {
     loadProfile();
+    loadWhatsappPhones();
   }, []);
 
   const loadProfile = async () => {
@@ -74,6 +82,80 @@ const Settings = () => {
     }
 
     setLoading(false);
+  };
+
+  const loadWhatsappPhones = async () => {
+    const { data } = await supabase
+      .from("configuracoes")
+      .select("valor")
+      .eq("chave", WHATSAPP_PHONES_KEY)
+      .maybeSingle();
+    
+    if (data?.valor) {
+      try {
+        const phones = JSON.parse(data.valor);
+        setWhatsappPhones(Array.isArray(phones) ? phones : []);
+      } catch {
+        setWhatsappPhones([]);
+      }
+    }
+  };
+
+  const handleSaveWhatsappPhones = async () => {
+    setSavingPhones(true);
+    try {
+      // Check if config exists
+      const { data: existing } = await supabase
+        .from("configuracoes")
+        .select("id")
+        .eq("chave", WHATSAPP_PHONES_KEY)
+        .maybeSingle();
+
+      const valor = JSON.stringify(whatsappPhones);
+
+      if (existing) {
+        const { error } = await supabase
+          .from("configuracoes")
+          .update({ valor, updated_at: new Date().toISOString() })
+          .eq("chave", WHATSAPP_PHONES_KEY);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("configuracoes")
+          .insert({ 
+            chave: WHATSAPP_PHONES_KEY, 
+            valor,
+            descricao: "Telefones que recebem notificação WhatsApp de novas demandas"
+          });
+        if (error) throw error;
+      }
+
+      toast({
+        title: "Configuração salva!",
+        description: "Os telefones de notificação foram atualizados.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingPhones(false);
+    }
+  };
+
+  const addPhone = () => {
+    if (!newPhone.trim()) return;
+    const formatted = formatPhoneNumber(newPhone);
+    if (!whatsappPhones.includes(formatted)) {
+      setWhatsappPhones([...whatsappPhones, formatted]);
+    }
+    setNewPhone("");
+  };
+
+  const removePhone = (phoneToRemove: string) => {
+    setWhatsappPhones(whatsappPhones.filter(p => p !== phoneToRemove));
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -185,10 +267,16 @@ const Settings = () => {
         />
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className={`grid w-full ${(role === "agencia" || role === "admin") ? "grid-cols-3" : "grid-cols-1"}`}>
             <TabsTrigger value="profile">Meu Perfil</TabsTrigger>
             {(role === "agencia" || role === "admin") && (
-              <TabsTrigger value="whatsapp">Templates WhatsApp</TabsTrigger>
+              <>
+                <TabsTrigger value="notificacoes">
+                  <Settings2 className="w-4 h-4 mr-2" />
+                  Notificações
+                </TabsTrigger>
+                <TabsTrigger value="whatsapp">Templates WhatsApp</TabsTrigger>
+              </>
             )}
           </TabsList>
 
@@ -246,6 +334,76 @@ const Settings = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {(role === "agencia" || role === "admin") && (
+            <TabsContent value="notificacoes" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Phone className="w-5 h-5" />
+                    Telefones para Notificações de Demandas
+                  </CardTitle>
+                  <CardDescription>
+                    Configure os números que receberão notificações WhatsApp quando novas demandas forem criadas pelos CCAs.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="(00) 00000-0000"
+                      value={newPhone}
+                      onChange={(e) => setNewPhone(formatPhoneNumber(e.target.value))}
+                      maxLength={15}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPhone())}
+                    />
+                    <Button onClick={addPhone} type="button">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Adicionar
+                    </Button>
+                  </div>
+
+                  {whatsappPhones.length > 0 ? (
+                    <div className="space-y-2">
+                      <Label>Telefones Configurados</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {whatsappPhones.map((phoneNumber, idx) => (
+                          <div 
+                            key={idx} 
+                            className="flex items-center gap-2 bg-muted px-3 py-2 rounded-md"
+                          >
+                            <Phone className="w-4 h-4 text-muted-foreground" />
+                            <span className="text-sm">{phoneNumber}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => removePhone(phoneNumber)}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground py-4 text-center">
+                      Nenhum telefone configurado. Adicione telefones para receber notificações de novas demandas.
+                    </p>
+                  )}
+
+                  <Button 
+                    onClick={handleSaveWhatsappPhones} 
+                    className="w-full"
+                    disabled={savingPhones}
+                  >
+                    {savingPhones && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    <Save className="w-4 h-4 mr-2" />
+                    Salvar Configuração
+                  </Button>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           {(role === "agencia" || role === "admin") && (
             <TabsContent value="whatsapp" className="space-y-4">
