@@ -390,12 +390,6 @@ const Conformidades = () => {
                 </Button>
               </DialogTrigger>
                 <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Incluir Contrato</DialogTitle>
-                    <DialogDescription>Preencha os dados do contrato</DialogDescription>
-                  </DialogHeader>
-                  
-                  {/* Indicador de Progresso */}
                   {(() => {
                     const requiredFields = [
                       { filled: cpf && validateCPF(cpf), label: "CPF" },
@@ -410,24 +404,18 @@ const Conformidades = () => {
                     const progressPercent = Math.round((filledCount / totalCount) * 100);
                     
                     return (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Progresso do formulário</span>
+                      <DialogHeader className="space-y-1">
+                        <DialogTitle>Incluir Contrato</DialogTitle>
+                        <DialogDescription className="flex items-center justify-between text-sm">
+                          <span>Preencha os dados do contrato</span>
                           <span className={progressPercent === 100 ? "text-green-600 font-medium" : "text-muted-foreground"}>
                             {filledCount}/{totalCount} campos obrigatórios
                           </span>
-                        </div>
-                        <Progress value={progressPercent} className="h-2" />
-                        {progressPercent === 100 && (
-                          <p className="text-xs text-green-600 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Todos os campos obrigatórios preenchidos!
-                          </p>
-                        )}
-                      </div>
+                        </DialogDescription>
+                        <Progress value={progressPercent} className={`h-1.5 ${progressPercent === 100 ? '[&>div]:bg-green-500' : ''}`} />
+                      </DialogHeader>
                     );
                   })()}
-                  
                 <form onSubmit={handleCreateConformidade} className="space-y-3 sm:space-y-4 pb-4">
                   <div className="space-y-2">
                     <Label htmlFor="cpf">CPF do Cliente *</Label>

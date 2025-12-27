@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, CheckCircle2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { formatCPF } from "@/lib/cpfValidator";
@@ -276,12 +277,30 @@ export const AgendarEntrevistaDialog = ({
         </DialogTrigger>
       )}
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Agendar Entrevista</DialogTitle>
-          <DialogDescription>
-            O cliente receberá uma mensagem no WhatsApp com a confirmação da data e horário.
-          </DialogDescription>
-        </DialogHeader>
+        {(() => {
+          const requiredFields = [
+            { filled: !!nomeCliente.trim() },
+            { filled: !!telefoneCliente.trim() },
+            { filled: !!data },
+            { filled: !!horario },
+          ];
+          const filledCount = requiredFields.filter(f => f.filled).length;
+          const totalCount = requiredFields.length;
+          const progressPercent = Math.round((filledCount / totalCount) * 100);
+          
+          return (
+            <DialogHeader className="space-y-1">
+              <DialogTitle>Agendar Entrevista</DialogTitle>
+              <DialogDescription className="flex items-center justify-between text-sm">
+                <span>O cliente receberá uma mensagem no WhatsApp</span>
+                <span className={progressPercent === 100 ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                  {filledCount}/{totalCount} campos obrigatórios
+                </span>
+              </DialogDescription>
+              <Progress value={progressPercent} className={`h-1.5 ${progressPercent === 100 ? '[&>div]:bg-green-500' : ''}`} />
+            </DialogHeader>
+          );
+        })()}
 
         {conformidadeId && (
           <div className="bg-blue-50 border border-blue-200 rounded-md p-3 space-y-1">

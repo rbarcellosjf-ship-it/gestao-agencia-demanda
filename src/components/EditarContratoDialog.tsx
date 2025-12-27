@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import { ObservacoesField } from "./ObservacoesField";
+import { Progress } from "@/components/ui/progress";
 
 interface EditarContratoDialogProps {
   open: boolean;
@@ -98,13 +99,30 @@ export function EditarContratoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Editar Contrato</DialogTitle>
-          <DialogDescription>
-            Atualize as informações do contrato
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        {(() => {
+          const requiredFields = [
+            { filled: valorFinanciamento && parseFloat(valorFinanciamento) >= 50000 },
+            { filled: !!modalidade },
+            ...(modalidade === "OUTRO" ? [{ filled: !!modalidadeOutro.trim() }] : []),
+          ];
+          const filledCount = requiredFields.filter(f => f.filled).length;
+          const totalCount = requiredFields.length;
+          const progressPercent = Math.round((filledCount / totalCount) * 100);
+          
+          return (
+            <DialogHeader className="space-y-1">
+              <DialogTitle>Editar Contrato</DialogTitle>
+              <DialogDescription className="flex items-center justify-between text-sm">
+                <span>Atualize as informações do contrato</span>
+                <span className={progressPercent === 100 ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                  {filledCount}/{totalCount} campos obrigatórios
+                </span>
+              </DialogDescription>
+              <Progress value={progressPercent} className={`h-1.5 ${progressPercent === 100 ? '[&>div]:bg-green-500' : ''}`} />
+            </DialogHeader>
+          );
+        })()}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
