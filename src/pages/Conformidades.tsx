@@ -28,6 +28,7 @@ import { AgendarAssinaturaContratoDialog } from "@/components/AgendarAssinaturaC
 import { Checkbox } from "@/components/ui/checkbox";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Progress } from "@/components/ui/progress";
 import { LoadingState } from "@/components/layout/LoadingState";
 import { EmptyState } from "@/components/layout/EmptyState";
 import { ConformidadeCard } from "@/components/ConformidadeCard";
@@ -393,6 +394,40 @@ const Conformidades = () => {
                     <DialogTitle>Incluir Contrato</DialogTitle>
                     <DialogDescription>Preencha os dados do contrato</DialogDescription>
                   </DialogHeader>
+                  
+                  {/* Indicador de Progresso */}
+                  {(() => {
+                    const requiredFields = [
+                      { filled: cpf && validateCPF(cpf), label: "CPF" },
+                      { filled: valorFinanciamento && parseFloat(valorFinanciamento) >= 50000, label: "Valor" },
+                      { filled: !!modalidade, label: "Modalidade" },
+                      { filled: modalidade !== "OUTRO" || !!modalidadeOutro, label: "Modalidade Outro" },
+                      { filled: !!tipoContrato, label: "Tipo" },
+                    ].filter(f => modalidade === "OUTRO" ? true : f.label !== "Modalidade Outro");
+                    
+                    const filledCount = requiredFields.filter(f => f.filled).length;
+                    const totalCount = requiredFields.length;
+                    const progressPercent = Math.round((filledCount / totalCount) * 100);
+                    
+                    return (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Progresso do formulário</span>
+                          <span className={progressPercent === 100 ? "text-green-600 font-medium" : "text-muted-foreground"}>
+                            {filledCount}/{totalCount} campos obrigatórios
+                          </span>
+                        </div>
+                        <Progress value={progressPercent} className="h-2" />
+                        {progressPercent === 100 && (
+                          <p className="text-xs text-green-600 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Todos os campos obrigatórios preenchidos!
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  
                 <form onSubmit={handleCreateConformidade} className="space-y-3 sm:space-y-4 pb-4">
                   <div className="space-y-2">
                     <Label htmlFor="cpf">CPF do Cliente *</Label>
