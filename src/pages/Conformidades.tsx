@@ -277,6 +277,19 @@ const Conformidades = () => {
     if (!conformidadeToDelete) return;
 
     try {
+      // 1. Primeiro, excluir assinaturas vinculadas
+      await supabase
+        .from("assinaturas_agendamento")
+        .delete()
+        .eq("conformidade_id", conformidadeToDelete);
+
+      // 2. Depois, excluir entrevistas vinculadas
+      await supabase
+        .from("entrevistas_agendamento")
+        .delete()
+        .eq("conformidade_id", conformidadeToDelete);
+
+      // 3. Por fim, excluir a conformidade
       const { error } = await supabase
         .from("conformidades")
         .delete()
@@ -285,8 +298,8 @@ const Conformidades = () => {
       if (error) throw error;
 
       toast({
-        title: "Conformidade excluída!",
-        description: "O processo foi removido com sucesso.",
+        title: "Contrato excluído!",
+        description: "O contrato e todos os agendamentos vinculados foram removidos.",
       });
 
       setDeleteDialogOpen(false);
@@ -628,7 +641,7 @@ const Conformidades = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta conformidade? Esta ação não pode ser desfeita.
+              Esta ação não pode ser desfeita. O contrato e todos os agendamentos de entrevista e assinatura vinculados serão permanentemente excluídos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
