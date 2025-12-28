@@ -768,6 +768,58 @@ const AgendamentosNew = () => {
     }
   };
 
+  // Handler para deletar assinatura confirmada
+  const handleDeleteAssinaturaConfirmada = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("agendamentos")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Assinatura excluída",
+        description: "A assinatura foi removida com sucesso.",
+      });
+
+      loadData();
+    } catch (error: any) {
+      console.error("Error deleting assinatura:", error);
+      toast({
+        title: "Erro ao excluir",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handler para deletar assinatura pendente
+  const handleDeleteAssinaturaPendente = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("assinaturas_agendamento")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Assinatura excluída",
+        description: "A assinatura pendente foi removida com sucesso.",
+      });
+
+      loadAssinaturasPendentes();
+    } catch (error: any) {
+      console.error("Error deleting assinatura pendente:", error);
+      toast({
+        title: "Erro ao excluir",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const entrevistasFiltradas = aplicarFiltrosEntrevistas(entrevistas);
   const assinaturasFiltradas = aplicarFiltrosAssinaturas(assinaturas);
 
@@ -1135,6 +1187,7 @@ const AgendamentosNew = () => {
                   key={assinatura.id}
                   assinatura={assinatura}
                   onConfirmar={handleConfirmarAssinatura}
+                  onDelete={handleDeleteAssinaturaPendente}
                 />
               ))}
             </div>
@@ -1258,6 +1311,7 @@ const AgendamentosNew = () => {
                   key={assinatura.id}
                   assinatura={assinatura}
                   onStatusChange={handleMudarStatusAssinatura}
+                  onDelete={handleDeleteAssinaturaConfirmada}
                 />
               ))
             )}

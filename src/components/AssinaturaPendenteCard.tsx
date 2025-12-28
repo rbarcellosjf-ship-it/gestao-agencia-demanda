@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Clock, Calendar, User, FileText, DollarSign, FileSignature } from "lucide-react";
+import { Clock, Calendar, User, FileText, DollarSign, FileSignature, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -27,9 +27,10 @@ interface AssinaturaPendenteCardProps {
     codigo_cca?: string;
   };
   onConfirmar: (assinaturaId: string, dataConfirmada: string, opcaoEscolhida: number | null, horarioEscolhido: string) => void;
+  onDelete?: (id: string) => void;
 }
 
-export const AssinaturaPendenteCard = ({ assinatura, onConfirmar }: AssinaturaPendenteCardProps) => {
+export const AssinaturaPendenteCard = ({ assinatura, onConfirmar, onDelete }: AssinaturaPendenteCardProps) => {
   const [showCalendar, setShowCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [horarioEscolhido, setHorarioEscolhido] = useState<string>("");
@@ -129,9 +130,21 @@ export const AssinaturaPendenteCard = ({ assinatura, onConfirmar }: AssinaturaPe
               {assinatura.telefone}
             </p>
           </div>
-          <Badge variant="secondary" className="bg-orange-500/10 text-orange-700 border-orange-300">
-            🟠 Aguardando Confirmação
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="bg-orange-500/10 text-orange-700 border-orange-300">
+              🟠 Aguardando Confirmação
+            </Badge>
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(assinatura.id)}
+                className="h-8 w-8 p-0"
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
 

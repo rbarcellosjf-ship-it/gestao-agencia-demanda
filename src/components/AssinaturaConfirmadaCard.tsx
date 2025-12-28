@@ -3,7 +3,7 @@ import { ptBR } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Check, CheckCheck, ChevronDown, ChevronUp, Calendar } from "lucide-react";
+import { Check, CheckCheck, ChevronDown, ChevronUp, Calendar, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { statusBorders } from "@/lib/design-tokens";
 import { ObservacoesField } from "@/components/ObservacoesField";
@@ -17,11 +17,13 @@ import { ReagendarAssinaturaDialog } from "@/components/ReagendarAssinaturaDialo
 interface AssinaturaConfirmadaCardProps {
   assinatura: any;
   onStatusChange: (id: string, novoStatus: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 export const AssinaturaConfirmadaCard = ({ 
   assinatura, 
-  onStatusChange 
+  onStatusChange,
+  onDelete
 }: AssinaturaConfirmadaCardProps) => {
   const { toast } = useToast();
   const [observacoes, setObservacoes] = useState(assinatura.observacoes || "");
@@ -150,8 +152,18 @@ export const AssinaturaConfirmadaCard = ({
               Assinatura de Contrato
             </p>
           </div>
-          <div className="flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             {getStatusBadge(currentStatus)}
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(assinatura.id)}
+                className="h-8 w-8 p-0"
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
