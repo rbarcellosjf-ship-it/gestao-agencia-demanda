@@ -662,8 +662,11 @@ const Conformidades = () => {
                 />
               );
             })
-          )}
-      </div>
+                )}
+              </div>
+            </>
+          );
+        })()}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
