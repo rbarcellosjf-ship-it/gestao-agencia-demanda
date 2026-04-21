@@ -171,23 +171,25 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card className="hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/leitor-documentos")}>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <ScanText className="w-5 h-5 text-green-600" />
-                  Leitor de Documentos
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Extrair dados de certidões e matrículas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button className="w-full" variant="outline" size="sm">
-                  <ScanText className="w-4 h-4 mr-2" />
-                  Extrair Documentos
-                </Button>
-              </CardContent>
-            </Card>
+            {role === "admin" && (
+              <Card className="hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/leitor-documentos")}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <ScanText className="w-5 h-5 text-green-600" />
+                    Leitor de Documentos
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Extrair dados de certidões e matrículas
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full" variant="outline" size="sm">
+                    <ScanText className="w-4 h-4 mr-2" />
+                    Extrair Documentos
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {(role === "agencia" || role === "admin") && (
               <>
