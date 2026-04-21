@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,9 +11,28 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PageContainer } from "@/components/layout/PageContainer";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
+import { useUserRole } from "@/hooks/useUserRole";
+import { LoadingState } from "@/components/layout/LoadingState";
 
 const LeitorDocumentos = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { role, loading: roleLoading } = useUserRole();
+
+  useEffect(() => {
+    if (!roleLoading && role !== "admin") {
+      toast({
+        title: "Acesso restrito",
+        description: "Apenas administradores podem acessar esta página.",
+        variant: "destructive",
+      });
+      navigate("/dashboard");
+    }
+  }, [role, roleLoading, navigate, toast]);
+
+  if (roleLoading || role !== "admin") {
+    return <LoadingState />;
+  }
   const [certidaoFile, setCertidaoFile] = useState<File | null>(null);
   const [matriculaFile, setMatriculaFile] = useState<File | null>(null);
   const [certidaoTexto, setCertidaoTexto] = useState("");
