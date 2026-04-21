@@ -1,21 +1,46 @@
 
 
-## Restringir Leitor de Documentos ao Admin
+## Corrigir Erro de RLS na Tabela `configuracoes`
 
-### Alterações
+### Causa Raiz
+As políticas RLS da tabela `configuracoes` permitem INSERT e UPDATE apenas para o role `agencia`. Como você está logado como `admin`, a operação é bloqueada.
 
-**1. `src/pages/Dashboard.tsx`**
-- Envolver o card "Leitor de Documentos" em uma condicional `{role === "admin" && (...)}` para que apenas administradores vejam o card no dashboard.
+Políticas atuais:
+- `Agencia pode inserir configurações` → INSERT WITH CHECK `role = 'agencia'`
+- `Agencia pode atualizar configurações` → UPDATE USING `role = 'agencia'`
+- (sem políticas para admin)
 
-**2. `src/pages/LeitorDocumentos.tsx`**
-- Adicionar verificação de role usando `useUserRole()`.
-- Caso o usuário não seja admin, redirecionar para `/dashboard` com toast informando "Acesso restrito".
-- Enquanto `loading` do role for true, mostrar `LoadingState`.
+Isso viola o padrão **Admin extends Agencia permissions** já consolidado no resto do sistema.
 
-**3. `src/components/MobileBottomNav.tsx`** (se contiver link para o leitor)
-- Verificar e ocultar o item "Leitor de Documentos" quando `role !== "admin"`.
+### Solução
+
+**Migração SQL** — adicionar políticas equivalentes para o role `admin`:
+
+```sql
+CREATE POLICY "Admin pode inserir configurações"
+ON public.configuracoes
+FOR INSERT
+WITH CHECK (get_user_role(auth.uid()) = 'admin'::app_role);
+
+CREATE POLICY "Admin pode atualizar configurações"
+ON public.configuracoes
+FOR UPDATE
+USING (get_user_role(auth.uid()) = 'admin'::app_role);
+
+CREATE POLICY "Admin pode deletar configurações"
+ON public.configuracoes
+FOR DELETE
+USING (get_user_role(auth.uid()) = 'admin'::app_role);
+```
 
 ### Resultado
-- Apenas admins veem o card no dashboard, no menu mobile e conseguem acessar a rota `/leitor-documentos`.
-- CCAs e agências que tentarem acessar diretamente pela URL serão redirecionados.
+- Admin poderá salvar normalmente os telefones de notificação WhatsApp em **Configurações > Notificações**.
+- Após salvar `32999610741`, novas demandas dispararão notificação para o seu número (ignorando o fallback que estava enviando para a Renata).
+- Padrão de RLS fica consistente com o resto do sistema (admin = agencia + extras).
+
+### Próximo Passo Após Aplicar
+1. Acessar **Configurações > Notificações**
+2. Adicionar `32999610741`
+3. Salvar
+4. Testar criando uma nova demanda
 
