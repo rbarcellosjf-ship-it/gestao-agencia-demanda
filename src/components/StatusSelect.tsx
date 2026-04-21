@@ -9,9 +9,6 @@ interface StatusSelectProps {
 }
 
 const STATUS_OPTIONS = [
-  "Conforme",
-  "Em conformidade",
-  "Inconforme",
   "Agendado",
   "Assinatura Confirmada",
 ];

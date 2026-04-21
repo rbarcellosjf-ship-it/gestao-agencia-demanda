@@ -92,6 +92,9 @@ const Conformidades = () => {
   const [editarContratoOpen, setEditarContratoOpen] = useState(false);
   const [conformidadeParaEditar, setConformidadeParaEditar] = useState<any>(null);
 
+  // Filtro: mostrar contratos com assinatura confirmada
+  const [mostrarAssinados, setMostrarAssinados] = useState(true);
+
   useEffect(() => {
     loadData();
 
@@ -582,21 +585,47 @@ const Conformidades = () => {
           }
         />
 
-        <div className="grid gap-4">
-          {conformidades.length === 0 ? (
-            <EmptyState
-              icon={Calendar}
-              title="Nenhum contrato cadastrado"
-              description="Os contratos e conformidades aparecerão aqui"
-              action={
-                {
-                  label: "Incluir Primeiro Contrato",
-                  onClick: () => setDialogOpen(true)
-                }
-              }
-            />
-          ) : (
-            conformidades.map((conformidade) => {
+        {(() => {
+          const totalAssinados = conformidades.filter(c => c.assinatura_confirmada).length;
+          const conformidadesFiltradas = mostrarAssinados
+            ? conformidades
+            : conformidades.filter(c => !c.assinatura_confirmada);
+
+          return (
+            <>
+              {totalAssinados > 0 && (
+                <div className="flex items-center gap-2 mb-4 p-3 bg-muted/40 rounded-md border">
+                  <Checkbox
+                    id="mostrar-assinados"
+                    checked={mostrarAssinados}
+                    onCheckedChange={(checked) => setMostrarAssinados(checked === true)}
+                  />
+                  <Label htmlFor="mostrar-assinados" className="text-sm cursor-pointer flex-1">
+                    Mostrar contratos com assinatura confirmada
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      ({totalAssinados} {totalAssinados === 1 ? "contrato confirmado" : "contratos confirmados"})
+                    </span>
+                  </Label>
+                </div>
+              )}
+
+              <div className="grid gap-4">
+                {conformidadesFiltradas.length === 0 ? (
+                  <EmptyState
+                    icon={Calendar}
+                    title={conformidades.length === 0 ? "Nenhum contrato cadastrado" : "Nenhum contrato pendente"}
+                    description={conformidades.length === 0 ? "Os contratos e conformidades aparecerão aqui" : "Todos os contratos estão com assinatura confirmada"}
+                    action={
+                      conformidades.length === 0
+                        ? {
+                            label: "Incluir Primeiro Contrato",
+                            onClick: () => setDialogOpen(true),
+                          }
+                        : undefined
+                    }
+                  />
+                ) : (
+                  conformidadesFiltradas.map((conformidade) => {
               const agendamento = getAgendamentoForConformidade(conformidade.id);
               
               return (
