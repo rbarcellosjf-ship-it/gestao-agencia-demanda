@@ -136,15 +136,15 @@ export default function LogsWhatsApp() {
           {filtered.map((log) => (
             <Card
               key={log.id}
-              className={`border-l-4 ${log.sucesso ? "border-l-green-500" : "border-l-red-500"}`}
+              className={`border-l-4 ${log.sucesso ? "border-l-success" : "border-l-destructive"}`}
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex items-center gap-2 min-w-0">
                     {log.sucesso ? (
-                      <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+                      <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
                     ) : (
-                      <XCircle className="w-5 h-5 text-red-600 shrink-0" />
+                      <XCircle className="w-5 h-5 text-destructive shrink-0" />
                     )}
                     <Badge variant="outline">{log.contexto}</Badge>
                     {log.referencia_tipo && (
@@ -192,7 +192,7 @@ export default function LogsWhatsApp() {
                 )}
 
                 {log.erro && (
-                  <div className="mt-2 text-xs text-red-600 bg-red-50 dark:bg-red-950/30 p-2 rounded">
+                  <div className="mt-2 text-xs text-destructive bg-destructive/10 p-2 rounded">
                     <strong>Erro:</strong> {log.erro}
                   </div>
                 )}
