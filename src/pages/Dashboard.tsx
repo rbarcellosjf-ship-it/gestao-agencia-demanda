@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, FileText, Calendar, Users, Plus, User, Mail, Settings as SettingsIcon, ScanText, ListTodo, Building2, Shield } from "lucide-react";
+import { LogOut, FileText, Calendar, Users, Plus, User, Mail, Settings as SettingsIcon, ScanText, ListTodo, Building2, Shield, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { QuickActions } from "@/components/dashboard/QuickActions";
