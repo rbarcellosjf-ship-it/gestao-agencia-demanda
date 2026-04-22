@@ -117,6 +117,36 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("WhatsApp message sent successfully:", responseData);
     await writeLog({ sucesso: true, api_response: responseData });
 
+    // Anexar anotação na descrição da demanda (auditoria inline)
+    if (referencia_tipo === "demanda" && referencia_id) {
+      try {
+        const now = new Date();
+        const dataHora = now.toLocaleString("pt-BR", {
+          timeZone: "America/Sao_Paulo",
+          day: "2-digit", month: "2-digit", year: "numeric",
+          hour: "2-digit", minute: "2-digit",
+        });
+        const nota = `[WhatsApp enviado para ${formattedPhone}${destinatario_nome ? ` (${destinatario_nome})` : ""} em ${dataHora}]`;
+
+        const { data: demand } = await supabase
+          .from("demands")
+          .select("description")
+          .eq("id", referencia_id)
+          .maybeSingle();
+
+        const novaDescricao = demand?.description
+          ? `${demand.description}\n${nota}`
+          : nota;
+
+        await supabase
+          .from("demands")
+          .update({ description: novaDescricao })
+          .eq("id", referencia_id);
+      } catch (e) {
+        console.error("Falha ao anexar nota na demanda:", e);
+      }
+    }
+
     return new Response(
       JSON.stringify({ success: true, data: responseData }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
