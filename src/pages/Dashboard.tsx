@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, FileText, Calendar, Users, Plus, User, Mail, Settings as SettingsIcon, ScanText, ListTodo, Building2, Shield } from "lucide-react";
+import { LogOut, FileText, Calendar, Users, Plus, User, Mail, Settings as SettingsIcon, ScanText, ListTodo, Building2, Shield, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { QuickActions } from "@/components/dashboard/QuickActions";
@@ -186,6 +186,26 @@ const Dashboard = () => {
                   <Button className="w-full" variant="outline" size="sm">
                     <ScanText className="w-4 h-4 mr-2" />
                     Extrair Documentos
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {role === "admin" && (
+              <Card className="hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/admin/logs-whatsapp")}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <MessageSquare className="w-5 h-5 text-emerald-600" />
+                    Logs de WhatsApp
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Auditar disparos de mensagens
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full" variant="outline" size="sm">
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Ver Logs
                   </Button>
                 </CardContent>
               </Card>

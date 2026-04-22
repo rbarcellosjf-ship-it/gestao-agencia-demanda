@@ -18,6 +18,7 @@ import MinhasTarefas from "./pages/MinhasTarefas";
 import RelatorioAssinaturas from "./pages/RelatorioAssinaturas";
 import GerenciamentoCCAs from "./pages/GerenciamentoCCAs";
 import GerenciamentoUsuarios from "./pages/GerenciamentoUsuarios";
+import LogsWhatsApp from "./pages/LogsWhatsApp";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
           <Route path="/relatorios/assinaturas" element={<RelatorioAssinaturas />} />
           <Route path="/admin/ccas" element={<GerenciamentoCCAs />} />
           <Route path="/admin/usuarios" element={<GerenciamentoUsuarios />} />
+          <Route path="/admin/logs-whatsapp" element={<LogsWhatsApp />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
