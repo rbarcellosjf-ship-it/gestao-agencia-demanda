@@ -86,6 +86,7 @@ export default function LogsWhatsApp() {
       <PageHeader
         title="Logs de WhatsApp"
         description="Auditoria de todos os disparos de mensagens WhatsApp"
+        backTo="/dashboard"
         action={
           <Button variant="outline" size="sm" onClick={loadLogs}>
             <RefreshCw className="w-4 h-4 mr-2" /> Atualizar
