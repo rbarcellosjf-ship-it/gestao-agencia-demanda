@@ -752,6 +752,57 @@ export type Database = {
           },
         ]
       }
+      whatsapp_logs: {
+        Row: {
+          api_response: Json | null
+          codigo_cca: string | null
+          contexto: string
+          cpf: string | null
+          created_at: string
+          destinatario_nome: string | null
+          destino: string
+          erro: string | null
+          id: string
+          mensagem_preview: string | null
+          referencia_id: string | null
+          referencia_tipo: string | null
+          sucesso: boolean
+          triggered_by: string | null
+        }
+        Insert: {
+          api_response?: Json | null
+          codigo_cca?: string | null
+          contexto: string
+          cpf?: string | null
+          created_at?: string
+          destinatario_nome?: string | null
+          destino: string
+          erro?: string | null
+          id?: string
+          mensagem_preview?: string | null
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          sucesso?: boolean
+          triggered_by?: string | null
+        }
+        Update: {
+          api_response?: Json | null
+          codigo_cca?: string | null
+          contexto?: string
+          cpf?: string | null
+          created_at?: string
+          destinatario_nome?: string | null
+          destino?: string
+          erro?: string | null
+          id?: string
+          mensagem_preview?: string | null
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          sucesso?: boolean
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       whatsapp_templates: {
         Row: {
           available_variables: Json
