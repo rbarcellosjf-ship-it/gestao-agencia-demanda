@@ -191,6 +191,26 @@ const Dashboard = () => {
               </Card>
             )}
 
+            {role === "admin" && (
+              <Card className="hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/admin/logs-whatsapp")}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <MessageSquare className="w-5 h-5 text-emerald-600" />
+                    Logs de WhatsApp
+                  </CardTitle>
+                  <CardDescription className="text-sm">
+                    Auditar disparos de mensagens
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full" variant="outline" size="sm">
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Ver Logs
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
             {(role === "agencia" || role === "admin") && (
               <>
                 <Card className="hover:shadow-md transition-all hover:-translate-y-1 cursor-pointer" onClick={() => navigate("/minhas-tarefas")}>
